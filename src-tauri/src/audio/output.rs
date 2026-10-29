@@ -206,6 +206,11 @@ impl AudioEngine {
         self.control(PlaybackControl::SetPlayerVolume(gain));
     }
 
+    /// Sets the volume of the wrong-note cue, as a linear gain, 0.0 to 1.0.
+    pub fn set_cue_volume(&self, gain: f32) {
+        self.control(PlaybackControl::SetCueVolume(gain));
+    }
+
     /// Sets the master output volume, as a linear gain, 0.0 to 1.0, applied to the whole mix.
     pub fn set_output_volume(&self, gain: f32) {
         self.control(PlaybackControl::SetOutputVolume(gain));
@@ -336,6 +341,8 @@ struct ScorePlayback {
     music_volume: f32,
     /// Volume of the player's notes, as a linear gain.
     player_volume: f32,
+    /// Volume of the wrong-note cue, as a linear gain.
+    cue_volume: f32,
     /// Master output volume, as a linear gain, applied to the whole mix.
     output_volume: f32,
     /// Per-channel gain for the piece's tracks, on top of the music gain.
@@ -359,6 +366,7 @@ impl Default for ScorePlayback {
             transpose: 0,
             music_volume: 1.0,
             player_volume: 1.0,
+            cue_volume: 1.0,
             output_volume: 1.0,
             track_volumes: [1.0; 16],
             playing: false,
@@ -503,6 +511,10 @@ impl<S: Synth> Renderer<S> {
                 self.playback.player_volume = gain.clamp(0.0, 1.0);
                 self.apply_mix();
             }
+            PlaybackControl::SetCueVolume(gain) => {
+                self.playback.cue_volume = gain.clamp(0.0, 1.0);
+                self.apply_mix();
+            }
             PlaybackControl::SetOutputVolume(gain) => {
                 self.playback.output_volume = gain.clamp(0.0, 1.0);
             }
@@ -536,11 +548,10 @@ impl<S: Synth> Renderer<S> {
     }
 
     /// Pushes the mix to the synthesizer: the file's own parts take the Music gain as channel
-    /// volume, the player's channel the My notes gain, and the cue channel stays at full so a
-    /// mistake is heard even with the music down. Channel volume is the only per-source gain the
-    /// SoundFont synth offers, and it rides sounding notes, so a slider move takes effect without
-    /// restarting them. The cue's instrument is set here too, since a new SoundFont resets every
-    /// channel.
+    /// volume, the player's channel the My notes gain, and the cue channel its own cue gain.
+    /// Channel volume is the only per-source gain the SoundFont synth offers, and it rides
+    /// sounding notes, so a slider move takes effect without restarting them. The cue's instrument
+    /// is set here too, since a new SoundFont resets every channel.
     fn apply_mix(&mut self) {
         let music = self.playback.music_volume;
         for channel in 0..=15u8 {
@@ -566,7 +577,7 @@ impl<S: Synth> Renderer<S> {
         self.synth.apply(AudioCommand::ControlChange {
             channel: CUE_CHANNEL,
             controller: VOLUME_CONTROLLER,
-            value: cc7(1.0),
+            value: cc7(self.playback.cue_volume),
         });
     }
 
@@ -964,6 +975,7 @@ mod tests {
     #[test]
     fn volume_changes_scale_each_source_on_its_own_channel() {
         let mut renderer = renderer(1000, vec![]);
+        renderer.push_control(PlaybackControl::SetCueVolume(0.5));
         renderer.push_control(PlaybackControl::SetMusicVolume(0.5));
         renderer.push_control(PlaybackControl::SetPlayerVolume(0.25));
         renderer.render(1);
@@ -977,7 +989,7 @@ mod tests {
         assert!(renderer.synth.events.contains(&(0, cc(0, 64))));
         assert!(renderer.synth.events.contains(&(0, cc(PLAYER_CHANNEL, 32))));
         assert!(!renderer.synth.events.contains(&(0, cc(PLAYER_CHANNEL, 64))));
-        // The cue channel keeps its instrument and a full volume, whatever the music gain is.
+        // The cue channel keeps its instrument and takes its own gain, whatever the music gain is.
         assert!(renderer.synth.events.contains(&(
             0,
             AudioCommand::ProgramChange {
@@ -985,8 +997,8 @@ mod tests {
                 program: CUE_PROGRAM,
             }
         )));
-        assert!(renderer.synth.events.contains(&(0, cc(CUE_CHANNEL, 127))));
-        assert!(!renderer.synth.events.contains(&(0, cc(CUE_CHANNEL, 64))));
+        assert!(renderer.synth.events.contains(&(0, cc(CUE_CHANNEL, 64))));
+        assert!(!renderer.synth.events.contains(&(0, cc(CUE_CHANNEL, 127))));
     }
 
     #[test]

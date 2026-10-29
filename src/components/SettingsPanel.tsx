@@ -37,6 +37,7 @@ export function SettingsPanel({
   const changePlayAlong = useSession((state) => state.changePlayAlong);
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
+  const changeCueVolume = useSession((state) => state.changeCueVolume);
   // Note names are an app-wide appearance preference, shown here too so the display is easy to
   // find while practising; both selects read and write the one appearance store.
   const noteLabels = useAppearance((state) => state.noteLabels);
@@ -201,6 +202,22 @@ export function SettingsPanel({
                 value={settings?.transpose ?? 0}
                 onChange={(event) =>
                   void changeTranspose(Number(event.target.value))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>
+                Wrong-note cue · {Math.round((settings?.cue_volume ?? 1) * 100)}
+                %
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={settings?.cue_volume ?? 1}
+                onChange={(event) =>
+                  void changeCueVolume(Number(event.target.value))
                 }
               />
             </label>

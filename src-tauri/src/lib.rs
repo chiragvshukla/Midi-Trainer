@@ -71,6 +71,7 @@ pub fn run() {
             commands::disconnect_midi_input::disconnect_midi_input,
             commands::set_skill::set_skill,
             commands::set_library_folders::set_library_folders,
+            commands::set_cue_volume::set_cue_volume,
             commands::set_hand_split::set_hand_split,
             commands::set_play_along::set_play_along,
             commands::set_music_volume::set_music_volume,

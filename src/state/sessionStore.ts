@@ -21,6 +21,7 @@ import {
   setMusicVolume,
   setPlayerPart,
   setPlayerVolume,
+  setCueVolume,
   setOutputVolume,
   setTempoPercent,
   setTrackVolume,
@@ -190,6 +191,7 @@ interface SessionState {
   changeTranspose: (semitones: number) => Promise<void>;
   changeMusicVolume: (volume: number) => Promise<void>;
   changePlayerVolume: (volume: number) => Promise<void>;
+  changeCueVolume: (volume: number) => Promise<void>;
   changeOutputVolume: (volume: number) => Promise<void>;
   changeTrackVolume: (channel: number, gain: number) => Promise<void>;
   recordJudgements: (judgements: Judgement[]) => void;
@@ -273,6 +275,7 @@ export const useSession = create<SessionState>((set, get) => ({
       // The engine starts fresh every run; put the saved practice setup back.
       await setMusicVolume(settings.music_volume);
       await setPlayerVolume(settings.player_volume);
+      await setCueVolume(settings.cue_volume);
       await setOutputVolume(settings.output_volume);
       await setTempoPercent(settings.tempo_percent);
       await setTranspose(settings.transpose);
@@ -625,6 +628,18 @@ export const useSession = create<SessionState>((set, get) => ({
       scheduleSave();
     } catch (error) {
       log.error(`setting the player volume failed: ${String(error)}`);
+    }
+  },
+
+  changeCueVolume: async (volume) => {
+    set((state) => ({
+      settings: state.settings && { ...state.settings, cue_volume: volume },
+    }));
+    try {
+      await setCueVolume(volume);
+      scheduleSave();
+    } catch (error) {
+      log.error(`setting the cue volume failed: ${String(error)}`);
     }
   },
 

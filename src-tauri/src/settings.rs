@@ -55,6 +55,8 @@ pub struct Settings {
     pub music_volume: f32,
     /// Volume of the player's own notes, as a linear gain, 0.0 to 1.0.
     pub player_volume: f32,
+    /// Volume of the wrong-note cue, as a linear gain, 0.0 to 1.0.
+    pub cue_volume: f32,
     /// Master output volume, as a linear gain, 0.0 to 1.0, applied to the whole mix.
     pub output_volume: f32,
     /// Playback tempo as a percentage of the original.
@@ -83,6 +85,7 @@ impl Default for Settings {
             midi_device: None,
             music_volume: 0.8,
             player_volume: 0.5,
+            cue_volume: 1.0,
             output_volume: 1.0,
             tempo_percent: 100.0,
             transpose: 0,
@@ -199,6 +202,7 @@ mod tests {
         settings.record_recent_file("C:/music/sonata.mid");
         settings.music_volume = 0.5;
         settings.player_volume = 0.25;
+        settings.cue_volume = 0.75;
         settings.tempo_percent = 80.0;
         settings.transpose = -2;
         settings.midi_device = Some("Piano".to_string());

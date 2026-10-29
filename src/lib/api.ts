@@ -37,6 +37,7 @@ export interface Settings {
   midi_device: string | null;
   music_volume: number;
   player_volume: number;
+  cue_volume: number;
   output_volume: number;
   tempo_percent: number;
   transpose: number;
@@ -256,6 +257,10 @@ export function setMusicVolume(volume: number): Promise<void> {
 
 export function setPlayerVolume(volume: number): Promise<void> {
   return invoke("set_player_volume", { volume });
+}
+
+export function setCueVolume(volume: number): Promise<void> {
+  return invoke("set_cue_volume", { volume });
 }
 
 export function setOutputVolume(volume: number): Promise<void> {
