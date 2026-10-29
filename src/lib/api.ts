@@ -93,10 +93,20 @@ export interface Score {
   key_signature: KeySignature | null;
 }
 
+/** One track of the loaded file, as the track picker shows it. */
+export interface TrackInfo {
+  index: number;
+  name: string | null;
+  program: number | null;
+  note_count: number;
+}
+
 export interface Piece {
   notes: NoteInfo[];
   duration_ms: number;
   score: Score;
+  /** Every track in the file; `notes` is filtered down to the selected ones. */
+  tracks: TrackInfo[];
 }
 
 export interface Judgement {
@@ -155,8 +165,11 @@ export function fetchSettings(): Promise<Settings> {
   return invoke<Settings>("get_settings");
 }
 
-export function playFile(path: string): Promise<Piece> {
-  return invoke<Piece>("play_file", { path });
+export function playFile(
+  path: string,
+  tracks: number[] | null,
+): Promise<Piece> {
+  return invoke<Piece>("play_file", { path, tracks });
 }
 
 export function play(): Promise<void> {

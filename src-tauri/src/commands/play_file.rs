@@ -24,13 +24,18 @@ pub struct Piece {
     pub notes: Vec<NoteInfo>,
     pub duration_ms: f64,
     pub score: notation::Score,
+    /// Every track in the file, so the picker can offer all of them; `notes` is already filtered
+    /// down to the ones selected.
+    pub tracks: Vec<midi::TrackInfo>,
 }
 
 /// Loads a MIDI or karaoke file at the beginning and returns its notes. Playback does not
 /// start: like a stopped piece, the playhead sits at tick zero until the user presses play.
+/// `tracks`, when given, keeps only those track indices; `None` keeps every track.
 #[tauri::command]
 pub fn play_file(
     path: String,
+    tracks: Option<Vec<u16>>,
     app: AppHandle,
     settings: State<'_, Mutex<Settings>>,
     engine: State<'_, Mutex<AudioEngine>>,
@@ -38,7 +43,12 @@ pub fn play_file(
 ) -> Result<Piece, String> {
     // Read once and parse once: the timeline and the engraved score come from the same file.
     let data = std::fs::read(&path).map_err(|err| err.to_string())?;
-    let file = midi::parse(&data).map_err(|err| err.to_string())?;
+    let mut file = midi::parse(&data).map_err(|err| err.to_string())?;
+    // Drop unchecked tracks before anything is built, so the views, the sheet, the matcher and
+    // the playback schedule all see one consistent set of notes.
+    if let Some(tracks) = &tracks {
+        file.notes.retain(|note| tracks.contains(&note.track));
+    }
     let timeline = Timeline::from_midi(&file);
     let hand = settings
         .lock()
@@ -73,6 +83,7 @@ pub fn play_file(
     Ok(Piece {
         duration_ms: timeline.duration_ms,
         notes,
+        tracks: file.tracks.clone(),
         score: notation::engrave(&file, &timeline),
     })
 }

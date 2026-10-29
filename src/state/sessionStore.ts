@@ -72,6 +72,8 @@ interface SessionState {
   piece: Piece | null;
   /** Path of the loaded piece, so the library can highlight it. */
   piecePath: string | null;
+  /** Track indices to keep; null means every track. */
+  selectedTracks: number[] | null;
   follow: boolean;
   /** Verdict per falling note, keyed by pitch and score time. */
   verdicts: Record<string, Verdict>;
@@ -94,6 +96,7 @@ interface SessionState {
   loadLibrary: () => Promise<void>;
   chooseLibraryFolder: () => Promise<void>;
   openPiece: (path: string) => Promise<void>;
+  toggleTrack: (index: number) => Promise<void>;
   resume: () => Promise<void>;
   stop: () => Promise<void>;
   toggleFollow: (follow: boolean) => Promise<void>;
@@ -117,6 +120,7 @@ export const useSession = create<SessionState>((set, get) => ({
   library: [],
   piece: null,
   piecePath: null,
+  selectedTracks: null,
   follow: false,
   verdicts: {},
   stats: null,
@@ -241,10 +245,13 @@ export const useSession = create<SessionState>((set, get) => ({
 
   openPiece: async (path) => {
     try {
-      const piece = await playFile(path);
+      // Reopening the same piece keeps the track selection; a new one starts with every track.
+      const tracks = path === get().piecePath ? get().selectedTracks : null;
+      const piece = await playFile(path, tracks);
       set({
         piece,
         piecePath: path,
+        selectedTracks: tracks,
         verdicts: {},
         stats: null,
         lastTiming: null,
@@ -252,6 +259,26 @@ export const useSession = create<SessionState>((set, get) => ({
       });
     } catch (error) {
       log.error(`failed to play ${path}: ${String(error)}`);
+    }
+  },
+
+  toggleTrack: async (index) => {
+    const piece = get().piece;
+    if (!piece) {
+      return;
+    }
+    const selected =
+      get().selectedTracks ?? piece.tracks.map((track) => track.index);
+    const next = selected.includes(index)
+      ? selected.filter((track) => track !== index)
+      : [...selected, index].sort((a, b) => a - b);
+    // Every track selected is the same as no filter at all.
+    set({
+      selectedTracks: next.length === piece.tracks.length ? null : next,
+    });
+    const path = get().piecePath;
+    if (path) {
+      await get().openPiece(path);
     }
   },
 

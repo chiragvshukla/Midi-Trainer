@@ -1,4 +1,5 @@
 use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
+use serde::Serialize;
 
 use super::EngineError;
 
@@ -46,7 +47,7 @@ pub struct LyricEvent {
 }
 
 /// One track of the file.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TrackInfo {
     pub index: u16,
     pub name: Option<String>,

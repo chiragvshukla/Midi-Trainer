@@ -8,6 +8,7 @@ import { SoundfontGate } from "./components/SoundfontGate";
 import { LibraryView } from "./components/LibraryView";
 import { MainMenu, type Section } from "./components/MainMenu";
 import { PracticeStatsBar } from "./components/PracticeStatsBar";
+import { TrackMenu } from "./components/TrackMenu";
 import { FallingNotes } from "./piano-roll/FallingNotes";
 import { ScoreView } from "./score/ScoreView";
 import type {
@@ -116,22 +117,25 @@ function App() {
           Stop
         </button>
         {section === "synth" && (
-          <div className="view-toggle">
-            <button
-              type="button"
-              className={view === "keys" ? "active" : ""}
-              onClick={() => setView("keys")}
-            >
-              Keys
-            </button>
-            <button
-              type="button"
-              className={view === "sheet" ? "active" : ""}
-              onClick={() => setView("sheet")}
-            >
-              Sheet
-            </button>
-          </div>
+          <>
+            <div className="view-toggle">
+              <button
+                type="button"
+                className={view === "keys" ? "active" : ""}
+                onClick={() => setView("keys")}
+              >
+                Keys
+              </button>
+              <button
+                type="button"
+                className={view === "sheet" ? "active" : ""}
+                onClick={() => setView("sheet")}
+              >
+                Sheet
+              </button>
+            </div>
+            <TrackMenu />
+          </>
         )}
         {devices.length > 0 && (
           <select
