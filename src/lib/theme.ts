@@ -3,8 +3,9 @@ import { create } from "zustand";
 /** The chosen base brightness; `system` follows the operating system. */
 export type Theme = "dark" | "light" | "system";
 
-/** The UI style. `matte` is today's flat chrome; `win95` gives it hard 3D bevels. */
-export type Look = "matte" | "win95";
+/** The UI style. `matte` is today's flat chrome; `win95` gives it hard 3D bevels;
+ * `atomic` is the lit retro treatment (glow, sheen, glossy knobs). */
+export type Look = "matte" | "win95" | "atomic";
 
 /** How the on-screen keyboard is drawn. Only the keyboard changes; the notes do not. */
 export type PianoLook = "minimalistic" | "realistic";
@@ -87,7 +88,7 @@ function isPalette(value: unknown): value is Palette {
 }
 
 function isLook(value: unknown): value is Look {
-  return value === "matte" || value === "win95";
+  return value === "matte" || value === "win95" || value === "atomic";
 }
 
 function isPianoLook(value: unknown): value is PianoLook {

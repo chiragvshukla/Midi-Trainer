@@ -93,6 +93,7 @@ export function AppearancePanel({
               >
                 <option value="matte">Minimal matte</option>
                 <option value="win95">Win95</option>
+                <option value="atomic">Atomic</option>
               </select>
             </label>
             <label className="field">

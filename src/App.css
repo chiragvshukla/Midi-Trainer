@@ -1741,9 +1741,10 @@ body {
 }
 
 /* --- Chrome ---
-   Minimal matte (the default): one flat treatment for every palette, fills straight
-   from the surface tokens, no sheen or bevel. The Win95 look further down overrides
-   these same tokens under [data-look="win95"] to add hard 3D bevels. */
+   Minimal (the default): one flat treatment for every palette, fills straight
+   from the surface tokens, no sheen or bevel. Two further looks override these
+   same tokens, each under its own selector: Win95 adds hard 3D bevels, Atomic
+   adds the lit retro treatment (glow, top sheen, glossy knobs). */
 
 :root {
   --glow: color-mix(in srgb, var(--accent) 40%, transparent);
@@ -1802,6 +1803,53 @@ body {
     inset 1px 1px 0 var(--bevel-light), inset -1px -1px 0 var(--bevel-dark);
   --chrome-toggle-inset:
     inset 1px 1px 0 var(--bevel-dark), inset -1px -1px 0 var(--bevel-light);
+}
+
+/* --- Atomic look ---
+   Selected with [data-look="atomic"]. The lit retro treatment from the original
+   atomic-age theme, restored: a top sheen, gradient fills, glowing accents and a
+   glossy round knob. Every colour comes from the palette's tokens (the two
+   specular highlights are mixed from the accent), so it works with any palette. */
+[data-look="atomic"] {
+  --chrome-sheen: linear-gradient(180deg, var(--panel-hi), transparent 40%);
+  --chrome-raised: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  --chrome-nav-active: linear-gradient(
+    90deg,
+    var(--surface-3),
+    var(--surface-2)
+  );
+  --chrome-toggle-active: linear-gradient(
+    180deg,
+    var(--surface-3),
+    var(--surface-2)
+  );
+  --chrome-primary: linear-gradient(180deg, var(--accent-hover), var(--accent));
+  --chrome-primary-hover: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent-hover) 60%, #fff),
+    var(--accent-hover)
+  );
+  --chrome-track: linear-gradient(var(--surface-3), var(--surface-2));
+  --chrome-thumb: radial-gradient(
+    circle at 35% 30%,
+    color-mix(in srgb, var(--accent) 40%, #fff),
+    var(--accent)
+  );
+  --chrome-thumb-radius: 50%;
+  --chrome-text-glow: 0 0 12px var(--glow);
+  --chrome-rail: var(--accent);
+  --shadow-control: inset 0 1px 0 var(--panel-hi);
+  --shadow-control-hover: inset 0 1px 0 var(--panel-hi), 0 0 12px var(--glow);
+  --shadow-nav-active:
+    inset 3px 0 0 var(--accent), inset 0 1px 0 var(--panel-hi);
+  --shadow-toggle-active: inset 0 1px 0 var(--panel-hi), 0 0 8px var(--glow);
+  --shadow-primary:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 14px var(--glow);
+  --shadow-inset: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-thumb: 0 0 8px var(--glow);
+  --shadow-rail: inset 0 1px 0 var(--panel-hi);
+  --chrome-toggle-inset: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  --chrome-panel-shadow: var(--shadow), inset 0 1px 0 var(--panel-hi);
 }
 
 /* The few controls that hard-code a corner also go square under the Win95 look. */
