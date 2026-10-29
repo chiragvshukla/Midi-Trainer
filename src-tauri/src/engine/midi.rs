@@ -52,6 +52,7 @@ pub struct TrackInfo {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NoteEvent {
     pub track: u16,
+    pub channel: u8,
     pub pitch: u8,
     pub velocity: u8,
     pub start_tick: u64,
@@ -170,6 +171,7 @@ pub fn parse(bytes: &[u8]) -> Result<MidiFile, EngineError> {
         for note in open.drain(..) {
             track_notes.push(NoteEvent {
                 track: track_index,
+                channel: note.channel,
                 pitch: note.pitch,
                 velocity: note.velocity,
                 start_tick: note.start_tick,
@@ -215,6 +217,7 @@ fn close_note(
         let note = open.remove(index);
         notes.push(NoteEvent {
             track,
+            channel: note.channel,
             pitch: note.pitch,
             velocity: note.velocity,
             start_tick: note.start_tick,
@@ -340,6 +343,21 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn keeps_the_channel_of_each_note() {
+        let bytes = midi_file(
+            0,
+            480,
+            vec![track(&[
+                event(0, &[0x93, 60, 100]),
+                event(480, &[0x83, 60, 64]),
+            ])],
+        );
+
+        let file = parse(&bytes).unwrap();
+        assert_eq!(file.notes[0].channel, 3);
     }
 
     #[test]
@@ -482,6 +500,7 @@ mod tests {
     fn note(track: u16, pitch: u8, velocity: u8, start_tick: u64, end_tick: u64) -> NoteEvent {
         NoteEvent {
             track,
+            channel: 0,
             pitch,
             velocity,
             start_tick,

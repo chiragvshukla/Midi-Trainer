@@ -7,6 +7,7 @@ use super::midi::{self, Division, MidiFile, TempoChange, TrackInfo};
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Note {
     pub track: u16,
+    pub channel: u8,
     pub pitch: u8,
     pub velocity: u8,
     pub start_ms: f64,
@@ -53,6 +54,7 @@ impl Timeline {
             .iter()
             .map(|note| Note {
                 track: note.track,
+                channel: note.channel,
                 pitch: note.pitch,
                 velocity: note.velocity,
                 start_ms: timebase.ms_at(note.start_tick),
@@ -322,6 +324,7 @@ mod tests {
     fn note(track: u16, pitch: u8, start_tick: u64, end_tick: u64) -> NoteEvent {
         NoteEvent {
             track,
+            channel: 0,
             pitch,
             velocity: 100,
             start_tick,
