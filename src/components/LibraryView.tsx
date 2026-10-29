@@ -13,6 +13,9 @@ function baseName(path: string): string {
   return displayName(path.replace(/^.*[\\/]/, ""));
 }
 
+/** A shared empty list, so a missing settings object does not make a new array each read. */
+const NO_RECENT: string[] = [];
+
 /**
  * The library browser: recent files, then the chosen folder's MIDI files, with a filter.
  * Opening an entry loads the piece paused and hands control back to the app to show the
@@ -21,7 +24,9 @@ function baseName(path: string): string {
 export function LibraryView({ onOpened }: { onOpened: () => void }) {
   const library = useSession((state) => state.library);
   const libraryFolder = useSession((state) => state.libraryFolder);
-  const recent = useSession((state) => state.settings?.recent_files ?? []);
+  const recent = useSession(
+    (state) => state.settings?.recent_files ?? NO_RECENT,
+  );
   const loadLibrary = useSession((state) => state.loadLibrary);
   const chooseLibraryFolder = useSession((state) => state.chooseLibraryFolder);
   const openPiece = useSession((state) => state.openPiece);
