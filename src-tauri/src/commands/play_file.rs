@@ -55,22 +55,22 @@ pub fn play_file(
         file.notes.retain(|note| tracks.contains(&note.track));
     }
     let timeline = Timeline::from_midi(&file);
-    let hand = settings
+    let part = settings
         .lock()
         .map_err(|_| "settings state is unavailable".to_string())?
-        .player_hand;
-    let score = Arc::new(scheduler::schedule(&timeline, hand));
+        .part();
+    let score = Arc::new(scheduler::schedule(&timeline, part));
     {
         let mut matcher = matcher
             .lock()
             .map_err(|_| "matcher state is unavailable".to_string())?;
-        *matcher = Some(LiveMatcher::for_timeline(&timeline));
+        *matcher = Some(LiveMatcher::for_timeline(&timeline, part));
     }
     let engine = engine
         .lock()
         .map_err(|_| "audio state is unavailable".to_string())?;
     engine.set_score(score);
-    engine.set_gates(scheduler::gates(&timeline, hand));
+    engine.set_gates(scheduler::gates(&timeline, part));
     // Loading must not start playing, and must silence a piece that is still going.
     engine.stop();
     update_settings(&app, |settings| settings.record_recent_file(&path))?;

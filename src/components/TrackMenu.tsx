@@ -3,7 +3,7 @@ import type { TrackInfo } from "../lib/api";
 import { useSession } from "../state/sessionStore";
 
 /** A track's display name: its own name, or its position when the file gives none. */
-function trackName(track: TrackInfo): string {
+export function trackName(track: TrackInfo): string {
   const name = track.name?.trim();
   return name ? name : `Track ${track.index + 1}`;
 }

@@ -52,6 +52,8 @@ pub struct TrackInfo {
     pub index: u16,
     pub name: Option<String>,
     pub program: Option<u8>,
+    /// The channel the track's notes use, when it has any; channel 9 marks a percussion track.
+    pub channel: Option<u8>,
     pub note_count: usize,
 }
 
@@ -197,6 +199,8 @@ pub fn parse(bytes: &[u8]) -> Result<MidiFile, EngineError> {
             index: track_index,
             name,
             program,
+            // A track's notes nearly always share one channel; the first note decides.
+            channel: track_notes.first().map(|note| note.channel),
             note_count: track_notes.len(),
         });
         notes.extend(track_notes);

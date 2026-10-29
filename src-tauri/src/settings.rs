@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::engine::scheduler::Hand;
+use crate::engine::scheduler::{Hand, Part};
 
 /// How many recent files are kept.
 const MAX_RECENT_FILES: usize = 10;
@@ -29,6 +29,9 @@ pub struct Settings {
     pub transpose: i32,
     /// The hand the player takes in one-hand practice; the app plays the other.
     pub player_hand: Hand,
+    /// A track the player takes over for play-along, overriding the hand split. `None` uses
+    /// `player_hand`.
+    pub player_track: Option<u16>,
 }
 
 impl Default for Settings {
@@ -42,11 +45,18 @@ impl Default for Settings {
             tempo_percent: 100.0,
             transpose: 0,
             player_hand: Hand::Both,
+            player_track: None,
         }
     }
 }
 
 impl Settings {
+    /// The part the player takes: a chosen track, or the hand split.
+    pub fn part(&self) -> Part {
+        self.player_track
+            .map_or(Part::Hands(self.player_hand), Part::Track)
+    }
+
     /// Reads the settings file, falling back to defaults when it is missing or unreadable.
     pub fn load(path: &Path) -> Settings {
         match std::fs::read_to_string(path) {
@@ -121,6 +131,7 @@ mod tests {
         settings.midi_device = Some("Piano".to_string());
         settings.library_folder = Some("C:/music".to_string());
         settings.player_hand = super::Hand::Left;
+        settings.player_track = Some(2);
         settings.save(&path).expect("the file should write");
         // A second save replaces the first file, it does not fail on it.
         settings.recent_files.clear();

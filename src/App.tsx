@@ -9,11 +9,12 @@ import { LibraryView } from "./components/LibraryView";
 import { LyricsBar } from "./components/LyricsBar";
 import { MainMenu, type Section } from "./components/MainMenu";
 import { PracticeStatsBar } from "./components/PracticeStatsBar";
-import { TrackMenu } from "./components/TrackMenu";
+import { TrackMenu, trackName } from "./components/TrackMenu";
 import { FallingNotes } from "./piano-roll/FallingNotes";
 import { ScoreView } from "./score/ScoreView";
 import type {
   DownloadProgress,
+  Hand,
   Judgement,
   PlayerNote,
   PracticeStats,
@@ -34,6 +35,7 @@ function App() {
   const settings = useSession((state) => state.settings);
   const devices = useSession((state) => state.devices);
   const follow = useSession((state) => state.follow);
+  const piece = useSession((state) => state.piece);
   const startup = useSession((state) => state.startup);
   const loadDevices = useSession((state) => state.loadDevices);
   const connectDevice = useSession((state) => state.connectDevice);
@@ -45,7 +47,7 @@ function App() {
   const resume = useSession((state) => state.resume);
   const stop = useSession((state) => state.stop);
   const toggleFollow = useSession((state) => state.toggleFollow);
-  const changeHand = useSession((state) => state.changeHand);
+  const changePart = useSession((state) => state.changePart);
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
   const changeMusicVolume = useSession((state) => state.changeMusicVolume);
@@ -159,20 +161,38 @@ function App() {
           />
           Follow me
         </label>
-        <div className="view-toggle" role="group" aria-label="Practice hand">
-          {(["Both", "Left", "Right"] as const).map((hand) => (
-            <button
-              key={hand}
-              type="button"
-              className={
-                (settings?.player_hand ?? "Both") === hand ? "active" : ""
+        <label>
+          Your part
+          <select
+            value={
+              settings?.player_track != null
+                ? `track:${settings.player_track}`
+                : `hand:${settings?.player_hand ?? "Both"}`
+            }
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value.startsWith("track:")) {
+                void changePart(
+                  settings?.player_hand ?? "Both",
+                  Number(value.slice(6)),
+                );
+              } else {
+                void changePart(value.slice(5) as Hand, null);
               }
-              onClick={() => void changeHand(hand)}
-            >
-              {hand}
-            </button>
-          ))}
-        </div>
+            }}
+          >
+            <option value="hand:Both">Both hands</option>
+            <option value="hand:Left">Left hand</option>
+            <option value="hand:Right">Right hand</option>
+            {(piece?.tracks ?? [])
+              .filter((track) => track.channel !== 9)
+              .map((track) => (
+                <option key={track.index} value={`track:${track.index}`}>
+                  {trackName(track)}
+                </option>
+              ))}
+          </select>
+        </label>
         <label>
           Tempo
           <input

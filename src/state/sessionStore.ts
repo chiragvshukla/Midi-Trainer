@@ -16,7 +16,7 @@ import {
   setFollow,
   setLibraryFolder,
   setMusicVolume,
-  setPlayerHand,
+  setPlayerPart,
   setPlayerVolume,
   setTempoPercent,
   setTranspose,
@@ -100,7 +100,7 @@ interface SessionState {
   resume: () => Promise<void>;
   stop: () => Promise<void>;
   toggleFollow: (follow: boolean) => Promise<void>;
-  changeHand: (hand: Hand) => Promise<void>;
+  changePart: (hand: Hand, track: number | null) => Promise<void>;
   changeTempo: (percent: number) => Promise<void>;
   changeTranspose: (semitones: number) => Promise<void>;
   changeMusicVolume: (volume: number) => Promise<void>;
@@ -307,19 +307,23 @@ export const useSession = create<SessionState>((set, get) => ({
     }
   },
 
-  changeHand: async (hand) => {
+  changePart: async (hand, track) => {
     try {
-      await setPlayerHand(hand);
+      await setPlayerPart(hand, track);
       set((state) => ({
-        settings: state.settings && { ...state.settings, player_hand: hand },
+        settings: state.settings && {
+          ...state.settings,
+          player_hand: hand,
+          player_track: track,
+        },
       }));
-      // The gates and the app's part are built when a piece loads, so rebuild it.
+      // The gates, matcher and the app's part are built when a piece loads, so rebuild it.
       const path = get().piecePath;
       if (path) {
         await get().openPiece(path);
       }
     } catch (error) {
-      log.error(`setting the practice hand failed: ${String(error)}`);
+      log.error(`setting the player's part failed: ${String(error)}`);
     }
   },
 

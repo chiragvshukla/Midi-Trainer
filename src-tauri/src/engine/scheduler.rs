@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::{AudioCommand, Gate, PERCUSSION_CHANNEL, ScheduledCommand};
 
-use super::timeline::Timeline;
+use super::timeline::{Note, Timeline};
 use super::voices::{Staff, staff_of};
 
 /// Which hand the player takes in one-hand practice; the app plays the other. `Both` is the
@@ -17,8 +17,37 @@ pub enum Hand {
     Right,
 }
 
-/// Whether the player is expected to play a non-percussion note.
-fn player_plays(pitch: u8, hand: Hand) -> bool {
+/// The part the player takes over: one hand, or a whole track for play-along on any instrument.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Part {
+    Hands(Hand),
+    Track(u16),
+}
+
+/// Whether the player is expected to play this note. Drums are always the app's.
+pub fn player_plays(note: &Note, part: Part) -> bool {
+    if note.channel == PERCUSSION_CHANNEL {
+        return false;
+    }
+    match part {
+        Part::Hands(hand) => hand_plays(note.pitch, hand),
+        Part::Track(index) => note.track == index,
+    }
+}
+
+/// Whether the app should sound this note. Drums always sound.
+fn app_plays(note: &Note, part: Part) -> bool {
+    if note.channel == PERCUSSION_CHANNEL {
+        return true;
+    }
+    match part {
+        Part::Hands(hand) => hand_app_plays(note.pitch, hand),
+        Part::Track(index) => note.track != index,
+    }
+}
+
+/// Whether one hand's worth of notes covers this pitch.
+fn hand_plays(pitch: u8, hand: Hand) -> bool {
     match hand {
         Hand::Both => true,
         Hand::Right => staff_of(pitch) == Staff::Treble,
@@ -26,9 +55,9 @@ fn player_plays(pitch: u8, hand: Hand) -> bool {
     }
 }
 
-/// Whether the app should sound a non-percussion note. In `Both` the app plays everything;
-/// taking one hand silences that hand so only the player's part is missing.
-fn app_plays(pitch: u8, hand: Hand) -> bool {
+/// Whether the app plays this pitch when the player takes one hand. In `Both` the app plays
+/// everything; taking one hand silences that hand so only the player's part is missing.
+fn hand_app_plays(pitch: u8, hand: Hand) -> bool {
     match hand {
         Hand::Both => true,
         Hand::Right => staff_of(pitch) == Staff::Bass,
@@ -39,7 +68,7 @@ fn app_plays(pitch: u8, hand: Hand) -> bool {
 /// Flattens a timeline into one time-sorted command stream: a program change per track, then
 /// the note-ons and note-offs of every note the app plays. The playback scheduler applies
 /// these in order. Drums are always played by the app.
-pub fn schedule(timeline: &Timeline, hand: Hand) -> Vec<ScheduledCommand> {
+pub fn schedule(timeline: &Timeline, part: Part) -> Vec<ScheduledCommand> {
     let mut events = Vec::with_capacity(timeline.notes.len() * 2 + timeline.tracks.len());
 
     // Set each track's instrument on the channel its notes use, before the first note.
@@ -60,7 +89,7 @@ pub fn schedule(timeline: &Timeline, hand: Hand) -> Vec<ScheduledCommand> {
     }
 
     for note in &timeline.notes {
-        if note.channel != PERCUSSION_CHANNEL && !app_plays(note.pitch, hand) {
+        if !app_plays(note, part) {
             continue;
         }
         events.push(ScheduledCommand {
@@ -84,15 +113,15 @@ pub fn schedule(timeline: &Timeline, hand: Hand) -> Vec<ScheduledCommand> {
     events
 }
 
-/// The notes the player must play, in time order, for follow-you mode: the player's hand in
-/// one-hand practice, otherwise everything but the drums. The app plays the percussion
-/// itself, so drums never hold the playhead.
-pub fn gates(timeline: &Timeline, hand: Hand) -> Arc<Vec<Gate>> {
+/// The notes the player must play, in time order, for follow-you mode: the part the player
+/// took, everything but the drums otherwise. The app plays the percussion itself, so drums
+/// never hold the playhead.
+pub fn gates(timeline: &Timeline, part: Part) -> Arc<Vec<Gate>> {
     Arc::new(
         timeline
             .notes
             .iter()
-            .filter(|note| note.channel != PERCUSSION_CHANNEL && player_plays(note.pitch, hand))
+            .filter(|note| player_plays(note, part))
             .map(|note| Gate {
                 pitch: note.pitch,
                 start_ms: note.start_ms,
@@ -103,7 +132,7 @@ pub fn gates(timeline: &Timeline, hand: Hand) -> Arc<Vec<Gate>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Hand, gates, schedule};
+    use super::{Hand, Part, gates, schedule};
     use crate::audio::AudioCommand;
     use crate::engine::midi::{Division, MidiFile, NoteEvent, TempoChange, TrackInfo};
     use crate::engine::timeline::Timeline;
@@ -121,6 +150,7 @@ mod tests {
             index: 0,
             name: None,
             program: None,
+            channel: None,
             note_count: 2,
         }];
         let timeline = Timeline::from_midi(&MidiFile {
@@ -137,7 +167,7 @@ mod tests {
             notes,
         });
 
-        let gates = gates(&timeline, Hand::Both);
+        let gates = gates(&timeline, Part::Hands(Hand::Both));
 
         assert_eq!(gates.len(), 2);
         assert_eq!(gates[0].pitch, 60);
@@ -150,7 +180,7 @@ mod tests {
     fn sets_each_tracks_instrument_then_plays_its_notes() {
         let timeline = fixture_timeline();
 
-        let events = schedule(&timeline, Hand::Both);
+        let events = schedule(&timeline, Part::Hands(Hand::Both));
 
         let commands: Vec<AudioCommand> = events.iter().map(|event| event.command).collect();
         assert_eq!(
@@ -198,6 +228,7 @@ mod tests {
             index: 0,
             name: None,
             program: Some(0),
+            channel: Some(0),
             note_count: 2,
         }];
         let timeline = Timeline::from_midi(&MidiFile {
@@ -215,7 +246,7 @@ mod tests {
         });
 
         let played = |hand| {
-            schedule(&timeline, hand)
+            schedule(&timeline, Part::Hands(hand))
                 .into_iter()
                 .filter_map(|event| match event.command {
                     AudioCommand::NoteOn { pitch, .. } => Some(pitch),
@@ -224,7 +255,7 @@ mod tests {
                 .collect::<Vec<u8>>()
         };
         let gated = |hand| {
-            gates(&timeline, hand)
+            gates(&timeline, Part::Hands(hand))
                 .iter()
                 .map(|gate| gate.pitch)
                 .collect::<Vec<u8>>()
@@ -241,6 +272,45 @@ mod tests {
         assert_eq!(played(Hand::Both), vec![48, 72]);
     }
 
+    #[test]
+    fn playing_a_track_gates_it_and_sounds_the_rest() {
+        // Two single-note tracks: the player takes track 0, the app keeps track 1.
+        let notes = vec![note(0, 0, 60, 0, 480), note(1, 1, 72, 480, 960)];
+        let tracks = vec![
+            TrackInfo {
+                index: 0,
+                name: Some("Piano".to_string()),
+                program: Some(0),
+                channel: Some(0),
+                note_count: 1,
+            },
+            TrackInfo {
+                index: 1,
+                name: Some("Strings".to_string()),
+                program: Some(40),
+                channel: Some(1),
+                note_count: 1,
+            },
+        ];
+        let timeline = timeline_with(tracks, notes);
+
+        let gated: Vec<u8> = gates(&timeline, Part::Track(0))
+            .iter()
+            .map(|gate| gate.pitch)
+            .collect();
+        let played: Vec<u8> = schedule(&timeline, Part::Track(0))
+            .into_iter()
+            .filter_map(|event| match event.command {
+                AudioCommand::NoteOn { pitch, .. } => Some(pitch),
+                _ => None,
+            })
+            .collect();
+
+        // The player takes the piano line; the app keeps the strings.
+        assert_eq!(gated, vec![60]);
+        assert_eq!(played, vec![72]);
+    }
+
     fn fixture_timeline() -> Timeline {
         let notes = vec![note(0, 0, 60, 0, 480), note(9, 9, 38, 0, 240)];
         let tracks = vec![
@@ -248,6 +318,7 @@ mod tests {
                 index: 0,
                 name: None,
                 program: Some(40),
+                channel: Some(0),
                 note_count: 1,
             },
             TrackInfo {
@@ -255,9 +326,14 @@ mod tests {
                 name: None,
                 // A percussion track carries no program change; its channel decides the kit.
                 program: None,
+                channel: Some(9),
                 note_count: 1,
             },
         ];
+        timeline_with(tracks, notes)
+    }
+
+    fn timeline_with(tracks: Vec<TrackInfo>, notes: Vec<NoteEvent>) -> Timeline {
         Timeline::from_midi(&MidiFile {
             format: 1,
             division: Division::Metrical(480),

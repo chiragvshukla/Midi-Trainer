@@ -31,6 +31,7 @@ export interface Settings {
   tempo_percent: number;
   transpose: number;
   player_hand: Hand;
+  player_track: number | null;
 }
 
 export interface NoteInfo {
@@ -98,6 +99,8 @@ export interface TrackInfo {
   index: number;
   name: string | null;
   program: number | null;
+  /** The channel the track's notes use; 9 marks a percussion track. */
+  channel: number | null;
   note_count: number;
 }
 
@@ -200,8 +203,8 @@ export function setLibraryFolder(folder: string | null): Promise<void> {
   return invoke("set_library_folder", { folder });
 }
 
-export function setPlayerHand(hand: Hand): Promise<void> {
-  return invoke("set_player_hand", { hand });
+export function setPlayerPart(hand: Hand, track: number | null): Promise<void> {
+  return invoke("set_player_part", { hand, track });
 }
 
 export function connectMidiInput(name: string): Promise<void> {
