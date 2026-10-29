@@ -1,4 +1,5 @@
 pub mod midi;
+pub mod scheduler;
 pub mod scoring;
 pub mod timeline;
 

@@ -16,7 +16,9 @@ pub fn run() {
             commands::app_info::app_info,
             commands::log_message::log_message,
             commands::load_soundfont::load_soundfont,
+            commands::play_file::play_file,
             commands::play_test_note::play_test_note,
+            commands::stop_playback::stop_playback,
         ])
         .setup(|_app| {
             info!("MidiTrainer {} starting", env!("CARGO_PKG_VERSION"));
