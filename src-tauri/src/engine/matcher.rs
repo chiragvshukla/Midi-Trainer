@@ -43,11 +43,13 @@ pub struct LiveMatcher {
     judge: Judge,
     /// Running tally of the player's attempts, for the practice readout.
     score: Score,
+    /// Length of the piece in score milliseconds; 0 when unknown.
+    duration_ms: f64,
 }
 
 impl LiveMatcher {
     /// Builds a matcher expecting the given notes, as `(pitch, start_ms)` pairs in time order.
-    pub fn new(notes: Vec<(u8, f64)>, judge: Judge) -> Self {
+    pub fn new(notes: Vec<(u8, f64)>, judge: Judge, duration_ms: f64) -> Self {
         LiveMatcher {
             notes: notes
                 .into_iter()
@@ -60,6 +62,7 @@ impl LiveMatcher {
             cursor: 0,
             judge,
             score: Score::default(),
+            duration_ms,
         }
     }
 
@@ -74,6 +77,7 @@ impl LiveMatcher {
                 .map(|note| (note.pitch, note.start_ms))
                 .collect(),
             Judge::default(),
+            timeline.duration_ms,
         )
     }
 
@@ -140,14 +144,29 @@ impl LiveMatcher {
     /// its own. Returns the notes that expired since the last call.
     pub fn expire(&mut self, position_ms: f64) -> Vec<NoteJudgement> {
         let window = self.judge.window_ms as f64;
+        self.flush(|note| note.start_ms < position_ms - window)
+    }
+
+    /// Judges every note still expected once the playhead has reached the end of the piece, so a
+    /// note that starts within the judging window of the end is scored rather than left unjudged
+    /// when playback stops. Does nothing before the end.
+    pub fn expire_at_end(&mut self, position_ms: f64) -> Vec<NoteJudgement> {
+        if self.duration_ms > 0.0 && position_ms >= self.duration_ms {
+            self.flush(|_| true)
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Marks every due note from the cursor on as a missed wrong note, one judgement each, and
+    /// returns them. `due` decides how far the run reaches.
+    fn flush(&mut self, due: impl Fn(&ExpectedNote) -> bool) -> Vec<NoteJudgement> {
         let mut expired = Vec::new();
         // The same run the evaluate cursor skips over would drop silently; here each is judged.
-        while self
-            .notes
-            .get(self.cursor)
-            .is_some_and(|note| note.start_ms < position_ms - window)
-        {
-            let note = self.notes[self.cursor];
+        while let Some(&note) = self.notes.get(self.cursor) {
+            if !due(&note) {
+                break;
+            }
             if !note.matched {
                 self.notes[self.cursor].matched = true;
                 self.score.record_missed();
@@ -191,7 +210,12 @@ mod tests {
     use super::{Judge, LiveMatcher};
 
     fn matcher(notes: &[(u8, f64)]) -> LiveMatcher {
-        LiveMatcher::new(notes.to_vec(), Judge::default())
+        LiveMatcher::new(notes.to_vec(), Judge::default(), 0.0)
+    }
+
+    /// A matcher for a piece of the given length, so the end-of-piece flush can be exercised.
+    fn matcher_of_length(notes: &[(u8, f64)], duration_ms: f64) -> LiveMatcher {
+        LiveMatcher::new(notes.to_vec(), Judge::default(), duration_ms)
     }
 
     #[test]
@@ -365,5 +389,39 @@ mod tests {
             matcher.evaluate(1000.0, 60).map(|j| j.verdict),
             Some(super::Verdict::Correct)
         );
+    }
+
+    #[test]
+    fn a_note_within_the_window_of_the_end_is_scored_when_the_piece_finishes() {
+        // A 10 ms note ending at 1000: its start sits inside the 250 ms window of the end, so
+        // the ordinary expiry never reaches it.
+        let mut matcher = matcher_of_length(&[(60, 990.0)], 1000.0);
+
+        assert!(matcher.expire(1000.0).is_empty());
+        let expired = matcher.expire_at_end(1000.0);
+
+        assert_eq!(expired.len(), 1);
+        assert!(expired[0].missed);
+        assert_eq!(expired[0].verdict, super::Verdict::Wrong);
+        // A finished piece has nothing left to flush, so a later poll is a no-op.
+        assert!(matcher.expire_at_end(1000.0).is_empty());
+    }
+
+    #[test]
+    fn the_end_flush_does_nothing_before_the_piece_is_over() {
+        let mut matcher = matcher_of_length(&[(60, 1000.0)], 2000.0);
+
+        assert!(matcher.expire_at_end(1000.0).is_empty());
+        assert_eq!(matcher.stats().attempts, 0);
+    }
+
+    #[test]
+    fn a_played_note_is_not_flushed_by_the_end() {
+        let mut matcher = matcher_of_length(&[(60, 990.0)], 1000.0);
+
+        matcher.evaluate(990.0, 60);
+        assert!(matcher.expire_at_end(1000.0).is_empty());
+        assert_eq!(matcher.stats().correct, 1);
+        assert_eq!(matcher.stats().wrong, 0);
     }
 }

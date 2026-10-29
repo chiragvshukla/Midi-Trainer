@@ -154,6 +154,9 @@ fn judgement_pump(app: AppHandle) {
             // Whatever is left that the playhead has passed was never played: judge each one, so
             // a skipped note turns wrong like any other and every note of a chord is scored.
             judgements.extend(matcher.expire(position_ms as f64));
+            // At the end the playhead stops, so a note starting within the judging window of the
+            // end would never expire; flush whatever is left once the piece is over.
+            judgements.extend(matcher.expire_at_end(position_ms as f64));
         }
         if wrong && let Ok(engine) = app.state::<Mutex<AudioEngine>>().lock() {
             engine.play_wrong_note();
