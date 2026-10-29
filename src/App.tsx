@@ -5,7 +5,6 @@ import { useAppStore } from "./state/appStore";
 import { useSession } from "./state/sessionStore";
 import { usePcKeyboard } from "./lib/usePcKeyboard";
 import { useShortcuts } from "./lib/useShortcuts";
-import { useAppearance } from "./lib/theme";
 import { SoundfontGate } from "./components/SoundfontGate";
 import { LibraryView } from "./components/LibraryView";
 import { LyricsBar } from "./components/LyricsBar";
@@ -59,8 +58,6 @@ function App() {
   const changeMusicVolume = useSession((state) => state.changeMusicVolume);
   const changePlayerVolume = useSession((state) => state.changePlayerVolume);
   const changeOutputVolume = useSession((state) => state.changeOutputVolume);
-  const theme = useAppearance((state) => state.resolved);
-  const toggleTheme = useAppearance((state) => state.toggleTheme);
 
   usePcKeyboard();
   useShortcuts();
@@ -241,15 +238,6 @@ function App() {
                 />
               </label>
             </div>
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Toggle light or dark theme"
-              title="Toggle light or dark theme"
-              onClick={toggleTheme}
-            >
-              {theme === "dark" ? "☀" : "🌙"}
-            </button>
             <button
               type="button"
               className="icon-button"

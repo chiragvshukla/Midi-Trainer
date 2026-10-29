@@ -158,7 +158,6 @@ interface AppearanceState extends Appearance {
   setNoteLabels: (labels: NoteLabels) => void;
   setNoteBackdrop: (on: boolean) => void;
   toggleSidebar: () => void;
-  toggleTheme: () => void;
 }
 
 /** Applies a change and returns the next state, bumping the redraw version. */
@@ -203,12 +202,6 @@ export const useAppearance = create<AppearanceState>((set) => ({
   setNoteLabels: (labels) =>
     set((state) => advance(state, { noteLabels: labels })),
   setNoteBackdrop: (on) => set((state) => advance(state, { noteBackdrop: on })),
-  toggleTheme: () =>
-    set((state) =>
-      advance(state, {
-        theme: state.resolved === "dark" ? "light" : "dark",
-      }),
-    ),
 }));
 
 /** Applies the remembered appearance and follows the OS while the theme is `system`. */
