@@ -1,3 +1,4 @@
-//! Live note input: the PC keyboard fallback and, later, hardware MIDI.
+//! Live note input: hardware MIDI devices and the PC-keyboard fallback.
 
+pub mod device;
 pub mod keyboard;

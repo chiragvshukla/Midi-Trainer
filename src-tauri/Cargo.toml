@@ -35,6 +35,9 @@ crossbeam-queue = "0.3"
 ureq = "2"
 # sha2 (MIT/Apache-2.0): verifies the downloaded SoundFont against its pinned checksum.
 sha2 = "0.10"
+# midir (MIT): cross-platform hardware MIDI input (WinMM/CoreMIDI/ALSA), so the app can play
+# from a real piano keyboard, not only the PC keys.
+midir = "0.10"
 log = "0.4"
 env_logger = "0.11"
 

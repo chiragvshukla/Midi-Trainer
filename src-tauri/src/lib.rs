@@ -18,6 +18,8 @@ pub fn run() {
         .manage(Mutex::new(audio::AudioEngine::new()))
         // Shared flag the frontend flips to cancel an in-flight SoundFont download.
         .manage(Arc::new(AtomicBool::new(false)))
+        // The open hardware MIDI input, if any.
+        .manage(Mutex::new(None::<midi::device::MidiInputHandle>))
         .invoke_handler(tauri::generate_handler![
             commands::app_info::app_info,
             commands::log_message::log_message,
@@ -30,6 +32,9 @@ pub fn run() {
             commands::cancel_soundfont_download::cancel_soundfont_download,
             commands::key_down::key_down,
             commands::key_up::key_up,
+            commands::list_midi_inputs::list_midi_inputs,
+            commands::connect_midi_input::connect_midi_input,
+            commands::disconnect_midi_input::disconnect_midi_input,
         ])
         .setup(|_app| {
             info!("MidiTrainer {} starting", env!("CARGO_PKG_VERSION"));

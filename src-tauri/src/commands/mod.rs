@@ -1,8 +1,11 @@
 pub mod app_info;
 pub mod cancel_soundfont_download;
+pub mod connect_midi_input;
+pub mod disconnect_midi_input;
 pub mod download_soundfont;
 pub mod key_down;
 pub mod key_up;
+pub mod list_midi_inputs;
 pub mod load_soundfont;
 pub mod log_message;
 pub mod play_file;

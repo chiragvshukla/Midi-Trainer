@@ -27,7 +27,6 @@ const MAX_TEMPO_PERCENT: f32 = 400.0;
 /// A request to load a SoundFont into the thread that owns the audio stream.
 struct AudioRequest {
     path: PathBuf,
-    commands: Arc<ArrayQueue<AudioCommand>>,
     control: Arc<ArrayQueue<PlaybackControl>>,
     position: Arc<AtomicU64>,
     reply: SyncSender<Result<(), AudioError>>,
@@ -36,22 +35,40 @@ struct AudioRequest {
 /// Owns the audio thread. Dropping it stops playback.
 pub struct AudioEngine {
     requests: Sender<AudioRequest>,
-    commands: Option<Arc<ArrayQueue<AudioCommand>>>,
+    /// Stable queue for commands applied immediately (live input). Never swapped, so a MIDI or
+    /// keyboard thread can hold an [`InputSink`] to it without ever touching the engine lock.
+    commands: Arc<ArrayQueue<AudioCommand>>,
     control: Option<Arc<ArrayQueue<PlaybackControl>>>,
     position: Arc<AtomicU64>,
+}
+
+/// A cloneable, lock-free handle for pushing live input into the audio thread without taking the
+/// engine lock. Safe to keep on a MIDI input or keyboard thread.
+#[derive(Clone)]
+pub struct InputSink {
+    commands: Arc<ArrayQueue<AudioCommand>>,
+}
+
+impl InputSink {
+    /// Queues a command, dropping it if the queue is full.
+    pub fn send(&self, command: AudioCommand) {
+        let _ = self.commands.push(command);
+    }
 }
 
 impl AudioEngine {
     /// Starts the audio thread. It stays silent until a SoundFont is loaded.
     pub fn new() -> Self {
         let (requests, receiver) = channel();
+        let commands = Arc::new(ArrayQueue::new(COMMAND_CAPACITY));
+        let audio_commands = Arc::clone(&commands);
         std::thread::Builder::new()
             .name("audio".to_string())
-            .spawn(move || audio_loop(receiver))
+            .spawn(move || audio_loop(receiver, audio_commands))
             .expect("the audio thread should start");
         AudioEngine {
             requests,
-            commands: None,
+            commands,
             control: None,
             position: Arc::new(AtomicU64::new(0)),
         }
@@ -59,14 +76,12 @@ impl AudioEngine {
 
     /// Loads a SoundFont, replacing any current one. The engine goes silent if it fails.
     pub fn load_soundfont(&mut self, path: &Path) -> Result<(), AudioError> {
-        let commands = Arc::new(ArrayQueue::new(COMMAND_CAPACITY));
         let control = Arc::new(ArrayQueue::new(CONTROL_CAPACITY));
         let position = Arc::new(AtomicU64::new(0));
         let (reply, response) = sync_channel(1);
         self.requests
             .send(AudioRequest {
                 path: path.to_path_buf(),
-                commands: Arc::clone(&commands),
                 control: Arc::clone(&control),
                 position: Arc::clone(&position),
                 reply,
@@ -75,9 +90,10 @@ impl AudioEngine {
 
         match response.recv() {
             Ok(Ok(())) => {
-                self.commands = Some(commands);
                 self.control = Some(control);
                 self.position = position;
+                // Drop anything queued while there was no stream to drain it.
+                while self.commands.pop().is_some() {}
                 Ok(())
             }
             Ok(Err(err)) => {
@@ -93,14 +109,19 @@ impl AudioEngine {
 
     /// Whether this engine is running without a SoundFont.
     pub fn is_silent(&self) -> bool {
-        self.commands.is_none()
+        self.control.is_none()
     }
 
-    /// Queues a command to play immediately, for live input. Dropped when silent or when full.
-    pub fn send(&self, command: AudioCommand) {
-        if let Some(commands) = &self.commands {
-            let _ = commands.push(command);
+    /// A handle any input thread can hold to feed live notes in.
+    pub fn input_sink(&self) -> InputSink {
+        InputSink {
+            commands: Arc::clone(&self.commands),
         }
+    }
+
+    /// Queues a command to play immediately, for live input. Dropped when the queue is full.
+    pub fn send(&self, command: AudioCommand) {
+        self.input_sink().send(command);
     }
 
     /// Replaces the piece being played and starts it from the beginning.
@@ -138,7 +159,6 @@ impl AudioEngine {
     }
 
     fn silence(&mut self) {
-        self.commands = None;
         self.control = None;
         self.position = Arc::new(AtomicU64::new(0));
     }
@@ -151,12 +171,12 @@ impl Default for AudioEngine {
 }
 
 /// Owns the output stream. cpal's `Stream` is not `Send`, so it never leaves this thread.
-fn audio_loop(requests: Receiver<AudioRequest>) {
+fn audio_loop(requests: Receiver<AudioRequest>, commands: Arc<ArrayQueue<AudioCommand>>) {
     let mut stream: Option<cpal::Stream> = None;
     while let Ok(request) = requests.recv() {
         // Drop the previous stream before opening the new one.
         drop(stream.take());
-        match build_stream(&request) {
+        match build_stream(&request, &commands) {
             Ok(new_stream) => {
                 stream = Some(new_stream);
                 let _ = request.reply.send(Ok(()));
@@ -168,7 +188,10 @@ fn audio_loop(requests: Receiver<AudioRequest>) {
     }
 }
 
-fn build_stream(request: &AudioRequest) -> Result<cpal::Stream, AudioError> {
+fn build_stream(
+    request: &AudioRequest,
+    commands: &Arc<ArrayQueue<AudioCommand>>,
+) -> Result<cpal::Stream, AudioError> {
     let host = cpal::default_host();
     let device = host
         .default_output_device()
@@ -178,7 +201,7 @@ fn build_stream(request: &AudioRequest) -> Result<cpal::Stream, AudioError> {
 
     let mut renderer = Renderer {
         synth: SoundFontSynth::load(&request.path, sample_rate)?,
-        commands: Arc::clone(&request.commands),
+        commands: Arc::clone(commands),
         control: Arc::clone(&request.control),
         position: Arc::clone(&request.position),
         channels,
