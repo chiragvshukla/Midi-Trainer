@@ -30,29 +30,17 @@ interface KeyRect {
   black: boolean;
 }
 
-/** Pitch range and longest note of a piece, computed once per load. */
-interface PieceBounds {
-  low: number;
-  high: number;
-  maxDurationMs: number;
-}
+/** A full 88-key keyboard: A0 (21) through C8 (108). */
+const LOWEST_KEY = 21;
+const HIGHEST_KEY = 108;
 
-function boundsOf(notes: NoteInfo[]): PieceBounds {
-  let low = 48;
-  let high = 84;
+/** The keyboard is always a full 88 keys; only the longest note depends on the piece. */
+function longestNoteMs(notes: NoteInfo[]): number {
   let maxDurationMs = 0;
-  if (notes.length > 0) {
-    low = Infinity;
-    high = 0;
-    for (const note of notes) {
-      low = Math.min(low, note.pitch);
-      high = Math.max(high, note.pitch);
-      maxDurationMs = Math.max(maxDurationMs, note.end_ms - note.start_ms);
-    }
-    low = Math.max(21, low - 2);
-    high = Math.min(108, high + 2);
+  for (const note of notes) {
+    maxDurationMs = Math.max(maxDurationMs, note.end_ms - note.start_ms);
   }
-  return { low, high, maxDurationMs };
+  return maxDurationMs;
 }
 
 /**
@@ -80,7 +68,7 @@ export function FallingNotes() {
     // The engine delivers the notes sorted by start time, so each frame scans one window
     // instead of filtering and sorting the whole piece.
     const notes = piece?.notes ?? [];
-    const bounds = boundsOf(notes);
+    const maxDurationMs = longestNoteMs(notes);
 
     const draw = (positionMs: number) => {
       const ratio = window.devicePixelRatio || 1;
@@ -94,7 +82,7 @@ export function FallingNotes() {
       context.clearRect(0, 0, width, height);
 
       const whites: number[] = [];
-      for (let pitch = bounds.low; pitch <= bounds.high; pitch++) {
+      for (let pitch = LOWEST_KEY; pitch <= HIGHEST_KEY; pitch++) {
         if (!BLACK_CLASSES.has(pitch % 12)) {
           whites.push(pitch);
         }
@@ -124,7 +112,7 @@ export function FallingNotes() {
       // First note that can still be on screen: nothing longer than the longest note.
       let windowStart = 0;
       let hi = notes.length;
-      const earliest = positionMs - bounds.maxDurationMs;
+      const earliest = positionMs - maxDurationMs;
       while (windowStart < hi) {
         const mid = (windowStart + hi) >> 1;
         if (notes[mid].start_ms < earliest) {
@@ -195,7 +183,7 @@ export function FallingNotes() {
           height - keyboardTop,
         );
       }
-      for (let pitch = bounds.low; pitch <= bounds.high; pitch++) {
+      for (let pitch = LOWEST_KEY; pitch <= HIGHEST_KEY; pitch++) {
         if (!BLACK_CLASSES.has(pitch % 12)) {
           continue;
         }
