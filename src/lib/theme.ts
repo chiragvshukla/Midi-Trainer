@@ -43,7 +43,7 @@ interface Appearance {
 
 const DEFAULTS: Appearance = {
   theme: "dark",
-  palette: "slate",
+  palette: "gruvbox",
   trackColors: Array<string>(TRACK_COLOR_COUNT).fill(""),
   collapsed: false,
   reducedMotion: false,
