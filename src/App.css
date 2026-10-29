@@ -532,15 +532,6 @@ body {
   white-space: nowrap;
 }
 
-.version-badge {
-  flex: none;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--muted);
-}
-
 .sidebar-nav {
   display: flex;
   flex-direction: column;
@@ -753,6 +744,14 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
+}
+
+/* The app version, moved out of the sidebar into the app-settings window. */
+.app-version {
+  margin: 16px 0 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
 }
 
 .drawer-head {
@@ -1469,8 +1468,7 @@ body {
 .timeline-clock,
 .timeline-loop-label,
 .practice-stats,
-.info-row dd,
-.version-badge {
+.info-row dd {
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
 }
@@ -1497,10 +1495,6 @@ body {
 .brand-mark {
   color: var(--accent);
   text-shadow: var(--chrome-text-glow);
-}
-
-.version-badge {
-  border: 1px solid var(--border);
 }
 
 .nav-item.active {
@@ -1740,7 +1734,6 @@ input[type="range"]::-moz-range-thumb {
 
 .sidebar.collapsed .brand-mark,
 .sidebar.collapsed .brand-name,
-.sidebar.collapsed .version-badge,
 .sidebar.collapsed .nav-label {
   display: none;
 }

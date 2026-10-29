@@ -35,7 +35,6 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const appInfo = useAppStore((state) => state.appInfo);
   const loadAppInfo = useAppStore((state) => state.loadAppInfo);
 
   const soundfont = useSession((state) => state.soundfont);
@@ -117,7 +116,6 @@ function App() {
         section={section}
         onSelect={setSection}
         onOpenSettings={() => setAppearanceOpen(true)}
-        version={appInfo?.version ?? null}
       />
       <div className="main">
         <header className="transport">

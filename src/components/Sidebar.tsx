@@ -10,20 +10,18 @@ const SECTIONS: { id: Section; label: string; icon: string }[] = [
 ];
 
 /**
- * The left navigation rail: the brand (with the collapse tab beside the version), one button per
- * top-level screen, and the app settings pinned to the foot. The active section lives in the app
- * shell; the collapsed state and its control live in the appearance store, so it is remembered.
+ * The left navigation rail: the brand (with the collapse tab), one button per top-level screen,
+ * and the app settings pinned to the foot. The active section lives in the app shell; the
+ * collapsed state and its control live in the appearance store, so it is remembered.
  */
 export function Sidebar({
   section,
   onSelect,
   onOpenSettings,
-  version,
 }: {
   section: Section;
   onSelect: (section: Section) => void;
   onOpenSettings: () => void;
-  version: string | null;
 }) {
   const collapsed = useAppearance((state) => state.collapsed);
   const toggleSidebar = useAppearance((state) => state.toggleSidebar);
@@ -33,7 +31,6 @@ export function Sidebar({
       <div className="sidebar-brand">
         <span className="brand-mark">♬</span>
         <span className="brand-name">MidiTrainer</span>
-        {version ? <span className="version-badge">v{version}</span> : null}
         <button
           type="button"
           className="sidebar-tab"

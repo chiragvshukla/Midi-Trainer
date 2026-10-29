@@ -1,5 +1,6 @@
 import { useAppearance, canvasColors } from "../lib/theme";
 import type { NoteLabels, Palette, Theme } from "../lib/theme";
+import { useAppStore } from "../state/appStore";
 
 /** The fixed colour palettes offered, in the order shown. */
 const PALETTES: { id: Palette; label: string }[] = [
@@ -39,6 +40,7 @@ export function AppearancePanel({
   const setNoteLabels = useAppearance((state) => state.setNoteLabels);
   const noteBackdrop = useAppearance((state) => state.noteBackdrop);
   const setNoteBackdrop = useAppearance((state) => state.setNoteBackdrop);
+  const version = useAppStore((state) => state.appInfo?.version ?? null);
 
   if (!open) {
     return null;
@@ -171,6 +173,10 @@ export function AppearancePanel({
               Colour-blind-safe note colours
             </label>
           </section>
+
+          {version ? (
+            <p className="app-version">MidiTrainer v{version}</p>
+          ) : null}
         </div>
       </div>
     </>
