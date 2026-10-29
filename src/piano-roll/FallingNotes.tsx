@@ -41,6 +41,21 @@ const MAX_ZOOM = 4;
 /** Fraction of the view the on-screen keyboard takes. */
 const KEYBOARD_SHARE = 0.24;
 
+/** A black key's height as a fraction of the keyboard strip. */
+const BLACK_KEY_SHARE = 0.62;
+
+/** How far a held key sinks, to read as a physical press. */
+const KEY_PRESS_DEPTH = 2;
+
+/** Rounded corner radius of a key's front edge. */
+const KEY_CORNER_RADIUS = 2;
+
+/** The felt strip along the back of the keys. */
+const FELT_COLOR = "#7a1f1f";
+
+/** Height of the soft shadow the keyboard casts onto the falling notes. */
+const KEYBOARD_SHADOW_PX = 14;
+
 /** Geometry of one piano key within the keyboard strip. */
 interface KeyRect {
   x: number;
@@ -61,6 +76,58 @@ function longestNoteMs(notes: NoteInfo[]): number {
   return maxDurationMs;
 }
 
+/** The soft black/white alpha ramps that give the keys depth. They are palette-independent, so
+ * they only need rebuilding when the canvas size changes, never per frame. */
+interface KeyShading {
+  whiteBack: CanvasGradient;
+  blackGloss: CanvasGradient;
+  keyboardShadow: CanvasGradient;
+}
+
+function buildShading(
+  context: CanvasRenderingContext2D,
+  keyboardTop: number,
+  height: number,
+): KeyShading {
+  const blackBottom = keyboardTop + (height - keyboardTop) * BLACK_KEY_SHARE;
+  const whiteBack = context.createLinearGradient(0, keyboardTop, 0, height);
+  whiteBack.addColorStop(0, "rgba(0, 0, 0, 0.18)");
+  whiteBack.addColorStop(0.45, "rgba(0, 0, 0, 0)");
+  whiteBack.addColorStop(1, "rgba(0, 0, 0, 0.06)");
+  const blackGloss = context.createLinearGradient(
+    0,
+    keyboardTop,
+    0,
+    blackBottom,
+  );
+  blackGloss.addColorStop(0, "rgba(255, 255, 255, 0.30)");
+  blackGloss.addColorStop(0.35, "rgba(255, 255, 255, 0)");
+  blackGloss.addColorStop(1, "rgba(0, 0, 0, 0.30)");
+  const keyboardShadow = context.createLinearGradient(
+    0,
+    keyboardTop - KEYBOARD_SHADOW_PX,
+    0,
+    keyboardTop,
+  );
+  keyboardShadow.addColorStop(0, "rgba(0, 0, 0, 0)");
+  keyboardShadow.addColorStop(1, "rgba(0, 0, 0, 0.38)");
+  return { whiteBack, blackGloss, keyboardShadow };
+}
+
+/** A rectangle rounded only along its front (bottom) edge, clamped so the radius always fits. */
+function roundBottomEdge(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  const r = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.roundRect(x, y, width, height, [0, 0, r, r]);
+}
+
 /**
  * The falling-note view: score notes scroll onto an on-screen keyboard, keys light up while
  * their notes sound or while the player holds them, and judged notes are marked by verdict.
@@ -73,6 +140,7 @@ export function FallingNotes() {
   const version = useAppearance((state) => state.version);
   const noteLabels = useAppearance((state) => state.noteLabels);
   const noteBackdrop = useAppearance((state) => state.noteBackdrop);
+  const pianoLook = useAppearance((state) => state.pianoLook);
   // Zoom lives here, so it is remembered across toggles to the sheet view and back.
   const [zoom, setZoom] = useState(1);
 
@@ -102,6 +170,10 @@ export function FallingNotes() {
 
     // Colours come from the theme tokens, so the roll follows a light/dark switch.
     const COLORS = canvasColors();
+
+    // Realistic piano look only: key shading, rebuilt only when the canvas size changes.
+    const realistic = pianoLook === "realistic";
+    let shading: { key: string; data: KeyShading } | null = null;
 
     // The engine delivers the notes sorted by start time, so each frame scans one window
     // instead of filtering and sorting the whole piece.
@@ -189,6 +261,14 @@ export function FallingNotes() {
       };
 
       const keyboardTop = height * (1 - KEYBOARD_SHARE);
+      const shadingKey = `${width}x${height}`;
+      if (realistic && shading?.key !== shadingKey) {
+        shading = {
+          key: shadingKey,
+          data: buildShading(context, keyboardTop, height),
+        };
+      }
+      const shade = realistic ? shading!.data : null;
       const lookahead = LOOKAHEAD_MS / zoom;
       const pxPerMs = keyboardTop / lookahead || 0.1;
       const sounding = new Set<number>();
@@ -350,7 +430,8 @@ export function FallingNotes() {
         }
       }
 
-      // Keyboard: white keys first, black keys over them.
+      // Keyboard: white keys first, black keys over them. The realistic look gathers its
+      // depth from shading ramps rather than separate borders.
       const isPressed = (pitch: number) => pressed.includes(pitch);
       // A key just played wrong flashes red, overriding its normal colour until the flash ages.
       const now = performance.now();
@@ -359,6 +440,17 @@ export function FallingNotes() {
           .filter((flash) => now - flash.at < WRONG_FLASH_MS)
           .map((flash) => flash.pitch),
       );
+      if (shade) {
+        context.fillStyle = shade.keyboardShadow;
+        context.fillRect(
+          0,
+          keyboardTop - KEYBOARD_SHADOW_PX,
+          width,
+          KEYBOARD_SHADOW_PX,
+        );
+        context.fillStyle = FELT_COLOR;
+        context.fillRect(0, keyboardTop - 3, width, 3);
+      }
       for (const pitch of whites) {
         const rect = keyRect(pitch);
         context.fillStyle = wrongKeys.has(pitch)
@@ -368,6 +460,37 @@ export function FallingNotes() {
             : sounding.has(pitch)
               ? COLORS.soundingKey
               : COLORS.white;
+        if (shade) {
+          const top = keyboardTop + (isPressed(pitch) ? KEY_PRESS_DEPTH : 0);
+          const keyHeight = height - top;
+          roundBottomEdge(
+            context,
+            rect.x,
+            top,
+            rect.width,
+            keyHeight,
+            KEY_CORNER_RADIUS,
+          );
+          context.fill();
+          context.fillStyle = shade.whiteBack;
+          roundBottomEdge(
+            context,
+            rect.x,
+            top,
+            rect.width,
+            keyHeight,
+            KEY_CORNER_RADIUS,
+          );
+          context.fill();
+          // Just a separator between keys; the shading supplies the rest of the depth.
+          context.strokeStyle = COLORS.keyBorder;
+          context.lineWidth = 1;
+          context.beginPath();
+          context.moveTo(rect.x + rect.width, top);
+          context.lineTo(rect.x + rect.width, height);
+          context.stroke();
+          continue;
+        }
         context.fillRect(rect.x, keyboardTop, rect.width, height - keyboardTop);
         context.strokeStyle = COLORS.keyBorder;
         context.strokeRect(
@@ -377,6 +500,7 @@ export function FallingNotes() {
           height - keyboardTop,
         );
       }
+      const blackHeight = (height - keyboardTop) * BLACK_KEY_SHARE;
       for (let pitch = LOWEST_KEY; pitch <= HIGHEST_KEY; pitch++) {
         if (!BLACK_CLASSES.has(pitch % 12)) {
           continue;
@@ -389,6 +513,37 @@ export function FallingNotes() {
             : sounding.has(pitch)
               ? COLORS.soundingKey
               : COLORS.black;
+        if (shade) {
+          const lit =
+            wrongKeys.has(pitch) || isPressed(pitch) || sounding.has(pitch);
+          const top = keyboardTop + (isPressed(pitch) ? KEY_PRESS_DEPTH : 0);
+          roundBottomEdge(
+            context,
+            rect.x,
+            top,
+            rect.width,
+            blackHeight,
+            KEY_CORNER_RADIUS,
+          );
+          context.fill();
+          // The gloss is skipped on a lit key so its pressed/sounding colour reads clearly.
+          if (!lit) {
+            context.fillStyle = shade.blackGloss;
+            roundBottomEdge(
+              context,
+              rect.x,
+              top,
+              rect.width,
+              blackHeight,
+              KEY_CORNER_RADIUS,
+            );
+            context.fill();
+          }
+          // A thin shadow to the right casts the black key onto the white keys.
+          context.fillStyle = "rgba(0, 0, 0, 0.25)";
+          context.fillRect(rect.x + rect.width, top, 1, blackHeight);
+          continue;
+        }
         context.fillRect(
           rect.x,
           keyboardTop,
@@ -431,7 +586,16 @@ export function FallingNotes() {
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [piece, zoom, soloHand, byHand, version, noteLabels, noteBackdrop]);
+  }, [
+    piece,
+    zoom,
+    soloHand,
+    byHand,
+    version,
+    noteLabels,
+    noteBackdrop,
+    pianoLook,
+  ]);
 
   return (
     <>
