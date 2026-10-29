@@ -1637,7 +1637,8 @@ body {
   font-size: 15px;
 }
 
-.library-dir {
+.library-dir,
+.library-detail {
   font-size: 12px;
   color: var(--faint);
 }

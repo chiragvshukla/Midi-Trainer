@@ -168,6 +168,10 @@ export interface PracticeStats {
 export interface LibraryEntry {
   name: string;
   relative_path: string;
+  /** File size in bytes, or 0 when it could not be read. */
+  size_bytes: number;
+  /** Last-modified time as Unix milliseconds, or 0 when it could not be read. */
+  modified_ms: number;
 }
 
 export function fetchAppInfo(): Promise<AppInfo> {

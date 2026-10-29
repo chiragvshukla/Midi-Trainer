@@ -18,6 +18,49 @@ function folderName(folder: string): string {
   return folder.replace(/[\\/]+$/, "").replace(/^.*[\\/]/, "") || folder;
 }
 
+/** A file size a person reads: "820 KB". Empty for a size that could not be read. */
+function fileSize(bytes: number): string {
+  if (bytes <= 0) {
+    return "";
+  }
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value < 10 && unit > 0 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}
+
+/** How long ago a file was last changed, in a short phrase. Empty for an unknown time. */
+function modifiedLabel(ms: number): string {
+  if (ms <= 0) {
+    return "";
+  }
+  const days = Math.floor((Date.now() - ms) / 86_400_000);
+  if (days <= 0) {
+    return "today";
+  }
+  if (days === 1) {
+    return "yesterday";
+  }
+  if (days < 30) {
+    return `${days} days ago`;
+  }
+  if (days < 365) {
+    return `${Math.floor(days / 30)} mo ago`;
+  }
+  return `${Math.floor(days / 365)} yr ago`;
+}
+
+/** The size and modified date of a library file, as one line. */
+function entryDetail(item: LibraryEntry): string {
+  return [fileSize(item.size_bytes), modifiedLabel(item.modified_ms)]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /** A shared empty list, so a missing settings object does not make a new array each read. */
 const NO_RECENT: string[] = [];
 
@@ -61,7 +104,12 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
       return next;
     });
 
-  const entry = (path: string, name: string, folder: string | null) => (
+  const entry = (
+    path: string,
+    name: string,
+    folder: string | null,
+    detail?: string,
+  ) => (
     <button
       key={path}
       type="button"
@@ -72,6 +120,7 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
       <span className="library-meta">
         <span className="library-name">{name}</span>
         {folder ? <span className="library-dir">{folder}</span> : null}
+        {detail ? <span className="library-detail">{detail}</span> : null}
       </span>
     </button>
   );
@@ -176,6 +225,7 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
                         item.relative_path === item.name
                           ? null
                           : item.relative_path,
+                        entryDetail(item),
                       ),
                     )
                   ))}

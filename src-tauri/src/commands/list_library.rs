@@ -19,6 +19,10 @@ pub struct LibraryEntry {
     pub name: String,
     /// Path relative to the library folder, with forward slashes.
     pub relative_path: String,
+    /// File size in bytes, or 0 when it could not be read.
+    pub size_bytes: u64,
+    /// Last-modified time as Unix milliseconds, or 0 when it could not be read.
+    pub modified_ms: u64,
 }
 
 /// Lists the MIDI and karaoke files under a folder, recursing into subfolders. The entries
@@ -59,12 +63,18 @@ fn scan(root: &Path, dir: &Path, depth: usize, entries: &mut Vec<LibraryEntry>) 
         } else if is_midi(&path)
             && let Ok(relative) = path.strip_prefix(root)
         {
+            let metadata = item.metadata().ok();
             entries.push(LibraryEntry {
                 name: path
                     .file_name()
                     .map(|name| name.to_string_lossy().into_owned())
                     .unwrap_or_default(),
                 relative_path: relative.to_string_lossy().replace('\\', "/"),
+                size_bytes: metadata.as_ref().map_or(0, |file| file.len()),
+                modified_ms: metadata
+                    .and_then(|file| file.modified().ok())
+                    .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map_or(0, |since| since.as_millis() as u64),
             });
         }
     }
@@ -113,6 +123,21 @@ mod tests {
             .collect();
 
         assert_eq!(paths, vec!["a.mid", "b.mid", "sub/c.kar"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reports_each_files_size_and_modified_time() {
+        let dir = std::env::temp_dir().join("mt-library-metadata-test");
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).expect("the directory should create");
+        std::fs::write(dir.join("a.mid"), b"12345").unwrap();
+
+        let entries = list_library(dir.to_string_lossy().into_owned()).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].size_bytes, 5);
+        assert!(entries[0].modified_ms > 0);
         std::fs::remove_dir_all(&dir).ok();
     }
 
