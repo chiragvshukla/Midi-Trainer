@@ -1,3 +1,5 @@
+import { useAppearance } from "../lib/theme";
+
 /** Which top-level screen is shown: the file Library, or the Practice area. */
 export type Section = "library" | "practice";
 
@@ -8,8 +10,9 @@ const SECTIONS: { id: Section; label: string; icon: string }[] = [
 ];
 
 /**
- * The left navigation rail: the brand, then one button per top-level screen. Rendering only;
- * the active section lives in the app shell.
+ * The left navigation rail: the brand, one button per top-level screen, and a chevron that
+ * collapses the rail to icons. The active section lives in the app shell; the collapsed state
+ * and its control live in the appearance store, so the choice is remembered.
  */
 export function Sidebar({
   section,
@@ -20,8 +23,11 @@ export function Sidebar({
   onSelect: (section: Section) => void;
   version: string | null;
 }) {
+  const collapsed = useAppearance((state) => state.collapsed);
+  const toggleSidebar = useAppearance((state) => state.toggleSidebar);
+
   return (
-    <aside className="sidebar">
+    <aside className={collapsed ? "sidebar collapsed" : "sidebar"}>
       <div className="sidebar-brand">
         <span className="brand-mark">♬</span>
         <span className="brand-name">MidiTrainer</span>
@@ -34,15 +40,27 @@ export function Sidebar({
             type="button"
             className={section === item.id ? "nav-item active" : "nav-item"}
             aria-current={section === item.id ? "page" : undefined}
+            aria-label={item.label}
+            title={item.label}
             onClick={() => onSelect(item.id)}
           >
             <span className="nav-icon" aria-hidden="true">
               {item.icon}
             </span>
-            {item.label}
+            <span className="nav-label">{item.label}</span>
           </button>
         ))}
       </nav>
+      <button
+        type="button"
+        className="sidebar-toggle"
+        aria-label={collapsed ? "Expand menu" : "Collapse menu"}
+        aria-pressed={collapsed}
+        title={collapsed ? "Expand menu" : "Collapse menu"}
+        onClick={toggleSidebar}
+      >
+        {collapsed ? "»" : "«"}
+      </button>
     </aside>
   );
 }

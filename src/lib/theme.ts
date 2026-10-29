@@ -25,6 +25,8 @@ interface Appearance {
   accent: Accent;
   /** Per-track overrides, index 0..5; an empty string means "use the theme's colour". */
   trackColors: string[];
+  /** Whether the left navigation rail is collapsed to icons. */
+  collapsed: boolean;
 }
 
 const DEFAULTS: Appearance = {
@@ -32,6 +34,7 @@ const DEFAULTS: Appearance = {
   look: "matte",
   accent: "orange",
   trackColors: Array<string>(TRACK_COLOR_COUNT).fill(""),
+  collapsed: false,
 };
 
 function isTheme(value: unknown): value is Theme {
@@ -71,6 +74,7 @@ function read(): Appearance {
             ? saved.trackColors[index]
             : "",
         ),
+        collapsed: saved.collapsed === true,
       };
     }
     return {
@@ -113,6 +117,7 @@ interface AppearanceState extends Appearance {
   setAccent: (accent: Accent) => void;
   setTrackColor: (index: number, color: string) => void;
   resetTrackColors: () => void;
+  toggleSidebar: () => void;
   toggleTheme: () => void;
 }
 
@@ -151,6 +156,8 @@ export const useAppearance = create<AppearanceState>((set) => ({
         trackColors: Array<string>(TRACK_COLOR_COUNT).fill(""),
       }),
     ),
+  toggleSidebar: () =>
+    set((state) => advance(state, { collapsed: !state.collapsed })),
   toggleTheme: () =>
     set((state) =>
       advance(state, {

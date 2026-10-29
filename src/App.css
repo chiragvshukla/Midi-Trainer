@@ -1347,3 +1347,43 @@ input[type="range"]::-moz-range-thumb {
   background: transparent;
   cursor: pointer;
 }
+
+/* --- Collapsible sidebar --- */
+
+.sidebar {
+  transition: width 140ms ease;
+}
+
+.sidebar.collapsed {
+  width: 56px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.sidebar.collapsed .brand-name,
+.sidebar.collapsed .version-badge,
+.sidebar.collapsed .nav-label {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-brand,
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+}
+
+.sidebar-toggle {
+  margin-top: auto;
+  border: 1px solid var(--border);
+  background: var(--chrome-raised);
+  color: var(--muted);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  padding: 7px 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.sidebar-toggle:hover {
+  color: var(--text);
+}
