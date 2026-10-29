@@ -1,12 +1,13 @@
 import { useAppearance } from "../lib/theme";
 
-/** Which top-level screen is shown: the file Library, or the Practice area. */
-export type Section = "library" | "practice";
+/** Which top-level screen is shown: the file Library, Practice, or the Download tab. */
+export type Section = "library" | "practice" | "download";
 
 /** The top-level navigation entries, in order. */
 const SECTIONS: { id: Section; label: string; icon: string }[] = [
   { id: "library", label: "Library", icon: "♪" },
   { id: "practice", label: "Practice", icon: "🎹" },
+  { id: "download", label: "Download", icon: "⇩" },
 ];
 
 /**

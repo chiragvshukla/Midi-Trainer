@@ -33,6 +33,26 @@ export interface DownloadProgress {
   total: number;
 }
 
+/** One piece in the Mutopia Project catalogue, as the download tab shows it. */
+export interface MutopiaPiece {
+  id: number;
+  title: string;
+  composer: string;
+  instrumentation: string;
+  style: string;
+  license: string;
+  license_url: string;
+  midi_url: string | null;
+  zip_url: string | null;
+  info_url: string;
+}
+
+/** One page of the Mutopia catalogue. */
+export interface MutopiaPage {
+  pieces: MutopiaPiece[];
+  has_more: boolean;
+}
+
 /** One key on the PC-keyboard fallback: the browser key code and the MIDI pitch it plays. */
 export interface PcKey {
   code: string;
@@ -192,6 +212,19 @@ export interface LibraryEntry {
 
 export function fetchAppInfo(): Promise<AppInfo> {
   return invoke<AppInfo>("app_info");
+}
+
+/** Lists one page of the Mutopia piano catalogue, optionally filtered by a search term. */
+export function fetchMutopiaPage(
+  startAt: number,
+  query: string,
+): Promise<MutopiaPage> {
+  return invoke<MutopiaPage>("list_mutopia", { startAt, query });
+}
+
+/** Downloads a Mutopia MIDI into `dest`, returning the saved file's path. */
+export function downloadMutopia(url: string, dest: string): Promise<string> {
+  return invoke<string>("download_mutopia", { url, dest });
 }
 
 export function fetchSoundfontStatus(): Promise<SoundfontStatus> {

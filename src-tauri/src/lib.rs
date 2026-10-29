@@ -2,6 +2,7 @@ pub mod audio;
 mod commands;
 pub mod engine;
 pub mod midi;
+pub mod mutopia;
 pub mod settings;
 pub mod soundfont;
 
@@ -63,9 +64,11 @@ pub fn run() {
             commands::set_soundfont::set_soundfont,
             commands::download_soundfont::download_soundfont,
             commands::cancel_soundfont_download::cancel_soundfont_download,
+            commands::download_mutopia::download_mutopia,
             commands::key_down::key_down,
             commands::key_up::key_up,
             commands::list_midi_inputs::list_midi_inputs,
+            commands::list_mutopia::list_mutopia,
             commands::list_library::list_library,
             commands::connect_midi_input::connect_midi_input,
             commands::disconnect_midi_input::disconnect_midi_input,

@@ -8,6 +8,7 @@ import { usePlaybackPosition } from "./lib/usePlaybackPosition";
 import { useShortcuts } from "./lib/useShortcuts";
 import { SoundfontPrompt } from "./components/SoundfontPrompt";
 import { LibraryView } from "./components/LibraryView";
+import { DownloadPanel } from "./components/DownloadPanel";
 import { LyricsBar } from "./components/LyricsBar";
 import { PracticeStatsBar } from "./components/PracticeStatsBar";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -268,6 +269,15 @@ function App() {
         <main className="content">
           <div className={section === "library" ? "pane" : "pane hidden"}>
             <LibraryView
+              onOpened={() => {
+                setSection("practice");
+                setView("keys");
+              }}
+            />
+          </div>
+          <div className={section === "download" ? "pane" : "pane hidden"}>
+            <DownloadPanel
+              active={section === "download"}
               onOpened={() => {
                 setSection("practice");
                 setView("keys");
