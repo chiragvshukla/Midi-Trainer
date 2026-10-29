@@ -93,7 +93,7 @@ export function SettingsPanel({
               >
                 <option value="Listen">Listen</option>
                 <option value="Follow">Follow</option>
-                <option value="Strict">Strict</option>
+                <option value="Strict">Scored</option>
               </select>
             </label>
             <label className="field">
