@@ -6,6 +6,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::engine::scheduler::{Hand, Part};
 
+/// How strictly the app judges the player's notes, from a plain play-along to a scored test.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Skill {
+    /// Playback only: the player's notes are neither judged nor cued.
+    Listen,
+    /// The accompaniment waits when the player falls behind; every note is judged.
+    Follow,
+    /// Playback never waits; every note is judged.
+    Strict,
+}
+
 /// How many recent files are kept.
 const MAX_RECENT_FILES: usize = 10;
 
@@ -32,6 +43,8 @@ pub struct Settings {
     /// A track the player takes over for play-along, overriding the hand split. `None` uses
     /// `player_hand`.
     pub player_track: Option<u16>,
+    /// How strictly the player's notes are judged.
+    pub skill: Skill,
 }
 
 impl Default for Settings {
@@ -46,6 +59,7 @@ impl Default for Settings {
             transpose: 0,
             player_hand: Hand::Both,
             player_track: None,
+            skill: Skill::Strict,
         }
     }
 }
@@ -55,6 +69,16 @@ impl Settings {
     pub fn part(&self) -> Part {
         self.player_track
             .map_or(Part::Hands(self.player_hand), Part::Track)
+    }
+
+    /// Whether the accompaniment waits for the player at each note.
+    pub fn follow(&self) -> bool {
+        self.skill == Skill::Follow
+    }
+
+    /// Whether the player's notes are judged and cued.
+    pub fn scored(&self) -> bool {
+        self.skill != Skill::Listen
     }
 
     /// Reads the settings file, falling back to defaults when it is missing or unreadable.
@@ -132,6 +156,7 @@ mod tests {
         settings.library_folder = Some("C:/music".to_string());
         settings.player_hand = super::Hand::Left;
         settings.player_track = Some(2);
+        settings.skill = super::Skill::Follow;
         settings.save(&path).expect("the file should write");
         // A second save replaces the first file, it does not fail on it.
         settings.recent_files.clear();
@@ -150,6 +175,22 @@ mod tests {
 
         assert_eq!(Settings::load(&path), Settings::default());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn skill_selects_waiting_and_scoring() {
+        let mut settings = Settings::default();
+        // Strict is the default: judged, without waiting.
+        assert!(settings.scored());
+        assert!(!settings.follow());
+
+        settings.skill = super::Skill::Follow;
+        assert!(settings.scored());
+        assert!(settings.follow());
+
+        settings.skill = super::Skill::Listen;
+        assert!(!settings.scored());
+        assert!(!settings.follow());
     }
 
     #[test]

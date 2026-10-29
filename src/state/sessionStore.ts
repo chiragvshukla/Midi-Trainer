@@ -13,7 +13,7 @@ import {
   play,
   playFile,
   saveSettings,
-  setFollow,
+  setSkill,
   setLibraryFolder,
   setMusicVolume,
   setPlayerPart,
@@ -28,6 +28,7 @@ import {
   type Piece,
   type PracticeStats,
   type Settings,
+  type Skill,
   type SoundfontStatus,
   type Timing,
   type Verdict,
@@ -77,7 +78,6 @@ interface SessionState {
   selectedTracks: number[] | null;
   /** Per-channel track gain, 0 to 1; a channel absent from the map plays at full. */
   trackVolumes: Record<number, number>;
-  follow: boolean;
   /** Verdict per falling note, keyed by pitch and score time. */
   verdicts: Record<string, Verdict>;
   /** The running practice tallies, from the engine, once a note has been judged. */
@@ -102,7 +102,7 @@ interface SessionState {
   toggleTrack: (index: number) => Promise<void>;
   resume: () => Promise<void>;
   stop: () => Promise<void>;
-  toggleFollow: (follow: boolean) => Promise<void>;
+  changeSkill: (skill: Skill) => Promise<void>;
   changePart: (hand: Hand, track: number | null) => Promise<void>;
   changeTempo: (percent: number) => Promise<void>;
   changeTranspose: (semitones: number) => Promise<void>;
@@ -126,7 +126,6 @@ export const useSession = create<SessionState>((set, get) => ({
   piecePath: null,
   selectedTracks: null,
   trackVolumes: {},
-  follow: false,
   verdicts: {},
   stats: null,
   lastTiming: null,
@@ -303,12 +302,14 @@ export const useSession = create<SessionState>((set, get) => ({
     }
   },
 
-  toggleFollow: async (follow) => {
+  changeSkill: async (skill) => {
+    set((state) => ({
+      settings: state.settings && { ...state.settings, skill },
+    }));
     try {
-      await setFollow(follow);
-      set({ follow });
+      await setSkill(skill);
     } catch (error) {
-      log.error(`toggling follow mode failed: ${String(error)}`);
+      log.error(`setting the skill level failed: ${String(error)}`);
     }
   },
 

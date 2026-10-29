@@ -55,10 +55,12 @@ pub fn play_file(
         file.notes.retain(|note| tracks.contains(&note.track));
     }
     let timeline = Timeline::from_midi(&file);
-    let part = settings
-        .lock()
-        .map_err(|_| "settings state is unavailable".to_string())?
-        .part();
+    let (part, follow) = {
+        let settings = settings
+            .lock()
+            .map_err(|_| "settings state is unavailable".to_string())?;
+        (settings.part(), settings.follow())
+    };
     let score = Arc::new(scheduler::schedule(&timeline, part));
     {
         let mut matcher = matcher
@@ -71,6 +73,8 @@ pub fn play_file(
         .map_err(|_| "audio state is unavailable".to_string())?;
     engine.set_score(score);
     engine.set_gates(scheduler::gates(&timeline, part));
+    // A newly loaded piece starts in the saved skill's waiting mode.
+    engine.set_follow(follow);
     // Loading must not start playing, and must silence a piece that is still going.
     engine.stop();
     update_settings(&app, |settings| settings.record_recent_file(&path))?;

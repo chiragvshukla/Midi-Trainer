@@ -18,6 +18,7 @@ import type {
   Judgement,
   PlayerNote,
   PracticeStats,
+  Skill,
 } from "./lib/api";
 import "./App.css";
 
@@ -34,7 +35,6 @@ function App() {
   const soundfontError = useSession((state) => state.soundfontError);
   const settings = useSession((state) => state.settings);
   const devices = useSession((state) => state.devices);
-  const follow = useSession((state) => state.follow);
   const piece = useSession((state) => state.piece);
   const startup = useSession((state) => state.startup);
   const loadDevices = useSession((state) => state.loadDevices);
@@ -46,7 +46,7 @@ function App() {
   const openPiece = useSession((state) => state.openPiece);
   const resume = useSession((state) => state.resume);
   const stop = useSession((state) => state.stop);
-  const toggleFollow = useSession((state) => state.toggleFollow);
+  const changeSkill = useSession((state) => state.changeSkill);
   const changePart = useSession((state) => state.changePart);
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
@@ -154,12 +154,15 @@ function App() {
           </select>
         )}
         <label>
-          <input
-            type="checkbox"
-            checked={follow}
-            onChange={(event) => void toggleFollow(event.target.checked)}
-          />
-          Follow me
+          Mode
+          <select
+            value={settings?.skill ?? "Strict"}
+            onChange={(event) => void changeSkill(event.target.value as Skill)}
+          >
+            <option value="Listen">Listen</option>
+            <option value="Follow">Follow</option>
+            <option value="Strict">Strict</option>
+          </select>
         </label>
         <label>
           Your part

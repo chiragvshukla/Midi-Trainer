@@ -69,7 +69,7 @@ pub fn run() {
             commands::list_library::list_library,
             commands::connect_midi_input::connect_midi_input,
             commands::disconnect_midi_input::disconnect_midi_input,
-            commands::set_follow::set_follow,
+            commands::set_skill::set_skill,
             commands::set_library_folder::set_library_folder,
             commands::set_music_volume::set_music_volume,
             commands::set_player_part::set_player_part,
@@ -125,16 +125,18 @@ fn judgement_pump(app: AppHandle) {
             .collect();
         let _ = app.emit(PLAYER_NOTES_EVENT, &notes);
 
+        // Listen mode passes the notes through to the keyboard but judges nothing.
+        let scored = app
+            .state::<Mutex<Settings>>()
+            .lock()
+            .map(|settings| settings.scored())
+            .unwrap_or(false);
         let mut judgements = Vec::new();
         let mut wrong = false;
+        if scored
+            && let Ok(mut guard) = app.state::<Mutex<Option<LiveMatcher>>>().lock()
+            && let Some(matcher) = guard.as_mut()
         {
-            let state = app.state::<Mutex<Option<LiveMatcher>>>();
-            let Ok(mut guard) = state.lock() else {
-                continue;
-            };
-            let Some(matcher) = guard.as_mut() else {
-                continue;
-            };
             for note in played.iter().filter(|note| note.down) {
                 if let Some(judgement) = matcher.evaluate(note.position_ms, note.pitch) {
                     wrong |= judgement.verdict == Verdict::Wrong;

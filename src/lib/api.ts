@@ -12,6 +12,9 @@ export type Timing = "Ahead" | "OnTime" | "Behind";
 /** Which hand the player takes in one-hand practice; the app plays the other. */
 export type Hand = "Both" | "Left" | "Right";
 
+/** How strictly the player's notes are judged. */
+export type Skill = "Listen" | "Follow" | "Strict";
+
 export interface SoundfontStatus {
   installed: boolean;
   path: string;
@@ -32,6 +35,7 @@ export interface Settings {
   transpose: number;
   player_hand: Hand;
   player_track: number | null;
+  skill: Skill;
 }
 
 export interface NoteInfo {
@@ -239,8 +243,8 @@ export function setTrackVolume(channel: number, gain: number): Promise<void> {
   return invoke("set_track_volume", { channel, gain });
 }
 
-export function setFollow(follow: boolean): Promise<void> {
-  return invoke("set_follow", { follow });
+export function setSkill(skill: Skill): Promise<void> {
+  return invoke("set_skill", { skill });
 }
 
 export function playbackPosition(): Promise<number> {
