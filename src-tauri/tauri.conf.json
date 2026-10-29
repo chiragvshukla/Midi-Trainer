@@ -36,6 +36,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico"
+      }
+    },
     "resources": ["resources/microGM.sf2", "resources/microGM-NOTICE.txt"]
   }
 }
