@@ -1,7 +1,22 @@
 import { useSession } from "../state/sessionStore";
+import {
+  canvasColors,
+  useAppearance,
+  type Accent,
+  type Look,
+  type Theme,
+} from "../lib/theme";
 import { InfoHint } from "./InfoHint";
 import { trackName } from "./TrackMenu";
 import type { Hand, Skill } from "../lib/api";
+
+/** The accent hues offered in Appearance. */
+const ACCENTS: { id: Accent; label: string; color: string }[] = [
+  { id: "orange", label: "Orange", color: "#ff7a1a" },
+  { id: "teal", label: "Teal", color: "#2ec4b6" },
+  { id: "magenta", label: "Magenta", color: "#ff3ea5" },
+  { id: "green", label: "Green", color: "#3ddc84" },
+];
 
 /**
  * The settings drawer: the MIDI input, the practice mode and part, hand practice, tempo and
@@ -25,10 +40,30 @@ export function SettingsPanel({
   const changePlayAlong = useSession((state) => state.changePlayAlong);
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
+  const theme = useAppearance((state) => state.theme);
+  const look = useAppearance((state) => state.look);
+  const accent = useAppearance((state) => state.accent);
+  const trackColors = useAppearance((state) => state.trackColors);
+  const setTheme = useAppearance((state) => state.setTheme);
+  const setLook = useAppearance((state) => state.setLook);
+  const setAccent = useAppearance((state) => state.setAccent);
+  const setTrackColor = useAppearance((state) => state.setTrackColor);
+  const resetTrackColors = useAppearance((state) => state.resetTrackColors);
 
   if (!open) {
     return null;
   }
+
+  // The colour swatches fall back to the theme's track tokens when not overridden.
+  const tokens = canvasColors();
+  const trackFallbacks = [
+    tokens.track1,
+    tokens.track2,
+    tokens.track3,
+    tokens.track4,
+    tokens.track5,
+    tokens.track6,
+  ];
 
   // Hand practice only makes sense when there is a single playing part to split.
   const playingTracks = (piece?.tracks ?? []).filter(
@@ -55,6 +90,70 @@ export function SettingsPanel({
           </button>
         </header>
         <div className="drawer-body">
+          <section className="settings-group">
+            <h3>Appearance</h3>
+            <label className="field">
+              <span>Theme</span>
+              <select
+                value={theme}
+                onChange={(event) => setTheme(event.target.value as Theme)}
+              >
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="system">Follow system</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Look</span>
+              <select
+                value={look}
+                onChange={(event) => setLook(event.target.value as Look)}
+              >
+                <option value="matte">Matte</option>
+                <option value="atomic">Atomic</option>
+              </select>
+            </label>
+            <div className="field">
+              <span>Accent</span>
+              <div className="swatches">
+                {ACCENTS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={
+                      accent === option.id ? "swatch selected" : "swatch"
+                    }
+                    style={{ background: option.color }}
+                    aria-label={option.label}
+                    aria-pressed={accent === option.id}
+                    title={option.label}
+                    onClick={() => setAccent(option.id)}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="field">
+              <span>Note colours per track</span>
+              <div className="color-grid">
+                {trackColors.map((color, index) => (
+                  <label className="color-field" key={index}>
+                    {index + 1}
+                    <input
+                      type="color"
+                      value={color || trackFallbacks[index]}
+                      onChange={(event) =>
+                        setTrackColor(index, event.target.value)
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+              <button type="button" className="btn" onClick={resetTrackColors}>
+                Reset colours
+              </button>
+            </div>
+          </section>
+
           <section className="settings-group">
             <h3>Input</h3>
             <label className="field">

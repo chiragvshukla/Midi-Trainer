@@ -1010,10 +1010,108 @@ body {
   color: var(--faint);
 }
 
-/* --- Retro-futuristic chrome (warm atomic-age hi-fi) ---
-   The palette and voice live in the tokens above; this layer adds the chrome:
-   geometric uppercase type, lit accents, beveled panels and beefy controls.
-   Last in the file on purpose, so it overrides the base component shapes. */
+/* --- Look, accent and chrome ---
+   `matte` (the default) is flat and minimal; `atomic` re-adds the lit retro
+   treatment. The look tokens set the difference, so the component rules below
+   never branch on the look. Accent blocks set the hue and match the glow to it. */
+
+:root {
+  --chrome-sheen: linear-gradient(180deg, var(--panel-hi), transparent 40%);
+  --chrome-raised: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  --chrome-nav-active: linear-gradient(
+    90deg,
+    var(--surface-3),
+    var(--surface-2)
+  );
+  --chrome-toggle-active: linear-gradient(
+    180deg,
+    var(--surface-3),
+    var(--surface-2)
+  );
+  --chrome-primary: linear-gradient(180deg, var(--accent-hover), var(--accent));
+  --chrome-primary-hover: linear-gradient(180deg, #ffb066, var(--accent-hover));
+  --chrome-track: linear-gradient(var(--surface-3), var(--surface-2));
+  --chrome-thumb: radial-gradient(circle at 35% 30%, #fff6e8, var(--accent));
+  --chrome-thumb-radius: 50%;
+  --chrome-text-glow: 0 0 12px var(--glow);
+  --chrome-rail: var(--accent);
+  --shadow-control: inset 0 1px 0 var(--panel-hi);
+  --shadow-control-hover: inset 0 1px 0 var(--panel-hi), 0 0 12px var(--glow);
+  --shadow-nav-active:
+    inset 3px 0 0 var(--accent), inset 0 1px 0 var(--panel-hi);
+  --shadow-toggle-active: inset 0 1px 0 var(--panel-hi), 0 0 8px var(--glow);
+  --shadow-primary:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 14px var(--glow);
+  --shadow-inset: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-thumb: 0 0 8px var(--glow);
+  --shadow-rail: inset 0 1px 0 var(--panel-hi);
+  --chrome-toggle-inset: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  --chrome-panel-shadow: var(--shadow), inset 0 1px 0 var(--panel-hi);
+}
+
+/* Matte: flat fills, thin borders, squarer corners, no glow. */
+[data-look="matte"] {
+  --radius: 5px;
+  --radius-sm: 4px;
+  --chrome-sheen: none;
+  --chrome-raised: var(--surface-2);
+  --chrome-nav-active: var(--surface-2);
+  --chrome-toggle-active: var(--surface-3);
+  --chrome-primary: var(--accent);
+  --chrome-primary-hover: var(--accent-hover);
+  --chrome-track: var(--surface-3);
+  --chrome-thumb: var(--accent);
+  --chrome-thumb-radius: 4px;
+  --chrome-text-glow: none;
+  --chrome-rail: var(--border);
+  --shadow-control: none;
+  --shadow-control-hover: none;
+  --shadow-nav-active: inset 3px 0 0 var(--accent);
+  --shadow-toggle-active: none;
+  --shadow-primary: none;
+  --shadow-inset: none;
+  --shadow-thumb: none;
+  --shadow-rail: none;
+  --chrome-toggle-inset: none;
+  --chrome-panel-shadow: var(--shadow);
+}
+
+/* Accent hues. Orange is the theme default, so it needs no block. */
+[data-accent="teal"] {
+  --accent: #2ec4b6;
+  --accent-hover: #57d8cc;
+  --glow: color-mix(in srgb, #2ec4b6 45%, transparent);
+}
+
+[data-accent="magenta"] {
+  --accent: #ff3ea5;
+  --accent-hover: #ff6cbb;
+  --glow: color-mix(in srgb, #ff3ea5 45%, transparent);
+}
+
+[data-accent="green"] {
+  --accent: #3ddc84;
+  --accent-hover: #64e69f;
+  --glow: color-mix(in srgb, #3ddc84 45%, transparent);
+}
+
+[data-theme="light"][data-accent="teal"] {
+  --accent: #0f8f84;
+  --accent-hover: #14a89b;
+  --glow: color-mix(in srgb, #0f8f84 32%, transparent);
+}
+
+[data-theme="light"][data-accent="magenta"] {
+  --accent: #c2185b;
+  --accent-hover: #d81b60;
+  --glow: color-mix(in srgb, #c2185b 30%, transparent);
+}
+
+[data-theme="light"][data-accent="green"] {
+  --accent: #1f8a4c;
+  --accent-hover: #26a35b;
+  --glow: color-mix(in srgb, #1f8a4c 30%, transparent);
+}
 
 /* Display voice: geometric capitals with wide tracking. */
 .brand-name,
@@ -1051,20 +1149,19 @@ body {
   background-size: 28px 28px;
 }
 
-/* Panels get a top-edge sheen; the sidebar and transport look like a control deck. */
 .transport,
 .sidebar {
-  background-image: linear-gradient(180deg, var(--panel-hi), transparent 40%);
+  background-image: var(--chrome-sheen);
 }
 
 .sidebar {
-  border-right: 1px solid var(--accent);
-  box-shadow: inset 0 1px 0 var(--panel-hi);
+  border-right: 1px solid var(--chrome-rail);
+  box-shadow: var(--shadow-rail);
 }
 
 .brand-mark {
   color: var(--accent);
-  text-shadow: 0 0 12px var(--glow);
+  text-shadow: var(--chrome-text-glow);
 }
 
 .version-badge {
@@ -1072,19 +1169,16 @@ body {
 }
 
 .nav-item.active {
-  background: linear-gradient(90deg, var(--surface-3), var(--surface-2));
-  box-shadow:
-    inset 3px 0 0 var(--accent),
-    inset 0 1px 0 var(--panel-hi);
+  background: var(--chrome-nav-active);
+  box-shadow: var(--shadow-nav-active);
 }
 
-/* Chunky, beveled controls with a lit hover. */
 .btn,
 .icon-button,
 .menu-button,
 .library-tools button {
-  background-image: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  box-shadow: inset 0 1px 0 var(--panel-hi);
+  background: var(--chrome-raised);
+  box-shadow: var(--shadow-control);
   transition:
     box-shadow 120ms ease,
     color 120ms ease;
@@ -1094,39 +1188,33 @@ body {
 .icon-button:hover,
 .menu-button:hover,
 .library-tools button:hover {
-  box-shadow:
-    inset 0 1px 0 var(--panel-hi),
-    0 0 12px var(--glow);
+  box-shadow: var(--shadow-control-hover);
 }
 
 .btn.primary {
-  background-image: linear-gradient(180deg, var(--accent-hover), var(--accent));
+  background: var(--chrome-primary);
   color: #1b0f04;
   font-weight: 700;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.4),
-    0 0 14px var(--glow);
+  box-shadow: var(--shadow-primary);
 }
 
 .btn.primary:hover {
-  background-image: linear-gradient(180deg, #ffb066, var(--accent-hover));
+  background: var(--chrome-primary-hover);
 }
 
 .view-toggle {
   background: var(--bg);
   border: 1px solid var(--border);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--chrome-toggle-inset);
 }
 
 .view-toggle button.active {
-  background-image: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  background: var(--chrome-toggle-active);
   color: var(--text);
-  box-shadow:
-    inset 0 1px 0 var(--panel-hi),
-    0 0 8px var(--glow);
+  box-shadow: var(--shadow-toggle-active);
 }
 
-/* Sliders as lit faders on an inset rail. */
+/* Sliders as faders on an inset rail. */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -1138,9 +1226,9 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 999px;
-  background: linear-gradient(var(--surface-3), var(--surface-2));
+  background: var(--chrome-track);
   border: 1px solid var(--border);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-inset);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -1148,26 +1236,26 @@ input[type="range"]::-webkit-slider-thumb {
   width: 14px;
   height: 14px;
   margin-top: -5px;
-  border-radius: 50%;
+  border-radius: var(--chrome-thumb-radius);
   border: 1px solid var(--accent-hover);
-  background: radial-gradient(circle at 35% 30%, #fff6e8, var(--accent));
-  box-shadow: 0 0 8px var(--glow);
+  background: var(--chrome-thumb);
+  box-shadow: var(--shadow-thumb);
 }
 
 input[type="range"]::-moz-range-track {
   height: 6px;
   border-radius: 999px;
-  background: var(--surface-3);
+  background: var(--chrome-track);
   border: 1px solid var(--border);
 }
 
 input[type="range"]::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  border-radius: 50%;
+  border-radius: var(--chrome-thumb-radius);
   border: 1px solid var(--accent-hover);
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--glow);
+  background: var(--chrome-thumb);
+  box-shadow: var(--shadow-thumb);
 }
 
 .check input[type="checkbox"],
@@ -1175,12 +1263,11 @@ input[type="range"]::-moz-range-thumb {
   accent-color: var(--accent);
 }
 
-/* Timeline as a lit rail. */
 .timeline-track {
   height: 12px;
   background: var(--bg);
   border: 1px solid var(--border);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-inset);
 }
 
 .timeline-region {
@@ -1190,22 +1277,17 @@ input[type="range"]::-moz-range-thumb {
 
 .timeline-playhead {
   background: var(--accent);
-  box-shadow: 0 0 10px var(--glow);
+  box-shadow: var(--shadow-thumb);
 }
 
-/* Drawer, menus and cards get the same beveled edge. */
 .drawer {
-  border-left: 1px solid var(--accent);
-  box-shadow:
-    var(--shadow),
-    inset 0 1px 0 var(--panel-hi);
+  border-left: 1px solid var(--chrome-rail);
+  box-shadow: var(--chrome-panel-shadow);
 }
 
 .menu-items,
 .info-card {
-  box-shadow:
-    var(--shadow),
-    inset 0 1px 0 var(--panel-hi);
+  box-shadow: var(--chrome-panel-shadow);
 }
 
 .drawer-scrim {
@@ -1220,4 +1302,48 @@ input[type="range"]::-moz-range-thumb {
 .lyrics {
   font-family: var(--font-display);
   letter-spacing: 0.14em;
+}
+
+/* --- Appearance controls --- */
+
+.swatches {
+  display: flex;
+  gap: 8px;
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.swatch.selected {
+  border-color: var(--text);
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.color-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.color-field input[type="color"] {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
 }

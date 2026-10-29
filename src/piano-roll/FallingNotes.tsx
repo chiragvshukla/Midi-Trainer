@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { playbackPosition, type NoteInfo, type Verdict } from "../lib/api";
-import { canvasColors, useTheme } from "../lib/theme";
+import { canvasColors, useAppearance } from "../lib/theme";
 import { useSession, verdictKey } from "../state/sessionStore";
 
 /** Pitch classes drawn as black keys (C#, D#, F#, G#, A#). */
@@ -50,7 +50,7 @@ export function FallingNotes() {
   const verdicts = useSession((state) => state.verdicts);
   const pressed = useSession((state) => state.pressed);
   const settings = useSession((state) => state.settings);
-  const theme = useTheme((state) => state.theme);
+  const version = useAppearance((state) => state.version);
   // Zoom lives here, so it is remembered across toggles to the sheet view and back.
   const [zoom, setZoom] = useState(1);
 
@@ -286,7 +286,7 @@ export function FallingNotes() {
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [piece, verdicts, pressed, zoom, soloHand, byHand, theme]);
+  }, [piece, verdicts, pressed, zoom, soloHand, byHand, version]);
 
   return (
     <>

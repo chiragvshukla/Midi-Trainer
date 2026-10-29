@@ -21,6 +21,10 @@ import {
   type VoiceEvent,
 } from "../lib/api";
 import { useSession, verdictKey } from "../state/sessionStore";
+import { scoreColors, useAppearance } from "../lib/theme";
+
+/** The theme-derived colours the sheet draws with. */
+type ScoreColors = ReturnType<typeof scoreColors>;
 
 const PITCH_NAMES = [
   "c",
@@ -44,12 +48,6 @@ const BASE_DURATION: Record<Base, string> = {
   Eighth: "8",
   Sixteenth: "16",
   ThirtySecond: "32",
-};
-
-const COLORS = {
-  correct: "#2e7d32",
-  wrong: "#c62828",
-  cursor: "#ff9800",
 };
 
 const MEASURE_WIDTH = 340;
@@ -142,6 +140,7 @@ export function ScoreView() {
   const rangesRef = useRef<MeasureRange[]>([]);
   const piece = useSession((state) => state.piece);
   const verdicts = useSession((state) => state.verdicts);
+  const version = useAppearance((state) => state.version);
   const [zoom, setZoom] = useState(1);
   const [width, setWidth] = useState(0);
   const score = piece?.score;
@@ -169,7 +168,7 @@ export function ScoreView() {
       return;
     }
     render(score, piece.duration_ms, verdicts, zoom, width, host, rangesRef);
-  }, [score, verdicts, zoom, width]);
+  }, [score, verdicts, zoom, width, version]);
 
   useEffect(() => {
     let frame = 0;
@@ -229,6 +228,7 @@ function render(
   rangesRef: React.RefObject<MeasureRange[]>,
 ): void {
   const measures = score.measures;
+  const colors = scoreColors();
   // Layout is in SVG units; the context is scaled by zoom, so a CSS pixel of view width
   // is 1/zoom SVG units.
   const available = Math.max(MEASURE_WIDTH, viewWidth / zoom - 2 * MARGIN);
@@ -307,6 +307,7 @@ function render(
       voiceNotes,
       "treble",
       index,
+      colors,
     );
     drawStaff(
       measure.bass,
@@ -317,6 +318,7 @@ function render(
       voiceNotes,
       "bass",
       index,
+      colors,
     );
   });
 
@@ -333,9 +335,10 @@ function drawStaff(
   voiceNotes: Map<string, DrawnEvent[]>,
   staff: string,
   measureIndex: number,
+  colors: ScoreColors,
 ): void {
   voices.forEach((voice, voiceIndex) => {
-    const drawn = voice.events.map((event) => drawnOf(event, verdicts));
+    const drawn = voice.events.map((event) => drawnOf(event, verdicts, colors));
 
     // Consecutive triplet events of one base value share a tuplet bracket.
     const tuplets: Tuplet[] = [];
@@ -379,6 +382,7 @@ function drawStaff(
 function drawnOf(
   event: VoiceEvent,
   verdicts: Record<string, string>,
+  colors: ScoreColors,
 ): DrawnEvent {
   const rest = event.type === "Rest";
   const duration = event.duration;
@@ -389,7 +393,7 @@ function drawnOf(
     return { note, duration, chord: null };
   }
 
-  colorChord(note, chord, verdicts);
+  colorChord(note, chord, verdicts, colors);
   chord.notes.forEach((chordNote, pitchIndex) => {
     if (PITCH_NAMES[chordNote.pitch % 12].includes("#")) {
       note.addModifier(new Accidental("#"), pitchIndex);
@@ -406,11 +410,12 @@ function colorChord(
   note: StaveNote,
   chord: Chord,
   verdicts: Record<string, string>,
+  colors: ScoreColors,
 ): void {
   for (const chordNote of chord.notes) {
     const verdict = verdicts[verdictKey(chordNote.pitch, chordNote.onset_ms)];
     if (verdict === "Correct" || verdict === "Wrong") {
-      const color = verdict === "Correct" ? COLORS.correct : COLORS.wrong;
+      const color = verdict === "Correct" ? colors.correct : colors.wrong;
       note.setStyle({ fillStyle: color, strokeStyle: color });
       return;
     }

@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { initTheme } from "./lib/theme";
+import { initAppearance } from "./lib/theme";
 
-initTheme();
+initAppearance();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

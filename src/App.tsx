@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useAppStore } from "./state/appStore";
 import { useSession } from "./state/sessionStore";
 import { usePcKeyboard } from "./lib/usePcKeyboard";
-import { useTheme } from "./lib/theme";
+import { useAppearance } from "./lib/theme";
 import { SoundfontGate } from "./components/SoundfontGate";
 import { LibraryView } from "./components/LibraryView";
 import { LyricsBar } from "./components/LyricsBar";
@@ -51,8 +51,8 @@ function App() {
   const changeMusicVolume = useSession((state) => state.changeMusicVolume);
   const changePlayerVolume = useSession((state) => state.changePlayerVolume);
   const changeOutputVolume = useSession((state) => state.changeOutputVolume);
-  const theme = useTheme((state) => state.theme);
-  const toggleTheme = useTheme((state) => state.toggleTheme);
+  const theme = useAppearance((state) => state.resolved);
+  const toggleTheme = useAppearance((state) => state.toggleTheme);
 
   usePcKeyboard();
 
