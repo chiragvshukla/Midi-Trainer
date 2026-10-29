@@ -18,6 +18,15 @@ const LOOKAHEAD_MS = 4000;
  * this long to still be on screen when its verdict arrives. */
 const NOTE_LINGER_MS = 300;
 
+/** The gap left before the next note in the same lane, so two close notes never touch. */
+const NOTE_GAP_MS = 25;
+
+/** A note is never drawn shorter than this, so even a blip reads as a bar. */
+const MIN_NOTE_HEIGHT = 3;
+
+/** Horizontal gap between a lane's edge and its note. 0 lets a note fill its lane. */
+const NOTE_INSET = 0;
+
 /** Middle C: the boundary between the hands, as the engine splits them. */
 const MIDDLE_C = 60;
 
@@ -100,6 +109,20 @@ export function FallingNotes() {
         )
       : all;
     const maxDurationMs = longestNoteMs(notes);
+    // For each note, the start of the next note in the same lane (Infinity if it is the last),
+    // so a note's drawn tail can be capped before the next one begins.
+    const nextStart = new Array<number>(notes.length).fill(
+      Number.POSITIVE_INFINITY,
+    );
+    const lastAtPitch = new Map<number, number>();
+    for (let i = notes.length - 1; i >= 0; i--) {
+      const pitch = notes[i].pitch;
+      const later = lastAtPitch.get(pitch);
+      if (later !== undefined) {
+        nextStart[i] = notes[later].start_ms;
+      }
+      lastAtPitch.set(pitch, i);
+    }
     const labelKeys = noteLabels === "keys" || noteLabels === "both";
     const labelNotes = noteLabels === "notes" || noteLabels === "both";
 
@@ -208,7 +231,8 @@ export function FallingNotes() {
         }
       }
 
-      const visible: NoteInfo[] = [];
+      // Kept as indices so a note can look up the next note in its own lane.
+      const visible: number[] = [];
       for (let i = windowStart; i < notes.length; i++) {
         const note = notes[i];
         if (note.start_ms > positionMs + lookahead) {
@@ -220,35 +244,55 @@ export function FallingNotes() {
         if (note.start_ms <= positionMs) {
           sounding.add(note.pitch);
         }
-        visible.push(note);
+        visible.push(i);
       }
 
       // Falling notes, drawn furthest first so notes near the keyboard land on top.
-      for (let i = visible.length - 1; i >= 0; i--) {
-        const note = visible[i];
+      for (let v = visible.length - 1; v >= 0; v--) {
+        const i = visible[v];
+        const note = notes[i];
         const rect = keyRect(note.pitch);
+        // The linger tail is capped at the next note in the same lane, so two close notes never
+        // paint over each other; a lane's last note keeps the full linger for its verdict.
+        const drawnEndMs = Math.max(
+          note.end_ms,
+          Math.min(note.end_ms + NOTE_LINGER_MS, nextStart[i] - NOTE_GAP_MS),
+        );
+        if (drawnEndMs <= positionMs) {
+          continue;
+        }
         const bottom = Math.min(
           keyboardTop,
           keyboardTop - (note.start_ms - positionMs) * pxPerMs,
         );
         const top = Math.max(
           0,
-          keyboardTop - (note.end_ms + NOTE_LINGER_MS - positionMs) * pxPerMs,
+          keyboardTop - (drawnEndMs - positionMs) * pxPerMs,
         );
         const verdict: Verdict | undefined =
           verdicts[verdictKey(note.pitch, note.start_ms)];
         // The track colour always fills the note; a verdict is shown by shape (outline and, for
         // a wrong note, a cross), never by hue, so it stays distinct from a track that is itself
         // red or green and from any custom track colour.
-        const noteX = rect.x + 1;
-        const noteWidth = rect.width - 2;
-        const noteHeight = Math.max(2, bottom - top);
+        const noteX = rect.x + NOTE_INSET;
+        const noteWidth = rect.width - NOTE_INSET * 2;
+        const noteHeight = Math.max(MIN_NOTE_HEIGHT, bottom - top);
         context.fillStyle = noteColor(note);
         if (verdict === "Wrong") {
           context.globalAlpha = 0.45;
         }
         context.fillRect(noteX, top, noteWidth, noteHeight);
         context.globalAlpha = 1;
+        // Every note keeps a thin outline, so crowded notes still read apart; a verdict then
+        // overdraws it in the correct/wrong colour.
+        context.strokeStyle = "rgba(0, 0, 0, 0.35)";
+        context.lineWidth = 1;
+        context.strokeRect(
+          noteX + 0.5,
+          top + 0.5,
+          noteWidth - 1,
+          noteHeight - 1,
+        );
         if (verdict === "Correct" || verdict === "Wrong") {
           context.strokeStyle =
             verdict === "Correct" ? COLORS.correct : COLORS.wrong;
