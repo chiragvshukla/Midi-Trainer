@@ -3,6 +3,12 @@ import { create } from "zustand";
 /** The chosen base brightness; `system` follows the operating system. */
 export type Theme = "dark" | "light" | "system";
 
+/** The UI style. `matte` is today's flat chrome; `win95` gives it hard 3D bevels. */
+export type Look = "matte" | "win95";
+
+/** How the on-screen keyboard is drawn. Only the keyboard changes; the notes do not. */
+export type PianoLook = "minimalistic" | "realistic";
+
 /**
  * The fixed colour palettes offered, each a well-known publishing with dark and light variants,
  * with its display label. A palette owns every chrome and note colour, so the whole app stays
@@ -40,7 +46,11 @@ export const TRACK_COLOR_COUNT = 6;
 /** The appearance the user has chosen; everything here is UI-only. */
 interface Appearance {
   theme: Theme;
+  /** The UI style (matte or win95). */
+  look: Look;
   palette: Palette;
+  /** How the on-screen keyboard is drawn. */
+  pianoLook: PianoLook;
   /** Per-track overrides, index 0..5; an empty string means "use the palette's colour". */
   trackColors: string[];
   /** Whether the left navigation rail is collapsed to icons. */
@@ -57,7 +67,9 @@ interface Appearance {
 
 const DEFAULTS: Appearance = {
   theme: "dark",
+  look: "matte",
   palette: "gruvbox",
+  pianoLook: "minimalistic",
   trackColors: Array<string>(TRACK_COLOR_COUNT).fill(""),
   collapsed: false,
   reducedMotion: false,
@@ -72,6 +84,14 @@ function isTheme(value: unknown): value is Theme {
 
 function isPalette(value: unknown): value is Palette {
   return PALETTES.some((palette) => palette.id === value);
+}
+
+function isLook(value: unknown): value is Look {
+  return value === "matte" || value === "win95";
+}
+
+function isPianoLook(value: unknown): value is PianoLook {
+  return value === "minimalistic" || value === "realistic";
 }
 
 function isNoteLabels(value: unknown): value is NoteLabels {
@@ -97,7 +117,11 @@ function read(): Appearance {
       const saved = JSON.parse(raw) as Partial<Appearance>;
       return {
         theme: isTheme(saved.theme) ? saved.theme : DEFAULTS.theme,
+        look: isLook(saved.look) ? saved.look : DEFAULTS.look,
         palette: isPalette(saved.palette) ? saved.palette : DEFAULTS.palette,
+        pianoLook: isPianoLook(saved.pianoLook)
+          ? saved.pianoLook
+          : DEFAULTS.pianoLook,
         trackColors: Array.from({ length: TRACK_COLOR_COUNT }, (_, index) =>
           typeof saved.trackColors?.[index] === "string"
             ? saved.trackColors[index]
@@ -124,6 +148,7 @@ function apply(state: Appearance): void {
   const root = document.documentElement;
   root.dataset.theme = resolvedTheme(state.theme);
   root.dataset.palette = state.palette;
+  root.dataset.look = state.look;
   if (state.reducedMotion) {
     root.dataset.motion = "reduced";
   } else {
@@ -157,7 +182,9 @@ interface AppearanceState extends Appearance {
   /** Bumped when the theme or a canvas colour changes, so the canvases redraw. */
   version: number;
   setTheme: (theme: Theme) => void;
+  setLook: (look: Look) => void;
   setPalette: (palette: Palette) => void;
+  setPianoLook: (pianoLook: PianoLook) => void;
   setTrackColor: (index: number, color: string) => void;
   resetTrackColors: () => void;
   setReducedMotion: (on: boolean) => void;
@@ -188,7 +215,9 @@ export const useAppearance = create<AppearanceState>((set) => ({
   resolved: resolvedTheme(initial.theme),
   version: 0,
   setTheme: (theme) => set((state) => advance(state, { theme })),
+  setLook: (look) => set((state) => advance(state, { look })),
   setPalette: (palette) => set((state) => advance(state, { palette })),
+  setPianoLook: (pianoLook) => set((state) => advance(state, { pianoLook })),
   setTrackColor: (index, color) =>
     set((state) => {
       const trackColors = [...state.trackColors];

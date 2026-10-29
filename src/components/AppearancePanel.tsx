@@ -1,5 +1,5 @@
 import { useAppearance, canvasColors, PALETTES } from "../lib/theme";
-import type { NoteLabels, Palette, Theme } from "../lib/theme";
+import type { Look, NoteLabels, Palette, PianoLook, Theme } from "../lib/theme";
 import { useAppStore } from "../state/appStore";
 
 /**
@@ -16,10 +16,14 @@ export function AppearancePanel({
   onClose: () => void;
 }) {
   const theme = useAppearance((state) => state.theme);
+  const look = useAppearance((state) => state.look);
   const palette = useAppearance((state) => state.palette);
+  const pianoLook = useAppearance((state) => state.pianoLook);
   const trackColors = useAppearance((state) => state.trackColors);
   const setTheme = useAppearance((state) => state.setTheme);
+  const setLook = useAppearance((state) => state.setLook);
   const setPalette = useAppearance((state) => state.setPalette);
+  const setPianoLook = useAppearance((state) => state.setPianoLook);
   const setTrackColor = useAppearance((state) => state.setTrackColor);
   const resetTrackColors = useAppearance((state) => state.resetTrackColors);
   const reducedMotion = useAppearance((state) => state.reducedMotion);
@@ -71,7 +75,7 @@ export function AppearancePanel({
           <section className="settings-group">
             <h3>Appearance</h3>
             <label className="field">
-              <span>Theme</span>
+              <span>Appearance</span>
               <select
                 value={theme}
                 onChange={(event) => setTheme(event.target.value as Theme)}
@@ -79,6 +83,16 @@ export function AppearancePanel({
                 <option value="dark">Dark</option>
                 <option value="light">Light</option>
                 <option value="system">Follow system</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Theme</span>
+              <select
+                value={look}
+                onChange={(event) => setLook(event.target.value as Look)}
+              >
+                <option value="matte">Minimal matte</option>
+                <option value="win95">Win95</option>
               </select>
             </label>
             <label className="field">
@@ -92,6 +106,18 @@ export function AppearancePanel({
                     {option.label}
                   </option>
                 ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Piano look</span>
+              <select
+                value={pianoLook}
+                onChange={(event) =>
+                  setPianoLook(event.target.value as PianoLook)
+                }
+              >
+                <option value="minimalistic">Minimalistic</option>
+                <option value="realistic">Realistic</option>
               </select>
             </label>
             <div className="field">
