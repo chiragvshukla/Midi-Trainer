@@ -292,14 +292,18 @@ export function FallingNotes() {
         );
       }
 
-      // Note names on every white key, when the labels are on for the keyboard. Skip when the
-      // keys are too narrow for the text to fit.
-      if (labelKeys && whiteWidth >= 14) {
+      // Note names on the keyboard, when the labels are on. Every white key when they are wide
+      // enough, otherwise just the Cs, so the names never vanish entirely on a narrow window.
+      if (labelKeys) {
+        const labelEveryKey = whiteWidth >= 14;
         context.fillStyle = COLORS.black;
         context.font = LABEL_FONT;
         context.textAlign = "center";
         context.textBaseline = "bottom";
         for (const pitch of whites) {
+          if (!labelEveryKey && pitch % 12 !== 0) {
+            continue;
+          }
           const rect = keyRect(pitch);
           context.fillText(
             pitchName(pitch),
