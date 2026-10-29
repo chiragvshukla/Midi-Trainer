@@ -45,7 +45,7 @@ function longestNoteMs(notes: NoteInfo[]): number {
 
 /**
  * The falling-note view: score notes scroll onto an on-screen keyboard, keys light up while
- * their notes sound or while the player holds them, and played notes are colored by verdict.
+ * their notes sound or while the player holds them, and judged notes are marked by verdict.
  * Rendering only — position comes from the engine, verdicts from the session store.
  */
 export function FallingNotes() {
@@ -232,18 +232,32 @@ export function FallingNotes() {
         );
         const verdict: Verdict | undefined =
           verdicts[verdictKey(note.pitch, note.start_ms)];
-        context.fillStyle =
-          verdict === "Correct"
-            ? COLORS.correct
-            : verdict === "Wrong"
-              ? COLORS.wrong
-              : noteColor(note);
-        context.fillRect(
-          rect.x + 1,
-          top,
-          rect.width - 2,
-          Math.max(2, bottom - top),
-        );
+        // The track colour always fills the note; a verdict is shown by shape (outline and, for
+        // a wrong note, a cross), never by hue, so it stays distinct from a track that is itself
+        // red or green and from any custom track colour.
+        const noteX = rect.x + 1;
+        const noteWidth = rect.width - 2;
+        const noteHeight = Math.max(2, bottom - top);
+        context.fillStyle = noteColor(note);
+        if (verdict === "Wrong") {
+          context.globalAlpha = 0.45;
+        }
+        context.fillRect(noteX, top, noteWidth, noteHeight);
+        context.globalAlpha = 1;
+        if (verdict === "Correct" || verdict === "Wrong") {
+          context.strokeStyle =
+            verdict === "Correct" ? COLORS.correct : COLORS.wrong;
+          context.lineWidth = 2;
+          context.strokeRect(noteX + 1, top + 1, noteWidth - 2, noteHeight - 2);
+          if (verdict === "Wrong") {
+            context.beginPath();
+            context.moveTo(noteX, top);
+            context.lineTo(noteX + noteWidth, top + noteHeight);
+            context.moveTo(noteX + noteWidth, top);
+            context.lineTo(noteX, top + noteHeight);
+            context.stroke();
+          }
+        }
         if (labelNotes && bottom - top > 12 && rect.width > 12) {
           context.fillStyle = COLORS.label;
           context.font = LABEL_FONT;
