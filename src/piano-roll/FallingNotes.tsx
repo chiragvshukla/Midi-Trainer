@@ -31,6 +31,9 @@ const MIN_NOTE_HEIGHT = 4;
 /** Small gutter between a lane's edge and its note, so neighbouring columns stay distinct. */
 const NOTE_INSET = 1;
 
+/** Corner radius of a falling note, so its edges are rounded rather than square. */
+const NOTE_CORNER_RADIUS = 3;
+
 /** Middle C: the boundary between the hands, as the engine splits them. */
 const MIDDLE_C = 60;
 
@@ -126,6 +129,20 @@ function roundBottomEdge(
   const r = Math.min(radius, width / 2, height / 2);
   context.beginPath();
   context.roundRect(x, y, width, height, [0, 0, r, r]);
+}
+
+/** A note's path: a rectangle rounded on all four corners, clamped so the radius always fits. */
+function roundedNotePath(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  const r = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.roundRect(x, y, width, height, r);
 }
 
 /**
@@ -372,22 +389,31 @@ export function FallingNotes() {
         const noteX = rect.x + NOTE_INSET;
         const noteWidth = rect.width - NOTE_INSET * 2;
         const noteHeight = Math.max(MIN_NOTE_HEIGHT, bottom - top);
+        const radius = Math.min(
+          NOTE_CORNER_RADIUS,
+          noteWidth / 2,
+          noteHeight / 2,
+        );
         context.fillStyle = noteColor(note);
         if (verdict === "Wrong") {
           context.globalAlpha = 0.45;
         }
-        context.fillRect(noteX, top, noteWidth, noteHeight);
+        roundedNotePath(context, noteX, top, noteWidth, noteHeight, radius);
+        context.fill();
         context.globalAlpha = 1;
-        // Every note keeps a thin outline, so crowded notes still read apart; a verdict then
+        // Every note keeps a thin border, so crowded notes still read apart; a verdict then
         // overdraws it in the correct/wrong colour.
-        context.strokeStyle = "rgba(0, 0, 0, 0.3)";
+        context.strokeStyle = COLORS.keyBorder;
         context.lineWidth = 1;
-        context.strokeRect(
+        roundedNotePath(
+          context,
           noteX + 0.5,
           top + 0.5,
           noteWidth - 1,
           noteHeight - 1,
+          radius,
         );
+        context.stroke();
         // The note the playhead is sitting on is the one to play now: ring it and glow it, so it
         // stands out from the notes yet to come. A judged note is never "required".
         if (
@@ -400,14 +426,30 @@ export function FallingNotes() {
           context.shadowColor = COLORS.playhead;
           context.shadowBlur = 8;
           context.lineWidth = 2;
-          context.strokeRect(noteX + 1, top + 1, noteWidth - 2, noteHeight - 2);
+          roundedNotePath(
+            context,
+            noteX + 1,
+            top + 1,
+            noteWidth - 2,
+            noteHeight - 2,
+            radius,
+          );
+          context.stroke();
           context.restore();
         }
         if (verdict === "Correct" || verdict === "Wrong") {
           context.strokeStyle =
             verdict === "Correct" ? COLORS.correct : COLORS.wrong;
           context.lineWidth = 2;
-          context.strokeRect(noteX + 1, top + 1, noteWidth - 2, noteHeight - 2);
+          roundedNotePath(
+            context,
+            noteX + 1,
+            top + 1,
+            noteWidth - 2,
+            noteHeight - 2,
+            radius,
+          );
+          context.stroke();
           if (verdict === "Wrong") {
             context.beginPath();
             context.moveTo(noteX, top);
