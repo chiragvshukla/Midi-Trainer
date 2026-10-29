@@ -1,4 +1,3 @@
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
@@ -7,7 +6,8 @@ use tauri::{AppHandle, State};
 use crate::audio::AudioEngine;
 use crate::commands::update_settings;
 use crate::engine::matcher::LiveMatcher;
-use crate::engine::{scheduler, timeline::Timeline};
+use crate::engine::notation;
+use crate::engine::{midi, scheduler, timeline::Timeline};
 
 /// One note of the loaded piece, as the falling-note view draws it.
 #[derive(Serialize)]
@@ -17,11 +17,12 @@ pub struct NoteInfo {
     pub end_ms: f64,
 }
 
-/// The piece the falling-note view renders: its notes and total length.
+/// The piece the views render: the falling notes, the total length, and the engraved score.
 #[derive(Serialize)]
 pub struct Piece {
     pub notes: Vec<NoteInfo>,
     pub duration_ms: f64,
+    pub score: notation::Score,
 }
 
 /// Loads a MIDI or karaoke file, plays it from the beginning, and returns its notes.
@@ -32,7 +33,10 @@ pub fn play_file(
     engine: State<'_, Mutex<AudioEngine>>,
     matcher: State<'_, Mutex<Option<LiveMatcher>>>,
 ) -> Result<Piece, String> {
-    let timeline = Timeline::load(Path::new(&path)).map_err(|err| err.to_string())?;
+    // Read once and parse once: the timeline and the engraved score come from the same file.
+    let data = std::fs::read(&path).map_err(|err| err.to_string())?;
+    let file = midi::parse(&data).map_err(|err| err.to_string())?;
+    let timeline = Timeline::from_midi(&file);
     let score = Arc::new(scheduler::schedule(&timeline));
     {
         let mut matcher = matcher
@@ -61,5 +65,6 @@ pub fn play_file(
     Ok(Piece {
         duration_ms: timeline.duration_ms,
         notes,
+        score: notation::engrave(&file, &timeline),
     })
 }

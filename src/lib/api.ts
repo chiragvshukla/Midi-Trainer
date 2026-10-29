@@ -33,9 +33,54 @@ export interface NoteInfo {
   end_ms: number;
 }
 
+/** Notatable note heads, longest to shortest, as the engine names them. */
+export type Base = "Whole" | "Half" | "Quarter" | "Eighth" | "Sixteenth" | "ThirtySecond";
+
+export type Duration =
+  | { type: "Straight"; base: Base; dotted: boolean }
+  | { type: "Triplet"; base: Base };
+
+export interface TimeSignature {
+  numerator: number;
+  denominator: number;
+}
+
+export interface ChordNote {
+  pitch: number;
+  /** The original note's onset, to match playback verdicts. */
+  onset_ms: number;
+  tied_from_previous: boolean;
+  tied_to_next: boolean;
+}
+
+export interface Chord {
+  duration: Duration;
+  notes: ChordNote[];
+}
+
+export type VoiceEvent = ({ type: "Chord" } & Chord) | { type: "Rest"; duration: Duration };
+
+export interface Voice {
+  events: VoiceEvent[];
+}
+
+export interface Measure {
+  start_ms: number;
+  /** 1-based; the pickup measure, if any, is 0. */
+  number: number;
+  time_signature: TimeSignature;
+  treble: Voice[];
+  bass: Voice[];
+}
+
+export interface Score {
+  measures: Measure[];
+}
+
 export interface Piece {
   notes: NoteInfo[];
   duration_ms: number;
+  score: Score;
 }
 
 export interface Judgement {

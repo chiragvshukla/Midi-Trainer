@@ -43,6 +43,7 @@ pub struct Voice {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "type")]
 pub enum Event {
     Chord(Chord),
     Rest { duration: Duration },

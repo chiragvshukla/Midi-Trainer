@@ -85,6 +85,7 @@ pub fn quantize(file: &MidiFile) -> Quantization {
 
 /// A notatable rhythmic value, as the sheet view will draw it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(tag = "type")]
 pub enum Duration {
     /// A straight value, possibly dotted (one dot).
     Straight { base: Base, dotted: bool },
