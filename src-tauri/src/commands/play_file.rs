@@ -16,6 +16,7 @@ use crate::settings::Settings;
 /// One note of the loaded piece, as the falling-note view draws it.
 #[derive(Serialize)]
 pub struct NoteInfo {
+    pub track: u16,
     pub pitch: u8,
     pub start_ms: f64,
     pub end_ms: f64,
@@ -84,6 +85,7 @@ pub fn play_file(
         .notes
         .iter()
         .map(|note| NoteInfo {
+            track: note.track,
             pitch: note.pitch,
             start_ms: note.start_ms,
             end_ms: note.end_ms,

@@ -60,5 +60,11 @@ export function canvasColors() {
     black: read("--roll-black-key"),
     keyBorder: read("--roll-key-border"),
     playhead: read("--roll-playhead"),
+    track1: read("--roll-track-1"),
+    track2: read("--roll-track-2"),
+    track3: read("--roll-track-3"),
+    track4: read("--roll-track-4"),
+    track5: read("--roll-track-5"),
+    track6: read("--roll-track-6"),
   };
 }

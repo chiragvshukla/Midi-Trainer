@@ -42,6 +42,8 @@ export interface Settings {
 }
 
 export interface NoteInfo {
+  /** The file track this note belongs to, so the view can colour by track. */
+  track: number;
   pitch: number;
   start_ms: number;
   end_ms: number;

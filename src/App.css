@@ -37,6 +37,12 @@
   --roll-black-key: #222222;
   --roll-key-border: #cccccc;
   --roll-playhead: #ff9800;
+  --roll-track-1: #ff8a3d;
+  --roll-track-2: #2ec4b6;
+  --roll-track-3: #ffd166;
+  --roll-track-4: #e5486b;
+  --roll-track-5: #9b8cff;
+  --roll-track-6: #4fb0ff;
 }
 
 [data-theme="light"] {
@@ -71,6 +77,12 @@
   --roll-black-key: #333333;
   --roll-key-border: #b9bec7;
   --roll-playhead: #ef6c00;
+  --roll-track-1: #d9601a;
+  --roll-track-2: #1f9d92;
+  --roll-track-3: #b8860b;
+  --roll-track-4: #c2185b;
+  --roll-track-5: #5e35b1;
+  --roll-track-6: #1976d2;
 }
 
 * {

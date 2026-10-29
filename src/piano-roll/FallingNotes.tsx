@@ -63,7 +63,9 @@ export function FallingNotes() {
     settings.player_hand !== "Both"
       ? settings.player_hand
       : null;
-  const byHand = settings?.player_track == null;
+  // Hand colours are only used when hand practice is on; otherwise each track has its own
+  // colour, so a multi-track piece reads apart at a glance.
+  const byHand = settings?.hand_split ?? false;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -89,16 +91,24 @@ export function FallingNotes() {
       : all;
     const maxDurationMs = longestNoteMs(notes);
 
-    // Notes are coloured by hand: the two hands apart when both show, the one hand's colour
-    // when solo. A whole track as the player's part has no split, so notes stay the base colour.
-    const noteColor = (pitch: number): string => {
+    // Notes are coloured by hand only when hand practice is on: the two hands apart when both
+    // show, the one hand's colour when solo. Otherwise each track gets its own palette colour.
+    const trackColors = [
+      COLORS.track1,
+      COLORS.track2,
+      COLORS.track3,
+      COLORS.track4,
+      COLORS.track5,
+      COLORS.track6,
+    ];
+    const noteColor = (note: NoteInfo): string => {
       if (!byHand) {
-        return COLORS.note;
+        return trackColors[note.track % trackColors.length];
       }
       if (soloHand) {
         return soloHand === "Left" ? COLORS.left : COLORS.right;
       }
-      return pitch < MIDDLE_C ? COLORS.left : COLORS.right;
+      return note.pitch < MIDDLE_C ? COLORS.left : COLORS.right;
     };
 
     const draw = (positionMs: number) => {
@@ -188,7 +198,7 @@ export function FallingNotes() {
             ? COLORS.correct
             : verdict === "Wrong"
               ? COLORS.wrong
-              : noteColor(note.pitch);
+              : noteColor(note);
         context.fillRect(
           rect.x + 1,
           top,
