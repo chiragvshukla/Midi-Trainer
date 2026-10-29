@@ -11,6 +11,7 @@ import { PracticeStatsBar } from "./components/PracticeStatsBar";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { Sidebar, type Section } from "./components/Sidebar";
 import { TrackMenu } from "./components/TrackMenu";
+import { TransportTimeline } from "./components/TransportTimeline";
 import { FallingNotes } from "./piano-roll/FallingNotes";
 import { ScoreView } from "./score/ScoreView";
 import type {
@@ -42,6 +43,9 @@ function App() {
   const openPiece = useSession((state) => state.openPiece);
   const resume = useSession((state) => state.resume);
   const stop = useSession((state) => state.stop);
+  const piece = useSession((state) => state.piece);
+  const startOver = useSession((state) => state.startOver);
+  const previousBar = useSession((state) => state.previousBar);
 
   usePcKeyboard();
 
@@ -116,6 +120,24 @@ function App() {
           <button
             type="button"
             className="btn"
+            title="Back to the start"
+            disabled={!piece}
+            onClick={() => void startOver()}
+          >
+            ⏮ Start
+          </button>
+          <button
+            type="button"
+            className="btn"
+            title="Previous bar"
+            disabled={!piece}
+            onClick={() => void previousBar()}
+          >
+            ◀ Bar
+          </button>
+          <button
+            type="button"
+            className="btn"
             onClick={() => void chooseFile()}
           >
             Open…
@@ -184,6 +206,7 @@ function App() {
         </main>
         {section === "practice" && (
           <>
+            <TransportTimeline />
             <LyricsBar />
             <PracticeStatsBar />
           </>

@@ -266,6 +266,10 @@ export function playbackPosition(): Promise<number> {
   return invoke<number>("playback_position");
 }
 
+export function seek(positionMs: number): Promise<void> {
+  return invoke("seek", { positionMs });
+}
+
 export function keyDown(code: string): Promise<number | null> {
   return invoke<number | null>("key_down", { code });
 }

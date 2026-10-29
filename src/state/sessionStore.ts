@@ -12,7 +12,9 @@ import {
   loadSoundfont,
   play,
   playFile,
+  playbackPosition,
   saveSettings,
+  seek,
   setSkill,
   setLibraryFolders,
   setHandSplit,
@@ -69,6 +71,43 @@ export function verdictKey(pitch: number, startMs: number): string {
   return `${pitch}:${Math.round(startMs)}`;
 }
 
+/** The bar line nearest `ms` in the engraved measures, so loop points land on a bar. */
+function nearestBarMs(piece: Piece | null, ms: number): number {
+  const measures = piece?.score.measures ?? [];
+  let best = ms;
+  let bestDistance = Infinity;
+  for (const measure of measures) {
+    const distance = Math.abs(measure.start_ms - ms);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = measure.start_ms;
+    }
+  }
+  return best;
+}
+
+/** The start of the bar before the one holding `ms`; the piece's start at the first bar. */
+function previousBarMs(piece: Piece | null, ms: number): number {
+  let previous = 0;
+  for (const measure of piece?.score.measures ?? []) {
+    if (measure.start_ms < ms - 1) {
+      previous = measure.start_ms;
+    } else {
+      break;
+    }
+  }
+  return previous;
+}
+
+/** The engine's current playhead, or 0 when no piece is loaded. */
+async function currentPositionMs(): Promise<number> {
+  try {
+    return await playbackPosition();
+  } catch {
+    return 0;
+  }
+}
+
 interface SessionState {
   soundfont: SoundfontStatus | null;
   download: DownloadState | null;
@@ -97,6 +136,12 @@ interface SessionState {
   lastOffsetMs: number | null;
   /** Pitches currently held down on any keyboard. */
   pressed: number[];
+  /** Loop region start in milliseconds, snapped to a bar; null until set. */
+  loopStartMs: number | null;
+  /** Loop region end in milliseconds, snapped to a bar; null until set. */
+  loopEndMs: number | null;
+  /** Whether playback loops the region instead of running to the end. */
+  looping: boolean;
   /** First-run setup: SoundFont first (the engine needs it), then the saved settings. */
   startup: () => Promise<void>;
   initSoundfont: () => Promise<void>;
@@ -112,6 +157,13 @@ interface SessionState {
   toggleTrack: (index: number) => Promise<void>;
   resume: () => Promise<void>;
   stop: () => Promise<void>;
+  seekTo: (positionMs: number) => Promise<void>;
+  startOver: () => Promise<void>;
+  previousBar: () => Promise<void>;
+  setLoopStart: () => Promise<void>;
+  setLoopEnd: () => Promise<void>;
+  toggleLoop: () => void;
+  clearLoop: () => void;
   changeSkill: (skill: Skill) => Promise<void>;
   changePart: (hand: Hand, track: number | null) => Promise<void>;
   changeHandSplit: (on: boolean) => Promise<void>;
@@ -144,6 +196,9 @@ export const useSession = create<SessionState>((set, get) => ({
   lastTiming: null,
   lastOffsetMs: null,
   pressed: [],
+  loopStartMs: null,
+  loopEndMs: null,
+  looping: false,
 
   startup: async () => {
     await get().initSoundfont();
@@ -303,6 +358,9 @@ export const useSession = create<SessionState>((set, get) => ({
         stats: null,
         lastTiming: null,
         lastOffsetMs: null,
+        loopStartMs: null,
+        loopEndMs: null,
+        looping: false,
       });
     } catch (error) {
       log.error(`failed to play ${path}: ${String(error)}`);
@@ -344,6 +402,42 @@ export const useSession = create<SessionState>((set, get) => ({
       log.error(`stopping playback failed: ${String(error)}`);
     }
   },
+
+  seekTo: async (positionMs) => {
+    if (!get().piece) {
+      return;
+    }
+    try {
+      await seek(Math.max(0, Math.round(positionMs)));
+      // The engine rewinds its scoring with the playhead; the readout mirrors that reset.
+      set({ verdicts: {}, stats: null, lastTiming: null, lastOffsetMs: null });
+    } catch (error) {
+      log.error(`seeking failed: ${String(error)}`);
+    }
+  },
+
+  startOver: async () => {
+    await get().seekTo(0);
+  },
+
+  previousBar: async () => {
+    const position = await currentPositionMs();
+    await get().seekTo(previousBarMs(get().piece, position));
+  },
+
+  setLoopStart: async () => {
+    const position = await currentPositionMs();
+    set({ loopStartMs: nearestBarMs(get().piece, position) });
+  },
+
+  setLoopEnd: async () => {
+    const position = await currentPositionMs();
+    set({ loopEndMs: nearestBarMs(get().piece, position) });
+  },
+
+  toggleLoop: () => set((state) => ({ looping: !state.looping })),
+
+  clearLoop: () => set({ loopStartMs: null, loopEndMs: null, looping: false }),
 
   changeSkill: async (skill) => {
     set((state) => ({

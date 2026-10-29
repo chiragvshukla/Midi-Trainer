@@ -136,6 +136,20 @@ impl LiveMatcher {
     pub fn stats(&self) -> PracticeStats {
         self.score.stats()
     }
+
+    /// Moves the matcher back to `position_ms`: every note from here on can be judged again and
+    /// the tally starts over. Used when the playhead rewinds or a loop repeats, so a replayed
+    /// section is scored fresh instead of counting as missed.
+    pub fn restart(&mut self, position_ms: f64) {
+        let window = self.judge.window_ms as f64;
+        self.cursor = self
+            .notes
+            .partition_point(|note| note.start_ms < position_ms - window);
+        for note in &mut self.notes[self.cursor..] {
+            note.matched = false;
+        }
+        self.score = Score::default();
+    }
 }
 
 #[cfg(test)]
@@ -224,6 +238,29 @@ mod tests {
         assert_eq!(stats.ahead, 1);
         assert_eq!(stats.on_time, 1);
         assert_eq!(stats.behind, 1);
+    }
+
+    #[test]
+    fn restart_makes_a_section_matchable_again() {
+        let mut matcher = matcher(&[(60, 1000.0), (64, 2000.0)]);
+        matcher.evaluate(1000.0, 60);
+        matcher.evaluate(2000.0, 64);
+        assert_eq!(matcher.stats().attempts, 2);
+
+        // Rewinding to the second note leaves the first matched but forgets the second, and the
+        // tally starts over.
+        matcher.restart(2000.0);
+        assert_eq!(
+            matcher.evaluate(2000.0, 64).map(|j| j.verdict),
+            Some(super::Verdict::Correct)
+        );
+        assert_eq!(matcher.stats().attempts, 1);
+
+        // Rewinding to the start makes both matchable again.
+        matcher.restart(0.0);
+        assert!(matcher.evaluate(1000.0, 60).is_some());
+        assert!(matcher.evaluate(2000.0, 64).is_some());
+        assert_eq!(matcher.stats().attempts, 2);
     }
 
     #[test]
