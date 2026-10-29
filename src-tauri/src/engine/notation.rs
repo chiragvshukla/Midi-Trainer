@@ -11,6 +11,15 @@ use super::timeline::Timeline;
 use super::voices::{self, Cell, MeasureSpan, Piece, Staff};
 use crate::audio::PERCUSSION_CHANNEL;
 
+/// The natural pitch class of each written letter, C..B.
+const LETTER_PITCH: [u8; 7] = [0, 2, 4, 5, 7, 9, 11];
+
+/// The letters each sharp raises, in key-signature order (F C G D A E B).
+const SHARP_LETTERS: [usize; 7] = [3, 0, 4, 1, 5, 2, 6];
+
+/// The letters each flat lowers, in key-signature order (B E A D G C F).
+const FLAT_LETTERS: [usize; 7] = [6, 2, 5, 1, 4, 0, 3];
+
 /// The engraved piece: measures in order, each holding both staves.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Score {
@@ -69,6 +78,13 @@ pub struct Chord {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct ChordNote {
     pub pitch: u8,
+    /// The written letter, 0 = C .. 6 = B, in the piece's key.
+    pub letter: u8,
+    /// That letter's chromatic alteration: -1 flat, 0 natural, +1 sharp.
+    pub alter: i8,
+    /// Whether the engraver must print an accidental, given the key. The sign follows `alter`
+    /// (a natural in an altered key needs a natural sign). False when the key already covers it.
+    pub accidental: bool,
     /// The original note's onset on the timeline, for matching playback verdicts.
     pub onset_ms: f64,
     pub tied_from_previous: bool,
@@ -225,6 +241,8 @@ fn filled_voice(
 ) -> Voice {
     let mut events = Vec::new();
     let mut tick = span.start_tick;
+    // The piece's key decides how notes are spelled and which accidentals the key already shows.
+    let fifths = file.key_signatures.first().map_or(0, |key| key.fifths);
     for cell in voice {
         if cell.start_tick > tick {
             push_rests(
@@ -239,11 +257,17 @@ fn filled_voice(
             notes: cell
                 .notes
                 .iter()
-                .map(|piece| ChordNote {
-                    pitch: piece.pitch,
-                    onset_ms: timeline.tick_to_ms(file.notes[piece.source].start_tick),
-                    tied_from_previous: piece.tied_from_previous,
-                    tied_to_next: piece.tied_to_next,
+                .map(|piece| {
+                    let (letter, alter) = spell(piece.pitch, fifths);
+                    ChordNote {
+                        pitch: piece.pitch,
+                        letter: letter as u8,
+                        alter,
+                        accidental: accidental_needed(letter, alter, fifths),
+                        onset_ms: timeline.tick_to_ms(file.notes[piece.source].start_tick),
+                        tied_from_previous: piece.tied_from_previous,
+                        tied_to_next: piece.tied_to_next,
+                    }
                 })
                 .collect(),
         }));
@@ -259,6 +283,46 @@ fn filled_voice(
         );
     }
     Voice { events }
+}
+
+/// The written letter and alteration MIDI cannot carry: a black key is a sharpened lower letter
+/// in sharp keys, a flattened upper letter in flat keys. Natural notes keep their own letter.
+fn spell(pitch: u8, fifths: i8) -> (usize, i8) {
+    let pitch_class = pitch % 12;
+    if let Some(letter) = (0..7).find(|&letter| LETTER_PITCH[letter] == pitch_class) {
+        return (letter, 0);
+    }
+    let natural = if fifths >= 0 {
+        pitch_class.wrapping_sub(1)
+    } else {
+        pitch_class + 1
+    };
+    let letter = (0..7)
+        .find(|&letter| LETTER_PITCH[letter] == natural)
+        .expect("every black key sits between two naturals");
+    (letter, if fifths >= 0 { 1 } else { -1 })
+}
+
+/// Which letters the key signature already alters.
+fn key_altered_letters(fifths: i8) -> [bool; 7] {
+    let mut altered = [false; 7];
+    let count = fifths.unsigned_abs().min(7) as usize;
+    let order = if fifths >= 0 {
+        SHARP_LETTERS
+    } else {
+        FLAT_LETTERS
+    };
+    for &letter in &order[..count] {
+        altered[letter] = true;
+    }
+    altered
+}
+
+/// Whether an accidental must be printed: a natural on an altered letter, or an altered note the
+/// key does not already cover.
+fn accidental_needed(letter: usize, alter: i8, fifths: i8) -> bool {
+    let altered = key_altered_letters(fifths)[letter];
+    if alter == 0 { altered } else { !altered }
 }
 
 fn push_rests(
@@ -577,7 +641,92 @@ mod tests {
     }
 
     #[test]
+    fn a_sharp_key_spells_black_keys_sharp_and_silences_in_key_accidentals() {
+        // D major (two sharps: F#, C#).
+        let score = engrave_with_key(
+            &[
+                (66, 0, 480),
+                (65, 480, 960),
+                (61, 960, 1440),
+                (60, 1440, 1920),
+            ],
+            2,
+        );
+        let notes: Vec<(u8, u8, i8, bool)> = chord(&score.measures[0].treble[0].events)
+            .iter()
+            .flat_map(|chord| {
+                chord
+                    .notes
+                    .iter()
+                    .map(|note| (note.pitch, note.letter, note.alter, note.accidental))
+            })
+            .collect();
+
+        assert_eq!(
+            notes,
+            vec![
+                (66, 3, 1, false), // F#, covered by the key
+                (65, 3, 0, true),  // F natural, needs a natural sign
+                (61, 0, 1, false), // C#, covered by the key
+                (60, 0, 0, true),  // C natural, cancelling the key's C#
+            ]
+        );
+    }
+
+    #[test]
+    fn a_flat_key_spells_black_keys_flat() {
+        // F major (one flat: Bb).
+        let score = engrave_with_key(
+            &[
+                (70, 0, 480),
+                (71, 480, 960),
+                (61, 960, 1440),
+                (62, 1440, 1920),
+            ],
+            -1,
+        );
+        let notes: Vec<(u8, u8, i8, bool)> = chord(&score.measures[0].treble[0].events)
+            .iter()
+            .flat_map(|chord| {
+                chord
+                    .notes
+                    .iter()
+                    .map(|note| (note.pitch, note.letter, note.alter, note.accidental))
+            })
+            .collect();
+
+        assert_eq!(
+            notes,
+            vec![
+                (70, 6, -1, false), // Bb, covered by the key
+                (71, 6, 0, true),   // B natural, needs a natural sign
+                (61, 1, -1, true),  // Db, not in the key
+                (62, 1, 0, false),  // D natural, unaltered
+            ]
+        );
+    }
+
+    #[test]
+    fn without_a_key_every_black_key_keeps_its_sharp() {
+        let score = engrave_with_key(&[(61, 0, 480)], 0);
+        let note = chord(&score.measures[0].treble[0].events)[0].notes[0];
+
+        assert_eq!((note.letter, note.alter, note.accidental), (0, 1, true));
+    }
+
+    #[test]
     fn an_empty_file_engraves_to_nothing() {
         assert_eq!(engrave_of(&[]).measures, Vec::new());
+    }
+
+    fn engrave_with_key(notes: &[(u8, u64, u64)], fifths: i8) -> Score {
+        let mut file = file_of(notes);
+        file.key_signatures = vec![crate::engine::midi::KeySignature {
+            tick: 0,
+            fifths,
+            minor: false,
+        }];
+        let timeline = Timeline::from_midi(&file);
+        engrave(&file, &timeline)
     }
 }

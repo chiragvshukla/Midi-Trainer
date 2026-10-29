@@ -15,6 +15,7 @@ import {
   playbackPosition,
   type Base,
   type Chord,
+  type ChordNote,
   type Duration,
   type Score,
   type Verdict,
@@ -24,20 +25,7 @@ import {
 import { useSession, verdictKey } from "../state/sessionStore";
 import { useAppearance } from "../lib/theme";
 
-const PITCH_NAMES = [
-  "c",
-  "c#",
-  "d",
-  "d#",
-  "e",
-  "f",
-  "f#",
-  "g",
-  "g#",
-  "a",
-  "a#",
-  "b",
-];
+const LETTER_NAMES = ["c", "d", "e", "f", "g", "a", "b"];
 
 const BASE_DURATION: Record<Base, string> = {
   Whole: "w",
@@ -97,9 +85,16 @@ function keyName(signature: { fifths: number; minor: boolean }): string {
   return keys[Math.min(14, Math.max(0, signature.fifths + 7))];
 }
 
-/** VexFlow key for a MIDI pitch, e.g. 60 -> "c/4". */
-function keyOf(pitch: number): string {
-  return `${PITCH_NAMES[pitch % 12]}/${Math.floor(pitch / 12) - 1}`;
+/** VexFlow key for a note's written spelling, e.g. Bb3 -> "bb/3". */
+function keyOf(note: ChordNote): string {
+  const accidental = note.alter > 0 ? "#" : note.alter < 0 ? "b" : "";
+  const octave = Math.floor((note.pitch - note.alter) / 12) - 1;
+  return `${LETTER_NAMES[note.letter]}${accidental}/${octave}`;
+}
+
+/** The VexFlow accidental modifier a note needs: sharp, flat, or a natural cancelling the key. */
+function accidentalSign(note: ChordNote): string {
+  return note.alter > 0 ? "#" : note.alter < 0 ? "b" : "n";
 }
 
 function durationText(duration: Duration, rest: boolean): string {
@@ -418,15 +413,15 @@ function drawnOf(event: VoiceEvent): DrawnEvent {
   const rest = event.type === "Rest";
   const duration = event.duration;
   const chord = rest ? null : event;
-  const keys = chord ? chord.notes.map((note) => keyOf(note.pitch)) : ["b/4"];
+  const keys = chord ? chord.notes.map(keyOf) : ["b/4"];
   const note = new StaveNote({ keys, duration: durationText(duration, rest) });
   if (!chord) {
     return { note, duration, chord: null };
   }
 
   chord.notes.forEach((chordNote, pitchIndex) => {
-    if (PITCH_NAMES[chordNote.pitch % 12].includes("#")) {
-      note.addModifier(new Accidental("#"), pitchIndex);
+    if (chordNote.accidental) {
+      note.addModifier(new Accidental(accidentalSign(chordNote)), pitchIndex);
     }
   });
   if (duration.type === "Straight" && duration.dotted) {

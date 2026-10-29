@@ -77,6 +77,12 @@ export interface KeySignature {
 
 export interface ChordNote {
   pitch: number;
+  /** The written letter in the piece's key, 0 = C .. 6 = B. */
+  letter: number;
+  /** That letter's alteration: -1 flat, 0 natural, +1 sharp. */
+  alter: number;
+  /** Whether to print an accidental; the sign follows `alter`. */
+  accidental: boolean;
   /** The original note's onset, to match playback verdicts. */
   onset_ms: number;
   tied_from_previous: boolean;
