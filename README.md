@@ -42,3 +42,8 @@ cargo fmt --check --manifest-path src-tauri/Cargo.toml
 cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
+
+## Credits
+
+- App icon: [Piano icons created by Assia Benkerroum - Flaticon](https://www.flaticon.com/free-icons/piano)
+- See `NOTICE` for all third-party notices.

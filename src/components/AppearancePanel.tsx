@@ -192,7 +192,9 @@ export function AppearancePanel({
           </section>
 
           {version ? (
-            <p className="app-version">MidiTrainer v{version}</p>
+            <p className="app-version">
+              MidiTrainer v{version} · Icon: Assia Benkerroum (Flaticon)
+            </p>
           ) : null}
         </div>
       </div>

@@ -39,3 +39,15 @@ FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TOR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 ```
+
+## Piano app icon — via Flaticon
+
+The application icon is a piano icon by **Assia Benkerroum**, used under Flaticon's
+free licence, which requires attribution:
+
+- Piano icons created by Assia Benkerroum - Flaticon
+  <https://www.flaticon.com/free-icons/piano>
+
+This asset is **not** MIT: it is used under the Flaticon free-licence terms, and the
+attribution above must stay with the icon. The icon master (`app-icon.png`) and the
+generated `src-tauri/icons/` set are committed to this repository.
