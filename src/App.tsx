@@ -11,6 +11,7 @@ import { LibraryView } from "./components/LibraryView";
 import { LyricsBar } from "./components/LyricsBar";
 import { PracticeStatsBar } from "./components/PracticeStatsBar";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { AppearancePanel } from "./components/AppearancePanel";
 import { ShortcutsHelp } from "./components/ShortcutsHelp";
 import { Sidebar, type Section } from "./components/Sidebar";
 import { TrackMenu } from "./components/TrackMenu";
@@ -32,6 +33,7 @@ function App() {
   const [section, setSection] = useState<Section>("library");
   const [view, setView] = useState<PieceView>("keys");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const appInfo = useAppStore((state) => state.appInfo);
   const loadAppInfo = useAppStore((state) => state.loadAppInfo);
@@ -114,6 +116,7 @@ function App() {
       <Sidebar
         section={section}
         onSelect={setSection}
+        onOpenSettings={() => setAppearanceOpen(true)}
         version={appInfo?.version ?? null}
       />
       <div className="main">
@@ -252,7 +255,7 @@ function App() {
             <button
               type="button"
               className="icon-button"
-              aria-label="Settings"
+              aria-label="Player settings"
               aria-expanded={settingsOpen}
               onClick={() => setSettingsOpen(true)}
             >
@@ -297,6 +300,10 @@ function App() {
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+      />
+      <AppearancePanel
+        open={appearanceOpen}
+        onClose={() => setAppearanceOpen(false)}
       />
       <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>

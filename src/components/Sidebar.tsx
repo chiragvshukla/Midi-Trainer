@@ -10,17 +10,19 @@ const SECTIONS: { id: Section; label: string; icon: string }[] = [
 ];
 
 /**
- * The left navigation rail: the brand, one button per top-level screen, and a chevron that
- * collapses the rail to icons. The active section lives in the app shell; the collapsed state
- * and its control live in the appearance store, so the choice is remembered.
+ * The left navigation rail: the brand (with the collapse tab beside the version), one button per
+ * top-level screen, and the app settings pinned to the foot. The active section lives in the app
+ * shell; the collapsed state and its control live in the appearance store, so it is remembered.
  */
 export function Sidebar({
   section,
   onSelect,
+  onOpenSettings,
   version,
 }: {
   section: Section;
   onSelect: (section: Section) => void;
+  onOpenSettings: () => void;
   version: string | null;
 }) {
   const collapsed = useAppearance((state) => state.collapsed);
@@ -32,6 +34,16 @@ export function Sidebar({
         <span className="brand-mark">♬</span>
         <span className="brand-name">MidiTrainer</span>
         {version ? <span className="version-badge">v{version}</span> : null}
+        <button
+          type="button"
+          className="sidebar-tab"
+          aria-label={collapsed ? "Expand menu" : "Collapse menu"}
+          aria-pressed={collapsed}
+          title={collapsed ? "Expand menu" : "Collapse menu"}
+          onClick={toggleSidebar}
+        >
+          {collapsed ? "»" : "«"}
+        </button>
       </div>
       <nav className="sidebar-nav">
         {SECTIONS.map((item) => (
@@ -53,13 +65,15 @@ export function Sidebar({
       </nav>
       <button
         type="button"
-        className="sidebar-toggle"
-        aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-        aria-pressed={collapsed}
-        title={collapsed ? "Expand menu" : "Collapse menu"}
-        onClick={toggleSidebar}
+        className="nav-item sidebar-settings"
+        aria-label="App settings"
+        title="App settings"
+        onClick={onOpenSettings}
       >
-        {collapsed ? "»" : "«"}
+        <span className="nav-icon" aria-hidden="true">
+          ⚙
+        </span>
+        <span className="nav-label">Settings</span>
       </button>
     </aside>
   );

@@ -1723,21 +1723,28 @@ input[type="range"]::-moz-range-thumb {
   justify-content: center;
 }
 
-.sidebar-toggle {
-  margin-top: auto;
+/* The collapse control is a small tab beside the version badge. */
+.sidebar-tab {
+  margin-left: auto;
   border: 1px solid var(--border);
-  background: var(--chrome-raised);
+  background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1;
-  padding: 7px 0;
+  padding: 3px 7px;
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
-.sidebar-toggle:hover {
+.sidebar-tab:hover {
   color: var(--text);
+  background: var(--surface-2);
+}
+
+/* App settings sits at the foot of the rail. */
+.sidebar-settings {
+  margin-top: auto;
 }
 
 /* --- Accessibility --- */
