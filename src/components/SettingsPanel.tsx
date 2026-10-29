@@ -6,6 +6,16 @@ import type { Hand, Skill } from "../lib/api";
 import type { NoteLabels } from "../lib/theme";
 
 /**
+ * One line explaining the currently chosen mode, shown under the Mode select so each mode says
+ * what it does.
+ */
+const MODE_HINTS: Record<Skill, string> = {
+  Listen: "Plays the piece; your notes aren't judged.",
+  Follow: "Waits for you at each note, then scores it.",
+  Strict: "Keeps time; scores every attempt.",
+};
+
+/**
  * The player settings drawer: the MIDI input, the practice mode and part, hand practice, and
  * tempo and transpose. These are about playing the loaded piece; app-wide preferences live in
  * the App settings. Rendering only — every change goes through the session store.
@@ -95,6 +105,9 @@ export function SettingsPanel({
                 <option value="Follow">Follow</option>
                 <option value="Strict">Scored</option>
               </select>
+              <small className="field-hint">
+                {MODE_HINTS[settings?.skill ?? "Strict"]}
+              </small>
             </label>
             <label className="field">
               <span>Your part</span>
