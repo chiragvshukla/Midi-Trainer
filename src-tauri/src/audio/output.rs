@@ -11,8 +11,8 @@ use super::AudioError;
 use super::event::{AudioCommand, Gate, PlaybackControl, PlayedNote, ScheduledCommand};
 use super::synth::{SoundFontSynth, Synth};
 use super::{
-    MAX_TEMPO_PERCENT, MIN_TEMPO_PERCENT, PLAYER_CHANNEL, TRANSPOSE_SEMITONES, WRONG_NOTE_CHANNEL,
-    WRONG_NOTE_PITCH, WRONG_NOTE_VELOCITY,
+    CUE_CHANNEL, CUE_PITCH, CUE_PROGRAM, CUE_VELOCITY, MAX_TEMPO_PERCENT, MIN_TEMPO_PERCENT,
+    PLAYER_CHANNEL, TRANSPOSE_SEMITONES,
 };
 
 /// Commands the callback can hold waiting at once.
@@ -145,13 +145,14 @@ impl AudioEngine {
         played
     }
 
-    /// Sounds the distinct cue for a wrong note: a drum hit that stands apart from the piano the
-    /// player is hearing, so a mistake is audible without a note-off to clean up.
+    /// Sounds the distinct cue for a wrong note: a short xylophone blip on its own channel,
+    /// clearly apart from the piano the player is hearing. The instrument decays, so no
+    /// note-off is needed.
     pub fn play_wrong_note(&self) {
         self.send(AudioCommand::NoteOn {
-            channel: WRONG_NOTE_CHANNEL,
-            pitch: WRONG_NOTE_PITCH,
-            velocity: WRONG_NOTE_VELOCITY,
+            channel: CUE_CHANNEL,
+            pitch: CUE_PITCH,
+            velocity: CUE_VELOCITY,
         });
     }
 
@@ -454,7 +455,7 @@ impl<S: Synth> Renderer<S> {
                 self.playback.position_ms = 0.0;
                 self.playback.gate = 0;
                 // A new SoundFont may be in place since the gains were last set.
-                self.apply_volumes();
+                self.apply_mix();
             }
             PlaybackControl::SetGates(gates) => {
                 self.playback.gates = gates;
@@ -472,11 +473,11 @@ impl<S: Synth> Renderer<S> {
             }
             PlaybackControl::SetMusicVolume(gain) => {
                 self.playback.music_volume = gain.clamp(0.0, 1.0);
-                self.apply_volumes();
+                self.apply_mix();
             }
             PlaybackControl::SetPlayerVolume(gain) => {
                 self.playback.player_volume = gain.clamp(0.0, 1.0);
-                self.apply_volumes();
+                self.apply_mix();
             }
             PlaybackControl::Seek(position_ms) => {
                 let target = position_ms.max(0.0);
@@ -501,26 +502,37 @@ impl<S: Synth> Renderer<S> {
         }
     }
 
-    /// Pushes the two gains to the synthesizer as channel volume: the file's own parts scale with
-    /// Music, and the player's channel with My notes. Channel volume is the only per-source gain
-    /// the SoundFont synth offers, and it rides notes that are already sounding, so a slider move
-    /// takes effect without restarting them. Drums share the wrong-note cue's channel and scale
-    /// with Music with it.
-    fn apply_volumes(&mut self) {
+    /// Pushes the mix to the synthesizer: the file's own parts take the Music gain as channel
+    /// volume, the player's channel the My notes gain, and the cue channel stays at full so a
+    /// mistake is heard even with the music down. Channel volume is the only per-source gain the
+    /// SoundFont synth offers, and it rides sounding notes, so a slider move takes effect without
+    /// restarting them. The cue's instrument is set here too, since a new SoundFont resets every
+    /// channel.
+    fn apply_mix(&mut self) {
         let music = cc7(self.playback.music_volume);
         for channel in 0..=15u8 {
-            if channel != PLAYER_CHANNEL {
-                self.synth.apply(AudioCommand::ControlChange {
-                    channel,
-                    controller: VOLUME_CONTROLLER,
-                    value: music,
-                });
+            if channel == PLAYER_CHANNEL || channel == CUE_CHANNEL {
+                continue;
             }
+            self.synth.apply(AudioCommand::ControlChange {
+                channel,
+                controller: VOLUME_CONTROLLER,
+                value: music,
+            });
         }
         self.synth.apply(AudioCommand::ControlChange {
             channel: PLAYER_CHANNEL,
             controller: VOLUME_CONTROLLER,
             value: cc7(self.playback.player_volume),
+        });
+        self.synth.apply(AudioCommand::ProgramChange {
+            channel: CUE_CHANNEL,
+            program: CUE_PROGRAM,
+        });
+        self.synth.apply(AudioCommand::ControlChange {
+            channel: CUE_CHANNEL,
+            controller: VOLUME_CONTROLLER,
+            value: cc7(1.0),
         });
     }
 
@@ -631,6 +643,7 @@ mod tests {
     use crate::audio::PLAYER_CHANNEL;
     use crate::audio::event::{AudioCommand, PlaybackControl, PlayedNote, ScheduledCommand};
     use crate::audio::synth::Synth;
+    use crate::audio::{CUE_CHANNEL, CUE_PROGRAM};
     use crossbeam_queue::ArrayQueue;
     use std::sync::Arc;
     use std::sync::atomic::AtomicU64;
@@ -910,6 +923,16 @@ mod tests {
         assert!(renderer.synth.events.contains(&(0, cc(0, 64))));
         assert!(renderer.synth.events.contains(&(0, cc(PLAYER_CHANNEL, 32))));
         assert!(!renderer.synth.events.contains(&(0, cc(PLAYER_CHANNEL, 64))));
+        // The cue channel keeps its instrument and a full volume, whatever the music gain is.
+        assert!(renderer.synth.events.contains(&(
+            0,
+            AudioCommand::ProgramChange {
+                channel: CUE_CHANNEL,
+                program: CUE_PROGRAM,
+            }
+        )));
+        assert!(renderer.synth.events.contains(&(0, cc(CUE_CHANNEL, 127))));
+        assert!(!renderer.synth.events.contains(&(0, cc(CUE_CHANNEL, 64))));
     }
 
     #[test]
