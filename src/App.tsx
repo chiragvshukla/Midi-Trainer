@@ -6,16 +6,18 @@ import { useSession } from "./state/sessionStore";
 import { usePcKeyboard } from "./lib/usePcKeyboard";
 import { SoundfontGate } from "./components/SoundfontGate";
 import { LibraryView } from "./components/LibraryView";
+import { MainMenu, type Section } from "./components/MainMenu";
 import { FallingNotes } from "./piano-roll/FallingNotes";
 import { ScoreView } from "./score/ScoreView";
 import type { DownloadProgress, Judgement, PlayerNote } from "./lib/api";
 import "./App.css";
 
-/** Which of the three screens is on. */
-type View = "library" | "keys" | "sheet";
+/** Which of the two piece displays is on within the Synth section. */
+type PieceView = "keys" | "sheet";
 
 function App() {
-  const [view, setView] = useState<View>("library");
+  const [section, setSection] = useState<Section>("library");
+  const [view, setView] = useState<PieceView>("keys");
   const appInfo = useAppStore((state) => state.appInfo);
   const loadAppInfo = useAppStore((state) => state.loadAppInfo);
 
@@ -88,6 +90,7 @@ function App() {
     <div className="app">
       {!ready && <SoundfontGate />}
       <header className="toolbar">
+        <MainMenu section={section} onSelect={setSection} />
         <span className="app-title">MidiTrainer</span>
         {appInfo && <span className="version-badge">v{appInfo.version}</span>}
         <button type="button" onClick={() => void chooseFile()}>
@@ -99,29 +102,24 @@ function App() {
         <button type="button" onClick={() => void stop()}>
           Stop
         </button>
-        <div className="view-toggle">
-          <button
-            type="button"
-            className={view === "library" ? "active" : ""}
-            onClick={() => setView("library")}
-          >
-            Library
-          </button>
-          <button
-            type="button"
-            className={view === "keys" ? "active" : ""}
-            onClick={() => setView("keys")}
-          >
-            Keys
-          </button>
-          <button
-            type="button"
-            className={view === "sheet" ? "active" : ""}
-            onClick={() => setView("sheet")}
-          >
-            Sheet
-          </button>
-        </div>
+        {section === "synth" && (
+          <div className="view-toggle">
+            <button
+              type="button"
+              className={view === "keys" ? "active" : ""}
+              onClick={() => setView("keys")}
+            >
+              Keys
+            </button>
+            <button
+              type="button"
+              className={view === "sheet" ? "active" : ""}
+              onClick={() => setView("sheet")}
+            >
+              Sheet
+            </button>
+          </div>
+        )}
         {devices.length > 0 && (
           <select
             value={settings?.midi_device ?? ""}
@@ -182,13 +180,20 @@ function App() {
         </label>
       </header>
       <main className="workspace">
-        <div className={view === "library" ? "" : "hidden"}>
-          <LibraryView onOpened={() => setView("keys")} />
+        <div className={section === "library" ? "" : "hidden"}>
+          <LibraryView
+            onOpened={() => {
+              setSection("synth");
+              setView("keys");
+            }}
+          />
         </div>
-        <div className={view === "keys" ? "" : "hidden"}>
+        <div className={section === "synth" && view === "keys" ? "" : "hidden"}>
           <FallingNotes />
         </div>
-        <div className={view === "sheet" ? "" : "hidden"}>
+        <div
+          className={section === "synth" && view === "sheet" ? "" : "hidden"}
+        >
           <ScoreView />
         </div>
       </main>
