@@ -1,6 +1,8 @@
 use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use serde::Serialize;
 
+use crate::audio::{CUE_CHANNEL, PERCUSSION_CHANNEL, PLAYER_CHANNEL};
+
 use super::EngineError;
 
 /// Tempo assumed when a file has no tempo event: 500,000 microseconds per quarter note (120 bpm).
@@ -218,6 +220,58 @@ pub fn parse(bytes: &[u8]) -> Result<MidiFile, EngineError> {
         tracks,
         notes,
     })
+}
+
+/// The channels the app reserves for itself: the player's own input and the wrong-note cue. The
+/// GM percussion channel is deliberately not reserved, since a file's drums belong there.
+fn reserved_channels() -> [u8; 2] {
+    [CUE_CHANNEL, PLAYER_CHANNEL]
+}
+
+/// Moves any note on a channel the app reserves onto a free channel, so a file cannot take over
+/// the player's or the cue's channel. Track entries are moved with their notes, so per-track
+/// volume keeps following the track. A file that already leaves the reserved channels alone is
+/// left untouched; one with no free channel to move to keeps the collision rather than losing
+/// notes.
+pub fn reassign_reserved_channels(file: &mut MidiFile) {
+    let reserved = reserved_channels();
+    let mut used = [false; 16];
+    for note in &file.notes {
+        used[usize::from(note.channel)] = true;
+    }
+
+    let mut remap: [Option<u8>; 16] = [None; 16];
+    for reserved_channel in reserved {
+        if !used[usize::from(reserved_channel)] {
+            continue;
+        }
+        let free = (0..16u8).find(|&channel| {
+            !used[usize::from(channel)]
+                && channel != PERCUSSION_CHANNEL
+                && !reserved.contains(&channel)
+        });
+        let Some(free) = free else {
+            continue;
+        };
+        used[usize::from(free)] = true;
+        remap[usize::from(reserved_channel)] = Some(free);
+    }
+
+    if remap.iter().all(Option::is_none) {
+        return;
+    }
+    for note in &mut file.notes {
+        if let Some(to) = remap[usize::from(note.channel)] {
+            note.channel = to;
+        }
+    }
+    for track in &mut file.tracks {
+        if let Some(channel) = track.channel
+            && let Some(to) = remap[usize::from(channel)]
+        {
+            track.channel = Some(to);
+        }
+    }
 }
 
 /// Ends the earliest open note with this channel and pitch. Stray note-offs are ignored.
@@ -537,6 +591,79 @@ mod tests {
     fn read_fixture(name: &str) -> Vec<u8> {
         let path = std::path::Path::new(FIXTURE_DIR).join(name);
         std::fs::read(&path).unwrap_or_else(|err| panic!("cannot read {}: {err}", path.display()))
+    }
+
+    #[test]
+    fn moves_a_track_off_the_channels_the_app_reserves() {
+        // A file that parks a track on the player channel (15) and another on the cue (14).
+        let mut file = file_with_note_channels(&[15, 14]);
+
+        super::reassign_reserved_channels(&mut file);
+
+        let channels: Vec<u8> = file.notes.iter().map(|note| note.channel).collect();
+        let player = super::PLAYER_CHANNEL;
+        let cue = super::CUE_CHANNEL;
+        assert!(
+            !channels.contains(&player),
+            "the player channel was left in"
+        );
+        assert!(!channels.contains(&cue), "the cue channel was left in");
+        // The two tracks move to different free channels, so they do not merge either.
+        assert_ne!(channels[0], channels[1]);
+        assert!(channels[0] < 14 && channels[1] < 14);
+        // Each track entry follows its notes, so per-track volume stays on the right track.
+        assert_eq!(file.tracks[0].channel, Some(channels[0]));
+        assert_eq!(file.tracks[1].channel, Some(channels[1]));
+    }
+
+    #[test]
+    fn leaves_a_file_that_avoids_the_reserved_channels_alone() {
+        let mut file = file_with_note_channels(&[0, 9]);
+
+        super::reassign_reserved_channels(&mut file);
+
+        assert_eq!(
+            file.notes
+                .iter()
+                .map(|note| note.channel)
+                .collect::<Vec<u8>>(),
+            vec![0, 9]
+        );
+    }
+
+    /// A two-track file whose notes all sit on the given channels, in order.
+    fn file_with_note_channels(channels: &[u8]) -> super::MidiFile {
+        super::MidiFile {
+            format: 1,
+            division: Division::Metrical(480),
+            tempo_map: Vec::new(),
+            time_signatures: Vec::new(),
+            key_signatures: Vec::new(),
+            lyrics: Vec::new(),
+            tracks: channels
+                .iter()
+                .enumerate()
+                .map(|(index, &channel)| super::TrackInfo {
+                    index: index as u16,
+                    name: None,
+                    program: Some(0),
+                    channel: Some(channel),
+                    note_count: 1,
+                })
+                .collect(),
+            notes: channels
+                .iter()
+                .enumerate()
+                .map(|(index, &channel)| NoteEvent {
+                    track: index as u16,
+                    channel,
+                    pitch: 60,
+                    velocity: 100,
+                    start_tick: 0,
+                    end_tick: 0,
+                })
+                .collect(),
+        }
     }
 
     fn note(track: u16, pitch: u8, velocity: u8, start_tick: u64, end_tick: u64) -> NoteEvent {

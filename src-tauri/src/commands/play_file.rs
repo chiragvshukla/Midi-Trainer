@@ -55,6 +55,9 @@ pub fn play_file(
     if let Some(tracks) = &tracks {
         file.notes.retain(|note| tracks.contains(&note.track));
     }
+    // Move any file track off the channels the app reserves for the player and the cue, before
+    // the timeline and every view built from it, so the file cannot take those channels over.
+    midi::reassign_reserved_channels(&mut file);
     let timeline = Timeline::from_midi(&file);
     let (part, follow, app_play) = {
         let settings = settings
