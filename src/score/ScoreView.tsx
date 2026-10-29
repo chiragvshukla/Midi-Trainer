@@ -138,6 +138,9 @@ export function ScoreView() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const rangesRef = useRef<MeasureRange[]>([]);
+  // The position of the last frame, so a paused sheet is not yanked back to the cursor and the
+  // user can scroll freely; following only resumes once playback moves the cursor again.
+  const lastPositionRef = useRef<number | null>(null);
   const piece = useSession((state) => state.piece);
   const verdicts = useSession((state) => state.verdicts);
   const version = useAppearance((state) => state.version);
@@ -176,12 +179,15 @@ export function ScoreView() {
       frame = requestAnimationFrame(loop);
       playbackPosition()
         .then((positionMs) => {
+          const advanced = lastPositionRef.current !== positionMs;
+          lastPositionRef.current = positionMs;
           moveCursor(
             positionMs,
             rangesRef.current,
             zoom,
             sheetRef.current,
             cursorRef.current,
+            advanced,
           );
         })
         .catch(() => {});
@@ -469,13 +475,18 @@ function drawTies(
   }
 }
 
-/** Moves the cursor to the playback position and keeps the active system in view. */
+/**
+ * Moves the cursor to the playback position. When the position advanced, the active system is
+ * kept in view; when it did not (paused or stopped), the scroll is left alone so the user can
+ * read elsewhere in the sheet.
+ */
 function moveCursor(
   positionMs: number,
   ranges: MeasureRange[],
   zoom: number,
   sheet: HTMLDivElement | null,
   cursor: HTMLDivElement | null,
+  follow: boolean,
 ): void {
   if (!sheet || !cursor || ranges.length === 0) {
     return;
@@ -500,6 +511,10 @@ function moveCursor(
   cursor.style.top = `${top}px`;
   cursor.style.height = `${height}px`;
   cursor.style.display = "block";
+
+  if (!follow) {
+    return;
+  }
 
   // Follow the active system vertically; only nudge sideways if it is off-screen.
   const bottom = top + height;
