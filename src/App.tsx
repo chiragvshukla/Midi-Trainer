@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useAppStore } from "./state/appStore";
 import { useSession } from "./state/sessionStore";
 import { usePcKeyboard } from "./lib/usePcKeyboard";
+import { useTheme } from "./lib/theme";
 import { SoundfontGate } from "./components/SoundfontGate";
 import { LibraryView } from "./components/LibraryView";
 import { LyricsBar } from "./components/LyricsBar";
@@ -46,6 +47,8 @@ function App() {
   const piece = useSession((state) => state.piece);
   const startOver = useSession((state) => state.startOver);
   const previousBar = useSession((state) => state.previousBar);
+  const theme = useTheme((state) => state.theme);
+  const toggleTheme = useTheme((state) => state.toggleTheme);
 
   usePcKeyboard();
 
@@ -168,6 +171,15 @@ function App() {
             </>
           )}
           <span className="transport-spacer" />
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Toggle light or dark theme"
+            title="Toggle light or dark theme"
+            onClick={toggleTheme}
+          >
+            {theme === "dark" ? "☀" : "🌙"}
+          </button>
           <button
             type="button"
             className="icon-button"

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { playbackPosition, type NoteInfo, type Verdict } from "../lib/api";
+import { canvasColors, useTheme } from "../lib/theme";
 import { useSession, verdictKey } from "../state/sessionStore";
 
 /** Pitch classes drawn as black keys (C#, D#, F#, G#, A#). */
@@ -17,20 +18,6 @@ const MAX_ZOOM = 4;
 
 /** Fraction of the view the on-screen keyboard takes. */
 const KEYBOARD_SHARE = 0.24;
-
-const COLORS = {
-  note: "#64b5f6",
-  left: "#26a69a",
-  right: "#ab47bc",
-  correct: "#43a047",
-  wrong: "#e53935",
-  soundingKey: "#4fc3f7",
-  pressedWhite: "#66bb6a",
-  pressedBlack: "#2e7d32",
-  white: "#fafafa",
-  black: "#222222",
-  playhead: "#ff9800",
-};
 
 /** Geometry of one piano key within the keyboard strip. */
 interface KeyRect {
@@ -63,6 +50,7 @@ export function FallingNotes() {
   const verdicts = useSession((state) => state.verdicts);
   const pressed = useSession((state) => state.pressed);
   const settings = useSession((state) => state.settings);
+  const theme = useTheme((state) => state.theme);
   // Zoom lives here, so it is remembered across toggles to the sheet view and back.
   const [zoom, setZoom] = useState(1);
 
@@ -87,6 +75,9 @@ export function FallingNotes() {
       return;
     }
     let frame = 0;
+
+    // Colours come from the theme tokens, so the roll follows a light/dark switch.
+    const COLORS = canvasColors();
 
     // The engine delivers the notes sorted by start time, so each frame scans one window
     // instead of filtering and sorting the whole piece.
@@ -216,7 +207,7 @@ export function FallingNotes() {
             ? COLORS.soundingKey
             : COLORS.white;
         context.fillRect(rect.x, keyboardTop, rect.width, height - keyboardTop);
-        context.strokeStyle = "#cccccc";
+        context.strokeStyle = COLORS.keyBorder;
         context.strokeRect(
           rect.x,
           keyboardTop,
@@ -257,7 +248,7 @@ export function FallingNotes() {
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [piece, verdicts, pressed, zoom, soloHand, byHand]);
+  }, [piece, verdicts, pressed, zoom, soloHand, byHand, theme]);
 
   return (
     <>

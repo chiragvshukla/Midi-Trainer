@@ -1,6 +1,8 @@
-/* Design tokens: one place for colour, spacing and shape. The canvas colours in
-   FallingNotes.tsx are the one mirror of these that cannot read a CSS variable. */
+/* Design tokens: one place for colour, spacing and shape. The dark theme is the default;
+   [data-theme="light"] overrides the colours. The falling-note canvas reads the --roll-*
+   tokens at runtime (see lib/theme.ts), since a canvas cannot read CSS variables itself. */
 :root {
+  color-scheme: dark;
   --bg: #12141a;
   --surface: #1b1e27;
   --surface-2: #2a2e3a;
@@ -16,10 +18,59 @@
   --warn: #ff9800;
   --bad: #e53935;
   --early: #64b5f6;
+  --lyric-sung: #ffca28;
   --radius: 10px;
   --radius-sm: 7px;
   --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Falling-note canvas colours, mirrored at runtime by lib/theme.ts. */
+  --roll-note: #64b5f6;
+  --roll-left: #26a69a;
+  --roll-right: #ab47bc;
+  --roll-correct: #43a047;
+  --roll-wrong: #e53935;
+  --roll-sounding-key: #4fc3f7;
+  --roll-pressed-white: #66bb6a;
+  --roll-pressed-black: #2e7d32;
+  --roll-white-key: #fafafa;
+  --roll-black-key: #222222;
+  --roll-key-border: #cccccc;
+  --roll-playhead: #ff9800;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --surface-2: #eceef3;
+  --surface-3: #dde1e8;
+  --border: #d6dae1;
+  --border-subtle: #e6e9ee;
+  --text: #1b1e27;
+  --muted: #5c6470;
+  --faint: #838b98;
+  --accent: #2f5fe0;
+  --accent-hover: #4f7cff;
+  --ok: #2e7d32;
+  --warn: #ef6c00;
+  --bad: #c62828;
+  --early: #1976d2;
+  --lyric-sung: #b26a00;
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+
+  --roll-note: #3f7fd0;
+  --roll-left: #00897b;
+  --roll-right: #8e24aa;
+  --roll-correct: #2e7d32;
+  --roll-wrong: #c62828;
+  --roll-sounding-key: #29b6f6;
+  --roll-pressed-white: #66bb6a;
+  --roll-pressed-black: #2e7d32;
+  --roll-white-key: #ffffff;
+  --roll-black-key: #333333;
+  --roll-key-border: #b9bec7;
+  --roll-playhead: #ef6c00;
 }
 
 * {
@@ -434,7 +485,7 @@ body {
 }
 
 .lyrics .sung {
-  color: #ffca28;
+  color: var(--lyric-sung);
 }
 
 /* --- Falling notes --- */
@@ -484,7 +535,7 @@ body {
 
 .gate-error {
   max-width: 480px;
-  color: #e57373;
+  color: var(--bad);
   margin: 0;
   overflow-wrap: anywhere;
 }
