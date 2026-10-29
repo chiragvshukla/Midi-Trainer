@@ -736,6 +736,25 @@ body {
   box-shadow: var(--shadow);
 }
 
+/* The app-settings window: a small centred card, not a side drawer. */
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  max-width: 92vw;
+  max-height: 84vh;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
 .drawer-head {
   display: flex;
   align-items: center;

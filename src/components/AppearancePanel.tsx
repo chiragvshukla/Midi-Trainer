@@ -12,9 +12,10 @@ const PALETTES: { id: Palette; label: string }[] = [
 ];
 
 /**
- * The global (app-wide) settings drawer: appearance and accessibility. These are preferences
- * that hold regardless of the piece being practised; anything about playing lives in the
- * player settings. Rendering only — every change goes through the appearance store.
+ * The global (app-wide) settings: appearance and accessibility. These are preferences that hold
+ * regardless of the piece being practised; anything about playing lives in the player settings.
+ * Opens as a small centred window. Rendering only — every change goes through the appearance
+ * store.
  */
 export function AppearancePanel({
   open,
@@ -57,7 +58,12 @@ export function AppearancePanel({
   return (
     <>
       <div className="drawer-scrim" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-label="App settings">
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="App settings"
+      >
         <header className="drawer-head">
           <h2>App settings</h2>
           <button
@@ -166,7 +172,7 @@ export function AppearancePanel({
             </label>
           </section>
         </div>
-      </aside>
+      </div>
     </>
   );
 }
