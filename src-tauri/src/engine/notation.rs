@@ -84,7 +84,7 @@ pub fn engrave(file: &MidiFile, timeline: &Timeline) -> Score {
 
     let last_tick = notes.iter().map(|note| note.end_tick).max().unwrap_or(0);
     let first = voices::signature_at(&file.time_signatures, 0);
-    let pickup = voices::pickup_offset(&notes, voices::measure_ticks(first, ticks_per_quarter));
+    let pickup = voices::pickup_offset(&notes, first, ticks_per_quarter);
     let spans = voices::measure_spans(&file.time_signatures, ticks_per_quarter, last_tick, pickup);
     let pieces = voices::pieces_of(
         &notes,
@@ -172,10 +172,11 @@ fn voices_of(
     ticks_per_quarter: u64,
     min_duration_ticks: u64,
 ) -> Vec<Voice> {
-    let (one, two) = voices::two_voices(cells);
+    let (one, two) = voices::two_voices(cells, ticks_per_quarter, min_duration_ticks);
+    let one = voices::fill_short_gaps(one, span.end_tick, min_duration_ticks, ticks_per_quarter);
+    let two = voices::fill_short_gaps(two, span.end_tick, min_duration_ticks, ticks_per_quarter);
     let mut staff = vec![filled_voice(
         &one,
-        cells,
         span,
         file,
         timeline,
@@ -185,7 +186,6 @@ fn voices_of(
     if !two.is_empty() {
         staff.push(filled_voice(
             &two,
-            cells,
             span,
             file,
             timeline,
@@ -198,8 +198,7 @@ fn voices_of(
 
 /// Lays one voice out across the measure, filling every gap with rests.
 fn filled_voice(
-    voice: &[usize],
-    cells: &[Cell],
+    voice: &[Cell],
     span: &MeasureSpan,
     file: &MidiFile,
     timeline: &Timeline,
@@ -208,8 +207,7 @@ fn filled_voice(
 ) -> Voice {
     let mut events = Vec::new();
     let mut tick = span.start_tick;
-    for &index in voice {
-        let cell = &cells[index];
+    for cell in voice {
         if cell.start_tick > tick {
             push_rests(
                 &mut events,
@@ -231,7 +229,7 @@ fn filled_voice(
                 })
                 .collect(),
         }));
-        // A merged third line can overlap its own voice; never walk time backwards.
+        // Voices are non-overlapping by construction; never walk time backwards.
         tick = tick.max(cell.end_tick);
     }
     if tick < span.end_tick {
@@ -440,7 +438,10 @@ mod tests {
 
     #[test]
     fn simultaneous_notes_form_one_chord_and_held_plus_moving_splits_voices() {
-        let score = engrave_of(&[(60, 0, 1920), (64, 480, 960), (67, 960, 1440)]);
+        // A held note and a moving line on separate instrument tracks: two voices.
+        let file = file_with(&[(60, 0, 1920)], &[(0, 64, 480, 960), (0, 67, 960, 1440)]);
+        let timeline = Timeline::from_midi(&file);
+        let score = engrave(&file, &timeline);
 
         let measure = &score.measures[0];
         assert_eq!(measure.treble.len(), 2);

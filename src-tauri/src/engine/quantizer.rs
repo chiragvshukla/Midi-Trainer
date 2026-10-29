@@ -74,7 +74,7 @@ pub fn quantize(file: &MidiFile) -> Quantization {
         })
         .collect();
 
-    trim_same_pitch_overlaps(&mut notes);
+    trim_overlaps(&mut notes);
     notes.sort_by_key(|note| (note.start_tick, note.pitch, note.track));
 
     Quantization {
@@ -133,10 +133,66 @@ impl Base {
 }
 
 /// Notates a length of ticks as one value, or a chain of tied values when no single value
-/// fits (a note longer than a whole, say). A length that fits nothing exactly ends with the
-/// nearest value, so the chain always covers the note.
+/// fits (a note longer than a whole, say). The chain covers the length exactly whenever an
+/// exact decomposition exists; only a length finer than the file's own smallest value
+/// (a stray blip) falls back to the nearest value, which may overrun slightly.
 pub fn notate_duration(ticks: u64, ticks_per_quarter: u64, min_ticks: u64) -> Vec<Duration> {
+    if ticks == 0 {
+        return Vec::new();
+    }
     let values = notatable_values(ticks_per_quarter, min_ticks);
+    if let Some(chain) = exact_chain(ticks, &values, ticks_per_quarter) {
+        return chain;
+    }
+    // A length the file's own floor cannot tile (a stray short note or rest) still tiles
+    // with the full value set; only a length nothing tiles falls back to the nearest value.
+    let finest = notatable_values(ticks_per_quarter, 1);
+    exact_chain(ticks, &finest, ticks_per_quarter)
+        .unwrap_or_else(|| greedy_chain(ticks, &values, ticks_per_quarter))
+}
+
+/// Finds a chain of values summing to exactly `target`, preferring longer values first.
+/// None when no exact decomposition exists (the length is not a combination of notatable
+/// values), in which case the caller falls back to the nearest value.
+fn exact_chain(target: u64, values: &[Duration], ticks_per_quarter: u64) -> Option<Vec<Duration>> {
+    let lengths: Vec<u64> = values
+        .iter()
+        .map(|value| value.ticks(ticks_per_quarter).round() as u64)
+        .collect();
+    // Values share a common unit (20 ticks at 480 tpq), so scaling by it keeps the table
+    // small: one entry per attainable slot, not per tick.
+    let unit = lengths.iter().copied().fold(0u64, gcd);
+    if unit == 0 || !target.is_multiple_of(unit) {
+        return None;
+    }
+    let steps: Vec<u64> = lengths.iter().map(|length| length / unit).collect();
+    let slots = (target / unit) as usize;
+    let mut reachable = vec![false; slots + 1];
+    reachable[0] = true;
+    for slot in 1..=slots {
+        reachable[slot] = steps
+            .iter()
+            .any(|&step| step as usize <= slot && reachable[slot - step as usize]);
+    }
+    if !reachable[slots] {
+        return None;
+    }
+    let mut chain = Vec::new();
+    let mut slot = slots;
+    while slot > 0 {
+        let index = steps
+            .iter()
+            .position(|&step| step as usize <= slot && reachable[slot - step as usize])
+            .expect("the slot is reachable, so some value steps back onto a reachable slot");
+        chain.push(values[index]);
+        slot -= steps[index] as usize;
+    }
+    Some(chain)
+}
+
+/// The old greedy walk: take the longest value that fits, then round the remainder to the
+/// nearest value. Used only when no exact chain exists.
+fn greedy_chain(ticks: u64, values: &[Duration], ticks_per_quarter: u64) -> Vec<Duration> {
     let mut remaining = ticks as f64;
     let mut notated = Vec::new();
     while remaining > 0.0 {
@@ -149,12 +205,16 @@ pub fn notate_duration(ticks: u64, ticks_per_quarter: u64, min_ticks: u64) -> Ve
                 notated.push(*value);
             }
             None => {
-                notated.push(nearest_value(remaining, &values, ticks_per_quarter));
+                notated.push(nearest_value(remaining, values, ticks_per_quarter));
                 break;
             }
         }
     }
     notated
+}
+
+fn gcd(a: u64, b: u64) -> u64 {
+    if b == 0 { a } else { gcd(b, a % b) }
 }
 
 /// Every value the engraver can notate, longest first and none finer than the file's own
@@ -266,17 +326,32 @@ fn snap_tick(tick: u64, grid: u64) -> u64 {
     (tick as f64 / grid as f64).round() as u64 * grid
 }
 
-/// Shortens a note that runs into the next note of the same pitch on the same instrument,
-/// so legato lines and pedal blur do not turn into overlapping notation.
-fn trim_same_pitch_overlaps(notes: &mut [QuantizedNote]) {
-    notes.sort_by_key(|note| (note.track, note.channel, note.pitch, note.start_tick));
-    for i in 0..notes.len().saturating_sub(1) {
-        let next_start = notes[i + 1].start_tick;
-        let same_stream = (notes[i].track, notes[i].channel, notes[i].pitch)
-            == (notes[i + 1].track, notes[i + 1].channel, notes[i + 1].pitch);
-        if same_stream && next_start > notes[i].start_tick && notes[i].end_tick > next_start {
-            notes[i].end_tick = next_start;
+/// Shortens a note that runs into the next distinct onset of the same instrument, so
+/// legato lines and pedal blur do not turn into overlapping notation. Notes that start
+/// together (a chord) are left alone: only a later onset cuts an earlier note. Voices
+/// written on one instrument track are treated as one line, so a note held under a moving
+/// line on the same track is shortened to the next attack.
+fn trim_overlaps(notes: &mut [QuantizedNote]) {
+    notes.sort_by_key(|note| (note.track, note.channel, note.start_tick, note.pitch));
+    let mut run_start = 0;
+    while run_start < notes.len() {
+        let stream = (notes[run_start].track, notes[run_start].channel);
+        let mut run_end = run_start + 1;
+        while run_end < notes.len() && (notes[run_end].track, notes[run_end].channel) == stream {
+            run_end += 1;
         }
+        for i in run_start..run_end {
+            let start = notes[i].start_tick;
+            let next = notes[i + 1..run_end]
+                .iter()
+                .find(|note| note.start_tick > start)
+                .map(|note| note.start_tick)
+                .filter(|&next| notes[i].end_tick > next);
+            if let Some(next) = next {
+                notes[i].end_tick = next;
+            }
+        }
+        run_start = run_end;
     }
 }
 
@@ -387,6 +462,32 @@ mod tests {
     }
 
     #[test]
+    fn a_melodic_legato_overlap_is_trimmed_to_the_next_onset() {
+        // Different pitches on one instrument line, each held 20 ticks into the next.
+        let quantized = quantize(&file(&[(60, 0, 500), (62, 480, 980), (64, 960, 1440)]));
+
+        let spans: Vec<(u64, u64)> = quantized
+            .notes
+            .iter()
+            .map(|note| (note.start_tick, note.end_tick))
+            .collect();
+        assert_eq!(spans, vec![(0, 480), (480, 960), (960, 1440)]);
+    }
+
+    #[test]
+    fn a_chord_with_different_note_lengths_is_left_alone() {
+        // Same onset: the longer note is not cut by its shorter chord-mate.
+        let quantized = quantize(&file(&[(60, 0, 960), (64, 0, 480)]));
+
+        let spans: Vec<(u64, u64)> = quantized
+            .notes
+            .iter()
+            .map(|note| (note.start_tick, note.end_tick))
+            .collect();
+        assert_eq!(spans, vec![(0, 960), (0, 480)]);
+    }
+
+    #[test]
     fn a_zero_length_note_gets_the_minimum_length() {
         let quantized = quantize(&file(&[(60, 480, 480), (62, 480, 960)]));
 
@@ -474,6 +575,21 @@ mod tests {
         let notated = notate_duration(10, TPQ, 240);
         assert_eq!(notated.len(), 1);
         assert!(notated[0].ticks(TPQ) >= 240.0);
+    }
+
+    #[test]
+    fn a_length_is_tiled_exactly_when_it_can_be() {
+        // 460 = dotted eighth + 32nd + triplet 32nd; the old greedy walk overshot to 480.
+        let notated = notate_duration(460, TPQ, 40);
+        let total: f64 = notated.iter().map(|value| value.ticks(TPQ)).sum();
+        assert_eq!(total, 460.0);
+
+        // Every multiple of the 20-tick grid at least as long as the floor tiles exactly.
+        for ticks in (40..=2000).step_by(20) {
+            let notated = notate_duration(ticks, TPQ, 40);
+            let total: f64 = notated.iter().map(|value| value.ticks(TPQ)).sum();
+            assert_eq!(total, ticks as f64, "length {ticks} did not tile exactly");
+        }
     }
 
     fn source_note(source: usize, pitch: u8, start_tick: u64, end_tick: u64) -> QuantizedNote {

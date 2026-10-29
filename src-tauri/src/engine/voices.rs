@@ -29,6 +29,17 @@ pub fn measure_ticks(signature: TimeSignature, ticks_per_quarter: u64) -> u64 {
     u64::from(signature.numerator.max(1)) * beat_ticks
 }
 
+/// The beat a signature is felt in: three eighths (a dotted quarter) in compound meters
+/// such as 6/8 and 9/8, otherwise the denominator value.
+pub fn beat_ticks(signature: TimeSignature, ticks_per_quarter: u64) -> u64 {
+    let unit = (4 * ticks_per_quarter / u64::from(signature.denominator.max(1))).max(1);
+    if signature.denominator == 8 && signature.numerator.is_multiple_of(3) {
+        unit * 3
+    } else {
+        unit
+    }
+}
+
 /// The signature in force at a tick; 4/4 when the file declares nothing there.
 pub fn signature_at(signatures: &[TimeSignature], tick: u64) -> TimeSignature {
     let mut declared: Vec<&TimeSignature> = signatures
@@ -54,18 +65,33 @@ pub struct MeasureSpan {
 }
 
 /// The first downbeat's offset when the piece begins with a pickup: the shift that makes
-/// the music end exactly on a barline, provided some onset then lands on a downbeat
-/// (otherwise the piece simply ends mid-measure and nothing should shift).
-pub fn pickup_offset(notes: &[QuantizedNote], measure_length_ticks: u64) -> u64 {
+/// the music end exactly on a barline, provided the shift is a whole number of beats no
+/// longer than half a bar, music actually starts before it, and some onset then lands on a
+/// downbeat. Anything else is a piece that merely starts or ends off the grid.
+pub fn pickup_offset(
+    notes: &[QuantizedNote],
+    signature: TimeSignature,
+    ticks_per_quarter: u64,
+) -> u64 {
+    let measure_length_ticks = measure_ticks(signature, ticks_per_quarter);
     let last_end = notes
         .iter()
         .map(|note| note.end_tick)
         .max()
         .unwrap_or_default();
-    if last_end == 0 || last_end % measure_length_ticks == 0 {
+    if last_end == 0 || last_end.is_multiple_of(measure_length_ticks) {
         return 0;
     }
     let offset = last_end % measure_length_ticks;
+    if !offset.is_multiple_of(beat_ticks(signature, ticks_per_quarter))
+        || offset * 2 > measure_length_ticks
+    {
+        return 0;
+    }
+    let starts_before_the_downbeat = notes.first().is_some_and(|note| note.start_tick < offset);
+    if !starts_before_the_downbeat {
+        return 0;
+    }
     let on_a_downbeat = notes.iter().any(|note| {
         note.start_tick >= offset && (note.start_tick - offset).is_multiple_of(measure_length_ticks)
     });
@@ -224,37 +250,158 @@ pub fn cells_of(pieces: &[Piece]) -> Vec<Cell> {
 }
 
 /// Splits a measure's cells into at most two voices: a cell that starts while voice one
-/// still sounds goes to voice two, and a third overlapping line merges into voice two
-/// (two voices per staff is the documented limit). Returns indices into `cells`.
-pub fn two_voices(cells: &[Cell]) -> (Vec<usize>, Vec<usize>) {
-    let mut voice_one = Vec::new();
-    let mut voice_two = Vec::new();
-    let mut free_one = 0u64;
-    let mut free_two = 0u64;
-    for (index, cell) in cells.iter().enumerate() {
-        if cell.start_tick >= free_one {
-            voice_one.push(index);
-            free_one = cell.end_tick;
-        } else if cell.start_tick >= free_two {
-            voice_two.push(index);
-            free_two = cell.end_tick;
+/// still sounds goes to voice two; a third overlapping line shortens the tail of the
+/// earlier cell it would overlap (two voices per staff is the documented limit). Keeping
+/// the later note's true onset means playback verdicts stay aligned. Returns owned cells,
+/// so callers no longer need the original list.
+pub fn two_voices(
+    cells: &[Cell],
+    ticks_per_quarter: u64,
+    min_duration_ticks: u64,
+) -> (Vec<Cell>, Vec<Cell>) {
+    let mut voice_one: Vec<Cell> = Vec::new();
+    let mut voice_two: Vec<Cell> = Vec::new();
+    for cell in cells {
+        if voice_one
+            .last()
+            .is_none_or(|last| cell.start_tick >= last.end_tick)
+        {
+            voice_one.push(cell.clone());
+        } else if voice_two
+            .last()
+            .is_none_or(|last| cell.start_tick >= last.end_tick)
+        {
+            voice_two.push(cell.clone());
         } else {
-            voice_two.push(index);
-            free_two = free_two.max(cell.end_tick);
+            if let Some(last) = voice_two.pop() {
+                voice_two.extend(retime(
+                    &last,
+                    cell.start_tick,
+                    ticks_per_quarter,
+                    min_duration_ticks,
+                ));
+            }
+            voice_two.push(cell.clone());
         }
     }
     (voice_one, voice_two)
 }
 
+/// Re-times a cell so it ends at `new_end`, re-notating the new length. Shorter ends trim
+/// the tail (overlap resolution); longer ends extend it (absorbing a gap too short to be a
+/// rest). A length that is not a single notatable value becomes a tied chain, exactly as
+/// `pieces_of` does, and the cell's original end-tie is preserved on the last piece. A cell
+/// re-timed to nothing disappears.
+fn retime(cell: &Cell, new_end: u64, ticks_per_quarter: u64, min_duration_ticks: u64) -> Vec<Cell> {
+    if new_end <= cell.start_tick {
+        return Vec::new();
+    }
+    if new_end == cell.end_tick {
+        return vec![cell.clone()];
+    }
+    let chain = quantizer::notate_duration(
+        new_end - cell.start_tick,
+        ticks_per_quarter,
+        min_duration_ticks,
+    );
+    let last_in_chain = chain.len().saturating_sub(1);
+    let mut cells = Vec::new();
+    let mut position = cell.start_tick;
+    let mut tied_from_previous = cell.notes.iter().any(|note| note.tied_from_previous);
+    for (chain_index, duration) in chain.iter().enumerate() {
+        let start_tick = position;
+        position += duration.ticks(ticks_per_quarter).round() as u64;
+        let last = chain_index == last_in_chain;
+        let end_tick = if last { new_end } else { position.min(new_end) };
+        cells.push(Cell {
+            start_tick,
+            end_tick,
+            duration: *duration,
+            notes: cell
+                .notes
+                .iter()
+                .map(|note| Piece {
+                    tied_from_previous,
+                    tied_to_next: if last { note.tied_to_next } else { true },
+                    ..*note
+                })
+                .collect(),
+        });
+        tied_from_previous = true;
+    }
+    cells
+}
+
+/// Absorbs gaps too short to be a rest into the preceding note, so a voice always tiles its
+/// measure exactly: a 20-tick legato gap in a file whose shortest notatable value is 40
+/// ticks cannot be drawn, and rounding it up would overrun the bar. `measure_end` closes the
+/// voice, absorbing a short gap before the barline the same way.
+pub fn fill_short_gaps(
+    cells: Vec<Cell>,
+    measure_end: u64,
+    min_duration_ticks: u64,
+    ticks_per_quarter: u64,
+) -> Vec<Cell> {
+    let mut result: Vec<Cell> = Vec::new();
+    let count = cells.len();
+    for (index, cell) in cells.into_iter().enumerate() {
+        if let Some(last) = result.last() {
+            let gap = cell.start_tick.saturating_sub(last.end_tick);
+            if gap > 0 && gap < min_duration_ticks {
+                let last = result.pop().expect("the last cell was just checked");
+                result.extend(retime(
+                    &last,
+                    cell.start_tick,
+                    ticks_per_quarter,
+                    min_duration_ticks,
+                ));
+            }
+        }
+        let is_last = index + 1 == count;
+        result.push(cell);
+        if is_last {
+            let last = result.pop().expect("the last cell was just pushed");
+            let gap = measure_end.saturating_sub(last.end_tick);
+            if gap > 0 && gap < min_duration_ticks {
+                result.extend(retime(
+                    &last,
+                    measure_end,
+                    ticks_per_quarter,
+                    min_duration_ticks,
+                ));
+            } else {
+                result.push(last);
+            }
+        }
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        MeasureSpan, QuantizedNote, Staff, TimeSignature, cells_of, measure_spans, measure_ticks,
-        pickup_offset, pieces_of, signature_at, staff_of, two_voices,
+        Cell, MeasureSpan, QuantizedNote, Staff, TimeSignature, cells_of, fill_short_gaps,
+        measure_spans, measure_ticks, pickup_offset, pieces_of, signature_at, staff_of, two_voices,
     };
     use crate::engine::quantizer::{Base, Duration};
 
     const TPQ: u64 = 480;
+
+    fn cell(start_tick: u64, end_tick: u64, duration: Duration) -> Cell {
+        Cell {
+            start_tick,
+            end_tick,
+            duration,
+            notes: Vec::new(),
+        }
+    }
+
+    fn quarter() -> Duration {
+        Duration::Straight {
+            base: Base::Quarter,
+            dotted: false,
+        }
+    }
 
     fn note(source: usize, pitch: u8, start_tick: u64, end_tick: u64) -> QuantizedNote {
         QuantizedNote {
@@ -274,6 +421,13 @@ mod tests {
             numerator: 4,
             denominator: 4,
         }
+    }
+
+    fn spans_of(cells: &[super::Cell]) -> Vec<(u64, u64)> {
+        cells
+            .iter()
+            .map(|cell| (cell.start_tick, cell.end_tick))
+            .collect()
     }
 
     #[test]
@@ -339,7 +493,7 @@ mod tests {
             note(5, 69, 2400, 4320),
         ];
 
-        assert_eq!(pickup_offset(&notes, 1920), 480);
+        assert_eq!(pickup_offset(&notes, four_four(), TPQ), 480);
     }
 
     #[test]
@@ -351,20 +505,29 @@ mod tests {
             note(3, 65, 1440, 2160),
         ];
 
-        assert_eq!(pickup_offset(&notes, 1920), 0);
+        assert_eq!(pickup_offset(&notes, four_four(), TPQ), 0);
+    }
+
+    #[test]
+    fn a_pickup_that_is_not_a_whole_number_of_beats_is_rejected() {
+        // Two and three quarter beats: the end lands on a barline lookalike, but a real
+        // pickup is a whole number of beats.
+        let notes = vec![note(0, 60, 0, 1320), note(1, 62, 1320, 3240)];
+
+        assert_eq!(pickup_offset(&notes, four_four(), TPQ), 0);
     }
 
     #[test]
     fn an_aligned_piece_has_no_pickup() {
         let notes = vec![note(0, 60, 0, 1920)];
 
-        assert_eq!(pickup_offset(&notes, 1920), 0);
+        assert_eq!(pickup_offset(&notes, four_four(), TPQ), 0);
     }
 
     #[test]
     fn the_pickup_measure_comes_before_the_first_downbeat() {
         let notes = vec![note(0, 60, 0, 480), note(1, 62, 480, 4320)];
-        let pickup = pickup_offset(&notes, 1920);
+        let pickup = pickup_offset(&notes, four_four(), TPQ);
         let spans = measure_spans(&[four_four()], TPQ, 4320, pickup);
 
         assert_eq!(spans.len(), 3);
@@ -439,32 +602,68 @@ mod tests {
         ];
         let pieces = pieces_of(&notes, &spans, TPQ, 40);
         let cells = cells_of(&pieces);
-        let (one, two) = two_voices(&cells);
+        let (one, two) = two_voices(&cells, TPQ, 40);
 
-        assert_eq!(one, vec![0]);
-        assert_eq!(two, vec![1, 2]);
+        assert_eq!(spans_of(&one), vec![(0, 1920)]);
+        assert_eq!(spans_of(&two), vec![(480, 960), (960, 1440)]);
     }
 
     #[test]
-    fn a_third_overlapping_line_merges_into_the_second_voice() {
+    fn a_third_overlapping_line_shortens_the_earlier_tail() {
         let spans = vec![MeasureSpan {
             start_tick: 0,
             end_tick: 1920,
             pickup: false,
             signature: four_four(),
         }];
-        // Two lines starting together would be a chord; these overlap instead.
+        // A whole-note line over two moving lines; the third line cuts into the second.
         let notes = vec![
             note(0, 60, 0, 1920),
             note(1, 62, 480, 960),
-            note(2, 64, 480, 1440),
+            note(2, 64, 720, 1440),
         ];
         let pieces = pieces_of(&notes, &spans, TPQ, 40);
         let cells = cells_of(&pieces);
-        let (one, two) = two_voices(&cells);
+        let (one, two) = two_voices(&cells, TPQ, 40);
 
-        assert_eq!(one, vec![0]);
-        assert_eq!(two, vec![1, 2]);
+        assert_eq!(spans_of(&one), vec![(0, 1920)]);
+        // The 62 note keeps its onset but its tail is cut to where the 64 note starts.
+        assert_eq!(spans_of(&two), vec![(480, 720), (720, 1440)]);
+        assert_eq!(
+            two[0].duration,
+            Duration::Straight {
+                base: Base::Eighth,
+                dotted: false
+            }
+        );
+    }
+
+    #[test]
+    fn a_gap_too_short_to_notate_is_absorbed_into_the_previous_note() {
+        // Two quarters 20 ticks apart: a 20-tick rest is finer than any symbol, so the
+        // first note is extended to meet the second and the voice tiles its measure.
+        let cells = vec![cell(0, 460, quarter()), cell(480, 960, quarter())];
+
+        let filled = fill_short_gaps(cells, 1920, 40, TPQ);
+
+        assert_eq!(spans_of(&filled), vec![(0, 480), (480, 960)]);
+        assert_eq!(filled[0].duration.ticks(TPQ), 480.0);
+    }
+
+    #[test]
+    fn a_short_gap_before_the_barline_is_absorbed() {
+        let cells = vec![cell(
+            0,
+            1900,
+            Duration::Straight {
+                base: Base::Half,
+                dotted: false,
+            },
+        )];
+
+        let filled = fill_short_gaps(cells, 1920, 40, TPQ);
+
+        assert_eq!(spans_of(&filled), vec![(0, 1920)]);
     }
 
     #[test]
