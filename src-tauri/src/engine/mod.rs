@@ -1,3 +1,4 @@
+pub mod matcher;
 pub mod midi;
 pub mod scheduler;
 pub mod scoring;

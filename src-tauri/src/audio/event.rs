@@ -56,6 +56,13 @@ pub struct MidiMessage {
     pub data2: i32,
 }
 
+/// A note the player pressed, with the score position it landed on.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PlayedNote {
+    pub position_ms: f64,
+    pub pitch: u8,
+}
+
 impl AudioCommand {
     /// The MIDI message this command becomes, or `None` when it has no single message.
     pub fn message(self) -> Option<MidiMessage> {

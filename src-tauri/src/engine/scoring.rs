@@ -5,14 +5,14 @@ pub const DEFAULT_WINDOW_MS: i64 = 250;
 pub const DEFAULT_ON_TIME_WINDOW_MS: i64 = 60;
 
 /// Whether a played note matched the note that was expected.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum Verdict {
     Correct,
     Wrong,
 }
 
 /// Where a played note landed relative to the beat.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum Timing {
     Ahead,
     OnTime,

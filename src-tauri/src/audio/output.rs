@@ -8,9 +8,9 @@ use cpal::{SampleFormat, StreamConfig};
 use crossbeam_queue::ArrayQueue;
 
 use super::AudioError;
-use super::event::{AudioCommand, PlaybackControl, ScheduledCommand};
+use super::event::{AudioCommand, PlaybackControl, PlayedNote, ScheduledCommand};
 use super::synth::{SoundFontSynth, Synth};
-use super::{WRONG_NOTE_CHANNEL, WRONG_NOTE_PITCH, WRONG_NOTE_VELOCITY};
+use super::{PLAYER_CHANNEL, WRONG_NOTE_CHANNEL, WRONG_NOTE_PITCH, WRONG_NOTE_VELOCITY};
 
 /// Commands the callback can hold waiting at once.
 const COMMAND_CAPACITY: usize = 1024;
@@ -39,6 +39,8 @@ pub struct AudioEngine {
     /// Stable queue for commands applied immediately (live input). Never swapped, so a MIDI or
     /// keyboard thread can hold an [`InputSink`] to it without ever touching the engine lock.
     commands: Arc<ArrayQueue<AudioCommand>>,
+    /// Stable queue of the notes the player pressed, for the live matcher.
+    played: Arc<ArrayQueue<PlayedNote>>,
     control: Option<Arc<ArrayQueue<PlaybackControl>>>,
     position: Arc<AtomicU64>,
 }
@@ -62,14 +64,17 @@ impl AudioEngine {
     pub fn new() -> Self {
         let (requests, receiver) = channel();
         let commands = Arc::new(ArrayQueue::new(COMMAND_CAPACITY));
+        let played = Arc::new(ArrayQueue::new(COMMAND_CAPACITY));
         let audio_commands = Arc::clone(&commands);
+        let audio_played = Arc::clone(&played);
         std::thread::Builder::new()
             .name("audio".to_string())
-            .spawn(move || audio_loop(receiver, audio_commands))
+            .spawn(move || audio_loop(receiver, audio_commands, audio_played))
             .expect("the audio thread should start");
         AudioEngine {
             requests,
             commands,
+            played,
             control: None,
             position: Arc::new(AtomicU64::new(0)),
         }
@@ -123,6 +128,15 @@ impl AudioEngine {
     /// Queues a command to play immediately, for live input. Dropped when the queue is full.
     pub fn send(&self, command: AudioCommand) {
         self.input_sink().send(command);
+    }
+
+    /// Drains the notes the player pressed, with the score positions they landed on.
+    pub fn take_played(&self) -> Vec<PlayedNote> {
+        let mut played = Vec::new();
+        while let Some(note) = self.played.pop() {
+            played.push(note);
+        }
+        played
     }
 
     /// Sounds the distinct cue for a wrong note: a drum hit that stands apart from the piano the
@@ -187,12 +201,16 @@ impl Default for AudioEngine {
 }
 
 /// Owns the output stream. cpal's `Stream` is not `Send`, so it never leaves this thread.
-fn audio_loop(requests: Receiver<AudioRequest>, commands: Arc<ArrayQueue<AudioCommand>>) {
+fn audio_loop(
+    requests: Receiver<AudioRequest>,
+    commands: Arc<ArrayQueue<AudioCommand>>,
+    played: Arc<ArrayQueue<PlayedNote>>,
+) {
     let mut stream: Option<cpal::Stream> = None;
     while let Ok(request) = requests.recv() {
         // Drop the previous stream before opening the new one.
         drop(stream.take());
-        match build_stream(&request, &commands) {
+        match build_stream(&request, &commands, &played) {
             Ok(new_stream) => {
                 stream = Some(new_stream);
                 let _ = request.reply.send(Ok(()));
@@ -207,6 +225,7 @@ fn audio_loop(requests: Receiver<AudioRequest>, commands: Arc<ArrayQueue<AudioCo
 fn build_stream(
     request: &AudioRequest,
     commands: &Arc<ArrayQueue<AudioCommand>>,
+    played: &Arc<ArrayQueue<PlayedNote>>,
 ) -> Result<cpal::Stream, AudioError> {
     let host = cpal::default_host();
     let device = host
@@ -218,6 +237,7 @@ fn build_stream(
     let mut renderer = Renderer {
         synth: SoundFontSynth::load(&request.path, sample_rate)?,
         commands: Arc::clone(commands),
+        played: Arc::clone(played),
         control: Arc::clone(&request.control),
         position: Arc::clone(&request.position),
         channels,
@@ -305,6 +325,7 @@ impl ScorePlayback {
 struct Renderer<S: Synth> {
     synth: S,
     commands: Arc<ArrayQueue<AudioCommand>>,
+    played: Arc<ArrayQueue<PlayedNote>>,
     control: Arc<ArrayQueue<PlaybackControl>>,
     position: Arc<AtomicU64>,
     channels: usize,
@@ -321,6 +342,20 @@ impl<S: Synth> Renderer<S> {
             self.apply_control(message);
         }
         while let Some(command) = self.commands.pop() {
+            // A note the player pressed is reported with the position it landed on, so the live
+            // matcher can judge it. The position is the start of this block, which is within one
+            // block of the press.
+            if let AudioCommand::NoteOn {
+                channel: PLAYER_CHANNEL,
+                pitch,
+                ..
+            } = command
+            {
+                let _ = self.played.push(PlayedNote {
+                    position_ms: self.playback.position_ms,
+                    pitch,
+                });
+            }
             self.synth.apply(command);
         }
 
@@ -460,7 +495,8 @@ fn device_error(error: impl std::fmt::Display) -> AudioError {
 #[cfg(test)]
 mod tests {
     use super::{MAX_BLOCK_FRAMES, Renderer, ScorePlayback, shift, transposed, write_frames};
-    use crate::audio::event::{AudioCommand, PlaybackControl, ScheduledCommand};
+    use crate::audio::PLAYER_CHANNEL;
+    use crate::audio::event::{AudioCommand, PlaybackControl, PlayedNote, ScheduledCommand};
     use crate::audio::synth::Synth;
     use crossbeam_queue::ArrayQueue;
     use std::sync::Arc;
@@ -635,6 +671,39 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_player_note_is_reported_with_its_position() {
+        let mut renderer = renderer(1000, vec![]);
+        renderer.push_control(PlaybackControl::Start);
+        renderer
+            .commands
+            .push(player_note_on(60))
+            .expect("the command queue should fit");
+
+        renderer.render(10);
+
+        assert_eq!(
+            renderer.played.pop(),
+            Some(PlayedNote {
+                position_ms: 0.0,
+                pitch: 60
+            })
+        );
+    }
+
+    #[test]
+    fn a_note_on_another_channel_is_not_reported() {
+        let mut renderer = renderer(1000, vec![]);
+        renderer
+            .commands
+            .push(note_on(60))
+            .expect("the command queue should fit");
+
+        renderer.render(10);
+
+        assert_eq!(renderer.played.pop(), None);
+    }
+
     /// A `Synth` that records the frame each command arrived at.
     #[derive(Default)]
     struct FakeSynth {
@@ -673,6 +742,7 @@ mod tests {
         Renderer {
             synth: FakeSynth::default(),
             commands: Arc::new(ArrayQueue::new(16)),
+            played: Arc::new(ArrayQueue::new(16)),
             control: Arc::new(ArrayQueue::new(16)),
             position: Arc::new(AtomicU64::new(0)),
             channels: 2,
@@ -693,6 +763,14 @@ mod tests {
     fn note_on(pitch: u8) -> AudioCommand {
         AudioCommand::NoteOn {
             channel: 0,
+            pitch,
+            velocity: 100,
+        }
+    }
+
+    fn player_note_on(pitch: u8) -> AudioCommand {
+        AudioCommand::NoteOn {
+            channel: PLAYER_CHANNEL,
             pitch,
             velocity: 100,
         }
