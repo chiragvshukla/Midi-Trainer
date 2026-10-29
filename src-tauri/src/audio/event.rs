@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 /// A command sent from a control thread to the audio callback.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AudioCommand {
@@ -21,6 +23,26 @@ pub enum AudioCommand {
     },
     /// Stops every sounding note, for example when playback stops.
     AllNotesOff,
+}
+
+/// A command to apply at a score time, in milliseconds from the start of the piece.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScheduledCommand {
+    pub at_ms: f64,
+    pub command: AudioCommand,
+}
+
+/// A message that changes what the score playback is doing.
+#[derive(Debug)]
+pub enum PlaybackControl {
+    /// Replaces the piece being played and starts it from the beginning.
+    SetScore(Arc<Vec<ScheduledCommand>>),
+    /// Tempo as a percentage of the original; 100 is normal speed.
+    SetTempoPercent(f32),
+    /// Semitones shifted up (positive) or down (negative).
+    SetTranspose(i32),
+    Start,
+    Stop,
 }
 
 /// A raw MIDI message: channel, status byte, and the two data bytes.

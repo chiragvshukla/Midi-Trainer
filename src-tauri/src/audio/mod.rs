@@ -2,7 +2,7 @@ mod event;
 mod output;
 mod synth;
 
-pub use event::AudioCommand;
+pub use event::{AudioCommand, ScheduledCommand};
 pub use output::AudioEngine;
 
 use std::fmt;
