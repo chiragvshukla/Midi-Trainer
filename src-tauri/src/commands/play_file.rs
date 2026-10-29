@@ -1,9 +1,10 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::audio::AudioEngine;
+use crate::commands::update_settings;
 use crate::engine::matcher::LiveMatcher;
 use crate::engine::{scheduler, timeline::Timeline};
 
@@ -11,10 +12,12 @@ use crate::engine::{scheduler, timeline::Timeline};
 #[tauri::command]
 pub fn play_file(
     path: String,
+    app: AppHandle,
     engine: State<'_, Mutex<AudioEngine>>,
     matcher: State<'_, Mutex<Option<LiveMatcher>>>,
 ) -> Result<(), String> {
-    let timeline = Timeline::load(Path::new(&path)).map_err(|err| err.to_string())?;
+    let file = Path::new(&path);
+    let timeline = Timeline::load(file).map_err(|err| err.to_string())?;
     let score = Arc::new(scheduler::schedule(&timeline));
     {
         let mut matcher = matcher
@@ -28,6 +31,7 @@ pub fn play_file(
     engine.set_score(score);
     engine.set_gates(scheduler::gates(&timeline));
     engine.start();
+    update_settings(&app, |settings| settings.record_recent_file(&path))?;
     log::info!("playing {path}");
     Ok(())
 }

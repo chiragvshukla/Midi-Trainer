@@ -2,6 +2,7 @@ pub mod audio;
 mod commands;
 pub mod engine;
 pub mod midi;
+pub mod settings;
 pub mod soundfont;
 
 use std::sync::Arc;
@@ -15,6 +16,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use audio::AudioEngine;
 use engine::matcher::LiveMatcher;
 use engine::scoring::Verdict;
+use settings::Settings;
 
 /// How often the judgement thread looks for notes the player has pressed.
 const JUDGEMENT_POLL: Duration = Duration::from_millis(33);
@@ -34,6 +36,8 @@ pub fn run() {
         .manage(Mutex::new(None::<midi::device::MidiInputHandle>))
         // The live matcher for the piece being practised, if one is loaded.
         .manage(Mutex::new(None::<LiveMatcher>))
+        // The user's settings, replaced by the saved file during setup.
+        .manage(Mutex::new(Settings::default()))
         .invoke_handler(tauri::generate_handler![
             commands::app_info::app_info,
             commands::log_message::log_message,
@@ -54,9 +58,18 @@ pub fn run() {
             commands::set_transpose::set_transpose,
             commands::seek::seek,
             commands::playback_position::playback_position,
+            commands::get_settings::get_settings,
+            commands::set_volume::set_volume,
         ])
         .setup(|app| {
             info!("MidiTrainer {} starting", env!("CARGO_PKG_VERSION"));
+            // Replace the default settings with whatever was saved last run.
+            if let Ok(path) = commands::settings_path(app.handle()) {
+                let saved = Settings::load(&path);
+                if let Ok(mut settings) = app.state::<Mutex<Settings>>().lock() {
+                    *settings = saved;
+                }
+            }
             let handle = app.handle().clone();
             std::thread::Builder::new()
                 .name("judgements".to_string())

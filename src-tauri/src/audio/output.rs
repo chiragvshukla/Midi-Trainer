@@ -185,6 +185,11 @@ impl AudioEngine {
         self.control(PlaybackControl::SetTranspose(semitones));
     }
 
+    /// Sets the output volume as a linear gain, 0.0 to 1.0.
+    pub fn set_volume(&self, gain: f32) {
+        self.control(PlaybackControl::SetVolume(gain));
+    }
+
     /// Moves the playhead to `position_ms` in the current piece.
     pub fn seek(&self, position_ms: u64) {
         self.control(PlaybackControl::Seek(position_ms as f64));
@@ -301,6 +306,8 @@ struct ScorePlayback {
     position_ms: f64,
     tempo_percent: f32,
     transpose: i32,
+    /// Output volume as a linear gain.
+    volume: f32,
     playing: bool,
     /// Whether the playhead waits for the player at each gate.
     follow: bool,
@@ -318,6 +325,7 @@ impl Default for ScorePlayback {
             // Normal speed. A zero here would make the frame conversion divide by zero.
             tempo_percent: 100.0,
             transpose: 0,
+            volume: 1.0,
             playing: false,
             follow: false,
             gates: Arc::new(Vec::new()),
@@ -436,6 +444,9 @@ impl<S: Synth> Renderer<S> {
             PlaybackControl::SetTranspose(semitones) => {
                 self.playback.transpose = semitones.clamp(-12, 12);
             }
+            PlaybackControl::SetVolume(gain) => {
+                self.playback.volume = gain.clamp(0.0, 1.0);
+            }
             PlaybackControl::Seek(position_ms) => {
                 let target = position_ms.max(0.0);
                 // Skip every command before the target and silence anything still sounding.
@@ -497,6 +508,10 @@ impl<S: Synth> Renderer<S> {
         let left = &mut self.left[..count];
         let right = &mut self.right[..count];
         self.synth.render(left, right);
+        let volume = self.playback.volume;
+        for sample in left.iter_mut().chain(right.iter_mut()) {
+            *sample *= volume;
+        }
         let start = offset * self.channels;
         let end = start + count * self.channels;
         write_frames(
