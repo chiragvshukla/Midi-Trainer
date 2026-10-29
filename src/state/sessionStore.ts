@@ -71,8 +71,9 @@ export function verdictKey(pitch: number, startMs: number): string {
   return `${pitch}:${Math.round(startMs)}`;
 }
 
-/** How long a wrong played key stays red on the on-screen keyboard. */
-export const WRONG_FLASH_MS = 400;
+/** How long a wrong played key stays red on the on-screen keyboard. Short, so fast passages
+ * do not keep old wrong keys lit. */
+export const WRONG_FLASH_MS = 120;
 
 /** A pitch the player just played wrong, and when, so the keyboard can flash it red. */
 export interface WrongFlash {
