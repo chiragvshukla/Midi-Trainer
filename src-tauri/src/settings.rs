@@ -75,6 +75,8 @@ pub struct Settings {
     pub play_along: bool,
     /// How strictly the player's notes are judged.
     pub skill: Skill,
+    /// A `.sf2` the user chose, or the downloaded full bank; `None` uses the bundled baseline.
+    pub soundfont_path: Option<String>,
 }
 
 impl Default for Settings {
@@ -94,6 +96,7 @@ impl Default for Settings {
             hand_split: false,
             play_along: false,
             skill: Skill::Strict,
+            soundfont_path: None,
         }
     }
 }
@@ -217,6 +220,7 @@ mod tests {
         settings.player_track = Some(2);
         settings.hand_split = true;
         settings.skill = super::Skill::Follow;
+        settings.soundfont_path = Some("C:/fonts/custom.sf2".to_string());
         settings.save(&path).expect("the file should write");
         // A second save replaces the first file, it does not fail on it.
         settings.recent_files.clear();

@@ -25,6 +25,7 @@ pub mod set_play_along;
 pub mod set_player_part;
 pub mod set_player_volume;
 pub mod set_skill;
+pub mod set_soundfont;
 pub mod set_tempo_percent;
 pub mod set_track_volume;
 pub mod set_transpose;
@@ -34,13 +35,30 @@ pub mod stop_playback;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager};
 
 use crate::settings::Settings;
+use crate::soundfont;
 
 /// The per-user directory the app keeps its data in.
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
     app.path().app_data_dir().map_err(|err| err.to_string())
+}
+
+/// The baseline SoundFont that ships with the app, if it can be found. A bundled build copies it
+/// into the resource directory; in development it is read straight from the crate.
+pub fn bundled_soundfont(app: &AppHandle) -> Option<PathBuf> {
+    let candidates = [
+        app.path()
+            .resolve(soundfont::BUNDLED_RELATIVE, BaseDirectory::Resource)
+            .ok(),
+        app.path()
+            .resolve(soundfont::BUNDLED_FILE, BaseDirectory::Resource)
+            .ok(),
+        Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(soundfont::BUNDLED_RELATIVE)),
+    ];
+    candidates.into_iter().flatten().find(|path| path.is_file())
 }
 
 /// The settings file inside the app data directory.

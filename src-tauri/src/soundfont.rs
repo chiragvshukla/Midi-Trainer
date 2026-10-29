@@ -1,8 +1,9 @@
-//! First-run acquisition of the baseline SoundFont.
+//! The SoundFont the app plays through.
 //!
-//! The repository ships no large binary. On first launch the app downloads the MIT-licensed
-//! FluidR3 General MIDI SoundFont into its app-data directory, verifying the bytes against a
-//! pinned SHA-256 so a corrupted or substituted download is discarded.
+//! A small baseline font (`resources/FluidR3_GS.sf2`, MIT) ships with the app, so it plays
+//! offline with no setup. The full 142 MB FluidR3 General MIDI bank can be downloaded on request
+//! into the app-data directory, verified against a pinned SHA-256 so a corrupted or substituted
+//! download is discarded; the user may also point at any `.sf2` of their own.
 //!
 //! Attribution: Fluid (R3) SoundFont, Copyright (c) 2000-2002, 2008 Frank Wen. See `NOTICE`.
 
@@ -24,14 +25,34 @@ const SOUNDFONT_SHA256: &str = "74594e8f4250680adf590507a306655a299935343583256f
 /// File name the SoundFont is stored under in the app-data directory.
 const SOUNDFONT_FILE: &str = "FluidR3_GM.sf2";
 
+/// The baseline font committed with the app, relative to its resources.
+pub const BUNDLED_RELATIVE: &str = "resources/FluidR3_GS.sf2";
+
+/// The baseline font's file name, tried when a bundler flattens the resources directory.
+pub const BUNDLED_FILE: &str = "FluidR3_GS.sf2";
+
 /// Bytes read per pass while downloading.
 const CHUNK: usize = 64 * 1024;
 
-/// Whether the SoundFont is installed and where it would live, as the frontend sees it.
+/// Which SoundFont the engine is playing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum SoundfontKind {
+    /// The small baseline font that ships with the app.
+    Bundled,
+    /// The full GM bank downloaded into the app-data directory.
+    Downloaded,
+    /// A `.sf2` the user chose.
+    Custom,
+}
+
+/// The SoundFont in effect and where the full bank lives, as the frontend sees it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SoundfontStatus {
-    pub installed: bool,
+    pub kind: SoundfontKind,
+    /// The file the engine loads; empty only when no font can be found at all.
     pub path: String,
+    /// Whether the full GM bank is present in app data and can be switched to.
+    pub full_available: bool,
 }
 
 /// Errors from downloading the SoundFont.
@@ -93,11 +114,32 @@ pub fn is_installed(app_data: &Path) -> bool {
     installed_path(app_data).is_file()
 }
 
-/// Reports whether the SoundFont is installed and where it would live.
-pub fn status(app_data: &Path) -> SoundfontStatus {
+/// Picks the SoundFont to load: the user's choice when it still exists, else the bundled
+/// baseline. `bundled` is absent only when the app was packaged without its resource.
+pub fn status(bundled: Option<&Path>, app_data: &Path, chosen: Option<&str>) -> SoundfontStatus {
+    let full = installed_path(app_data);
+    let full_available = full.is_file();
+    if let Some(chosen) = chosen {
+        let path = Path::new(chosen);
+        if path.is_file() {
+            let kind = if path == full.as_path() {
+                SoundfontKind::Downloaded
+            } else {
+                SoundfontKind::Custom
+            };
+            return SoundfontStatus {
+                kind,
+                path: chosen.to_string(),
+                full_available,
+            };
+        }
+    }
     SoundfontStatus {
-        installed: is_installed(app_data),
-        path: installed_path(app_data).to_string_lossy().into_owned(),
+        kind: SoundfontKind::Bundled,
+        path: bundled
+            .map(|path| path.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        full_available,
     }
 }
 
@@ -207,7 +249,8 @@ fn to_hex(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        SOUNDFONT_FILE, SoundfontError, copy_hashed, installed_path, is_installed, to_hex,
+        SOUNDFONT_FILE, SoundfontError, SoundfontKind, copy_hashed, installed_path, is_installed,
+        status, to_hex,
     };
     use sha2::{Digest, Sha256};
     use std::io::Cursor;
@@ -218,6 +261,41 @@ mod tests {
         let directory = std::path::Path::new("/data");
         assert_eq!(installed_path(directory), directory.join(SOUNDFONT_FILE));
         assert!(!is_installed(directory));
+    }
+
+    #[test]
+    fn status_prefers_a_live_choice_then_the_bundled_font() {
+        let dir = std::env::temp_dir().join("mt-soundfont-status-test");
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).expect("the directory should create");
+        let bundled = dir.join("bundled.sf2");
+        std::fs::write(&bundled, b"bundled").unwrap();
+        let chosen = dir.join("chosen.sf2");
+        std::fs::write(&chosen, b"chosen").unwrap();
+
+        // No choice: the bundled baseline, and the full bank is absent.
+        let result = status(Some(bundled.as_path()), &dir, None);
+        assert_eq!(result.kind, SoundfontKind::Bundled);
+        assert_eq!(result.path, bundled.to_string_lossy());
+        assert!(!result.full_available);
+
+        // A chosen file that exists is used and reported as custom.
+        let result = status(Some(bundled.as_path()), &dir, chosen.to_str());
+        assert_eq!(result.kind, SoundfontKind::Custom);
+        assert_eq!(result.path, chosen.to_string_lossy());
+
+        // The full bank, once written to its install path, is reported as downloaded.
+        let full = installed_path(&dir);
+        std::fs::write(&full, b"full").unwrap();
+        let result = status(Some(bundled.as_path()), &dir, full.to_str());
+        assert_eq!(result.kind, SoundfontKind::Downloaded);
+        assert!(result.full_available);
+
+        // A choice that no longer exists falls back to the bundled font.
+        let result = status(Some(bundled.as_path()), &dir, Some("/missing/nope.sf2"));
+        assert_eq!(result.kind, SoundfontKind::Bundled);
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

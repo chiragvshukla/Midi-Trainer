@@ -1,6 +1,20 @@
 import { useAppearance, canvasColors, PALETTES } from "../lib/theme";
 import type { Look, NoteLabels, Palette, PianoLook, Theme } from "../lib/theme";
 import { useAppStore } from "../state/appStore";
+import { useSession } from "../state/sessionStore";
+import type { SoundfontStatus } from "../lib/api";
+
+/** A one-line description of the SoundFont currently in effect. */
+function soundfontLabel(status: SoundfontStatus | null): string {
+  switch (status?.kind) {
+    case "Downloaded":
+      return "Using the full instrument set.";
+    case "Custom":
+      return "Using your own SoundFont file.";
+    default:
+      return "Using the bundled baseline sound.";
+  }
+}
 
 /**
  * The global (app-wide) settings: appearance and accessibility. These are preferences that hold
@@ -35,6 +49,13 @@ export function AppearancePanel({
   const noteBackdrop = useAppearance((state) => state.noteBackdrop);
   const setNoteBackdrop = useAppearance((state) => state.setNoteBackdrop);
   const version = useAppStore((state) => state.appInfo?.version ?? null);
+  const soundfont = useSession((state) => state.soundfont);
+  const download = useSession((state) => state.download);
+  const soundfontError = useSession((state) => state.soundfontError);
+  const downloadFull = useSession((state) => state.downloadFullSoundfont);
+  const cancelDownload = useSession((state) => state.cancelDownload);
+  const chooseSoundfont = useSession((state) => state.chooseSoundfontFile);
+  const useBundled = useSession((state) => state.useBundledSoundfont);
 
   if (!open) {
     return null;
@@ -189,6 +210,60 @@ export function AppearancePanel({
               />
               Colour-blind-safe note colours
             </label>
+          </section>
+
+          <section className="settings-group">
+            <h3>Sound</h3>
+            <p className="field-note">{soundfontLabel(soundfont)}</p>
+            {soundfont?.path ? (
+              <p className="field-path" title={soundfont.path}>
+                {soundfont.path}
+              </p>
+            ) : null}
+            {download ? (
+              <div className="field">
+                <progress value={download.received} max={download.total || 1} />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void cancelDownload()}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="field">
+                {soundfont?.kind !== "Downloaded" &&
+                soundfont?.full_available !== true ? (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => void downloadFull()}
+                  >
+                    Download full instruments (142 MB)
+                  </button>
+                ) : null}
+                {soundfont?.kind !== "Bundled" ? (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => void useBundled()}
+                  >
+                    Use bundled sound
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void chooseSoundfont()}
+                >
+                  Choose a .sf2…
+                </button>
+              </div>
+            )}
+            {soundfontError ? (
+              <p className="gate-error">{soundfontError}</p>
+            ) : null}
           </section>
 
           {version ? (

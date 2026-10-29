@@ -15,9 +15,15 @@ export type Hand = "Both" | "Left" | "Right";
 /** How strictly the player's notes are judged. */
 export type Skill = "Listen" | "Follow" | "Strict";
 
+/** Which SoundFont the engine is playing. */
+export type SoundfontKind = "Bundled" | "Downloaded" | "Custom";
+
 export interface SoundfontStatus {
-  installed: boolean;
+  kind: SoundfontKind;
+  /** The file the engine loads; empty only when no font can be found at all. */
   path: string;
+  /** Whether the full GM bank is present and can be switched to. */
+  full_available: boolean;
 }
 
 export interface DownloadProgress {
@@ -200,6 +206,11 @@ export function cancelSoundfontDownload(): Promise<void> {
 
 export function loadSoundfont(path: string): Promise<void> {
   return invoke("load_soundfont", { path });
+}
+
+/** Switches the SoundFont: a specific `.sf2`, or `null` for the bundled baseline. */
+export function setSoundfont(path: string | null): Promise<SoundfontStatus> {
+  return invoke<SoundfontStatus>("set_soundfont", { path });
 }
 
 export function fetchSettings(): Promise<Settings> {

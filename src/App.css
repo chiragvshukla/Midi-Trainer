@@ -1127,6 +1127,20 @@ body {
   width: 100%;
 }
 
+.field-note {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.field-path {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+}
+
 .check-row {
   display: flex;
   align-items: center;
@@ -1341,24 +1355,37 @@ body {
   background: rgba(18, 20, 26, 0.7);
 }
 
-/* --- SoundFont gate --- */
+/* --- SoundFont prompt --- */
 
-.gate {
-  position: absolute;
-  inset: 0;
-  z-index: 10;
+.soundfont-prompt {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 20;
+  width: 320px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  background: var(--bg);
-  text-align: center;
-  padding: 24px;
+  gap: 10px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
-.gate progress {
-  width: 320px;
+.soundfont-prompt progress {
+  width: 100%;
+}
+
+.prompt-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.prompt-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .gate-error {
@@ -1899,8 +1926,7 @@ body {
 }
 
 /* A faint grid on the flat views. */
-.library,
-.gate {
+.library {
   background-image:
     linear-gradient(var(--grid-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);

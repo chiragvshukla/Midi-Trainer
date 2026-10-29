@@ -6,7 +6,7 @@ import { useSession } from "./state/sessionStore";
 import { usePcKeyboard } from "./lib/usePcKeyboard";
 import { usePlaybackPosition } from "./lib/usePlaybackPosition";
 import { useShortcuts } from "./lib/useShortcuts";
-import { SoundfontGate } from "./components/SoundfontGate";
+import { SoundfontPrompt } from "./components/SoundfontPrompt";
 import { LibraryView } from "./components/LibraryView";
 import { LyricsBar } from "./components/LyricsBar";
 import { PracticeStatsBar } from "./components/PracticeStatsBar";
@@ -41,8 +41,6 @@ function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const loadAppInfo = useAppStore((state) => state.loadAppInfo);
 
-  const soundfont = useSession((state) => state.soundfont);
-  const soundfontError = useSession((state) => state.soundfontError);
   const startup = useSession((state) => state.startup);
   const loadDevices = useSession((state) => state.loadDevices);
   const updateDownload = useSession((state) => state.updateDownload);
@@ -109,12 +107,9 @@ function App() {
     }
   };
 
-  const ready =
-    soundfont !== null && soundfont.installed && soundfontError === null;
-
   return (
     <div className="app">
-      {!ready && <SoundfontGate />}
+      <SoundfontPrompt />
       <Sidebar
         section={section}
         onSelect={setSection}

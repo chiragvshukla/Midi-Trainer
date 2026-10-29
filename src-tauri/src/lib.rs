@@ -60,6 +60,7 @@ pub fn run() {
             commands::play::play,
             commands::stop_playback::stop_playback,
             commands::soundfont_status::soundfont_status,
+            commands::set_soundfont::set_soundfont,
             commands::download_soundfont::download_soundfont,
             commands::cancel_soundfont_download::cancel_soundfont_download,
             commands::key_down::key_down,

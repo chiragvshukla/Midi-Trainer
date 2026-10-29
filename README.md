@@ -46,4 +46,5 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ## Credits
 
 - App icon: [Piano icons created by Assia Benkerroum - Flaticon](https://www.flaticon.com/free-icons/piano)
+- Default piano sound: Fluid (R3) SoundFont by Frank Wen, MIT licensed (bundled `FluidR3_GS.sf2`; the full GM bank is an optional download).
 - See `NOTICE` for all third-party notices.

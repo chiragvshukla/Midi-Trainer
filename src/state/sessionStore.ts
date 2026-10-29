@@ -26,6 +26,7 @@ import {
   setTempoPercent,
   setTrackVolume,
   setTranspose,
+  setSoundfont,
   stopPlayback,
   type Hand,
   type Judgement,
@@ -174,12 +175,18 @@ interface SessionState {
   looping: boolean;
   /** Whether the transport is playing, for the play/stop toggle. */
   playing: boolean;
-  /** First-run setup: SoundFont first (the engine needs it), then the saved settings. */
+  /** First-run setup: load a SoundFont, then the saved settings. */
   startup: () => Promise<void>;
   initSoundfont: () => Promise<void>;
   loadSettings: () => Promise<Settings | null>;
   cancelDownload: () => Promise<void>;
   updateDownload: (progress: DownloadState | null) => void;
+  /** Downloads the full GM bank and switches to it. */
+  downloadFullSoundfont: () => Promise<void>;
+  /** Picks a `.sf2` file for the user and switches to it. */
+  chooseSoundfontFile: () => Promise<void>;
+  /** Returns to the bundled baseline font. */
+  useBundledSoundfont: () => Promise<void>;
   loadDevices: () => Promise<void>;
   connectDevice: (name: string | null) => Promise<void>;
   loadLibrary: () => Promise<void>;
@@ -241,10 +248,8 @@ export const useSession = create<SessionState>((set, get) => ({
 
   startup: async () => {
     await get().initSoundfont();
-    if (!get().soundfontError) {
-      await get().loadSettings();
-      await get().loadLibrary();
-    }
+    await get().loadSettings();
+    await get().loadLibrary();
   },
 
   initSoundfont: async () => {
@@ -252,24 +257,14 @@ export const useSession = create<SessionState>((set, get) => ({
     try {
       const soundfont = await fetchSoundfontStatus();
       set({ soundfont });
-      if (soundfont.installed) {
-        try {
-          await loadSoundfont(soundfont.path);
-          return;
-        } catch (error) {
-          // The installed file is broken; downloading replaces it.
-          log.warn(`installed SoundFont failed to load: ${String(error)}`);
-        }
+      if (soundfont.path) {
+        await loadSoundfont(soundfont.path);
+      } else {
+        set({ soundfontError: "No SoundFont is available." });
       }
-      // First run: fetch the baseline font behind the visible progress screen.
-      const path = await downloadSoundfont();
-      await loadSoundfont(path);
-      set({ soundfont: { installed: true, path } });
     } catch (error) {
       set({ soundfontError: String(error) });
       log.error(`soundfont setup failed: ${String(error)}`);
-    } finally {
-      set({ download: null });
     }
   },
 
@@ -282,6 +277,44 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   updateDownload: (progress) => set({ download: progress }),
+
+  downloadFullSoundfont: async () => {
+    set({ soundfontError: null, download: { received: 0, total: 0 } });
+    try {
+      const path = await downloadSoundfont();
+      set({ soundfont: await setSoundfont(path) });
+    } catch (error) {
+      set({ soundfontError: String(error) });
+      log.error(`downloading the full SoundFont failed: ${String(error)}`);
+    } finally {
+      set({ download: null });
+    }
+  },
+
+  chooseSoundfontFile: async () => {
+    try {
+      const path = await open({
+        multiple: false,
+        filters: [{ name: "SoundFont", extensions: ["sf2"] }],
+      });
+      if (typeof path !== "string") {
+        return;
+      }
+      set({ soundfont: await setSoundfont(path), soundfontError: null });
+    } catch (error) {
+      set({ soundfontError: String(error) });
+      log.error(`choosing a SoundFont failed: ${String(error)}`);
+    }
+  },
+
+  useBundledSoundfont: async () => {
+    try {
+      set({ soundfont: await setSoundfont(null), soundfontError: null });
+    } catch (error) {
+      set({ soundfontError: String(error) });
+      log.error(`switching to the bundled SoundFont failed: ${String(error)}`);
+    }
+  },
 
   loadSettings: async () => {
     try {
