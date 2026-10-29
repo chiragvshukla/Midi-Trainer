@@ -1,6 +1,6 @@
 [package]
 name = "midi-trainer"
-version = "0.1.0"
+version = "0.1.1"
 description = "MidiTrainer - a MIDI piano trainer with falling-note and sheet-music views"
 authors = ["MidiTrainer contributors"]
 edition = "2024"

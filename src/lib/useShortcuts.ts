@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useSession } from "../state/sessionStore";
 
 /** Whether the key landed in a control that owns its keys, so we leave it alone. */
@@ -12,13 +13,23 @@ function ownsKeys(target: EventTarget | null): boolean {
 }
 
 /**
- * The global transport shortcuts: Space toggles play and stop, Home returns to the start, and the
- * arrow keys step a bar. They never fire while a field, button or the timeline slider has focus,
- * or with a modifier held, and do nothing until a piece is loaded.
+ * The global shortcuts: F11 toggles fullscreen at any time; Space toggles play and stop, Home
+ * returns to the start, and the arrow keys step a bar. The transport keys never fire while a field,
+ * button or the timeline slider has focus, or with a modifier held, and do nothing until a piece is
+ * loaded.
  */
 export function useShortcuts(): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // Fullscreen works even with a field focused or no piece loaded, so it comes first.
+      if (event.code === "F11") {
+        event.preventDefault();
+        const appWindow = getCurrentWindow();
+        void appWindow
+          .isFullscreen()
+          .then((fullscreen) => appWindow.setFullscreen(!fullscreen));
+        return;
+      }
       if (
         event.ctrlKey ||
         event.metaKey ||
