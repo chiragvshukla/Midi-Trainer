@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 /// How far a played note may sit from the expected note and still count as correct.
 pub const DEFAULT_WINDOW_MS: i64 = 250;
 
@@ -115,6 +117,36 @@ impl Score {
     pub fn reset(&mut self) {
         *self = Score::default();
     }
+
+    /// A snapshot of the tallies for the frontend: the counts plus the derived accuracy and mean
+    /// distance from the beat, computed here so the UI never re-derives scoring values.
+    pub fn stats(&self) -> PracticeStats {
+        PracticeStats {
+            attempts: self.attempts(),
+            correct: self.correct,
+            wrong: self.wrong,
+            ahead: self.ahead,
+            on_time: self.on_time,
+            behind: self.behind,
+            accuracy: self.accuracy(),
+            average_abs_offset_ms: self.average_abs_offset_ms(),
+        }
+    }
+}
+
+/// A practice session's tallies, as the frontend shows them.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+pub struct PracticeStats {
+    pub attempts: u32,
+    pub correct: u32,
+    pub wrong: u32,
+    pub ahead: u32,
+    pub on_time: u32,
+    pub behind: u32,
+    /// Share of attempts that were correct, 0.0 when nothing has been played.
+    pub accuracy: f32,
+    /// Mean distance from the beat in milliseconds, 0.0 when nothing has been played.
+    pub average_abs_offset_ms: f32,
 }
 
 /// Negative offset is early (ahead of the beat), positive is late.
@@ -187,6 +219,23 @@ mod tests {
         assert_eq!(score.behind, 2);
         assert!((score.accuracy() - 2.0 / 3.0).abs() < 1e-6);
         assert!((score.average_abs_offset_ms() - 150.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn stats_snapshot_matches_the_tallies() {
+        let judge = Judge::default();
+        let mut score = Score::default();
+        score.record(judge.judge(60, 60, 0));
+        score.record(judge.judge(64, 65, 200));
+
+        let stats = score.stats();
+        assert_eq!(stats.attempts, 2);
+        assert_eq!(stats.correct, 1);
+        assert_eq!(stats.wrong, 1);
+        assert_eq!(stats.on_time, 1);
+        assert_eq!(stats.behind, 1);
+        assert!((stats.accuracy - 0.5).abs() < 1e-6);
+        assert!((stats.average_abs_offset_ms - 100.0).abs() < 1e-6);
     }
 
     #[test]

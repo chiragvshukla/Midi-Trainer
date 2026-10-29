@@ -27,6 +27,9 @@ pub const NOTE_JUDGEMENTS_EVENT: &str = "note-judgements";
 /// Event carrying every press and release on the player's keyboards to the frontend.
 pub const PLAYER_NOTES_EVENT: &str = "player-notes";
 
+/// Event carrying the running practice tallies to the frontend.
+pub const PRACTICE_STATS_EVENT: &str = "practice-stats";
+
 /// One press or release, as the frontend sees it.
 #[derive(Clone, serde::Serialize)]
 struct PlayerNote {
@@ -143,6 +146,11 @@ fn judgement_pump(app: AppHandle) {
         }
         if !judgements.is_empty() {
             let _ = app.emit(NOTE_JUDGEMENTS_EVENT, judgements);
+            if let Ok(matcher) = app.state::<Mutex<Option<LiveMatcher>>>().lock()
+                && let Some(matcher) = matcher.as_ref()
+            {
+                let _ = app.emit(PRACTICE_STATS_EVENT, matcher.stats());
+            }
         }
     }
 }

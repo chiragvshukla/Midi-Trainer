@@ -113,6 +113,18 @@ export interface PlayerNote {
   down: boolean;
 }
 
+/** A practice session's running tallies, from the engine. */
+export interface PracticeStats {
+  attempts: number;
+  correct: number;
+  wrong: number;
+  ahead: number;
+  on_time: number;
+  behind: number;
+  accuracy: number;
+  average_abs_offset_ms: number;
+}
+
 /** One MIDI file the library can open. */
 export interface LibraryEntry {
   name: string;

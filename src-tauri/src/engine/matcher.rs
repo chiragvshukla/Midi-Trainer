@@ -6,7 +6,7 @@
 
 use serde::Serialize;
 
-use super::scoring::{Judge, NoteMatch, Timing, Verdict};
+use super::scoring::{Judge, NoteMatch, PracticeStats, Score, Timing, Verdict};
 use super::timeline::Timeline;
 use crate::audio::PERCUSSION_CHANNEL;
 
@@ -39,6 +39,8 @@ pub struct LiveMatcher {
     /// Index of the first note that could still be matched; everything before it is too late.
     cursor: usize,
     judge: Judge,
+    /// Running tally of the player's attempts, for the practice readout.
+    score: Score,
 }
 
 impl LiveMatcher {
@@ -55,6 +57,7 @@ impl LiveMatcher {
                 .collect(),
             cursor: 0,
             judge,
+            score: Score::default(),
         }
     }
 
@@ -112,11 +115,13 @@ impl LiveMatcher {
         note.matched = true;
         let (expected_pitch, expected_start_ms) = (note.pitch, note.start_ms);
         let offset_ms = (position_ms - expected_start_ms).round() as i64;
+        let matched = self.judge.judge(expected_pitch, pitch, offset_ms);
+        self.score.record(matched);
         let NoteMatch {
             verdict,
             timing,
             offset_ms,
-        } = self.judge.judge(expected_pitch, pitch, offset_ms);
+        } = matched;
         NoteJudgement {
             pitch,
             verdict,
@@ -125,6 +130,11 @@ impl LiveMatcher {
             expected_pitch: Some(expected_pitch),
             expected_start_ms,
         }
+    }
+
+    /// The running practice tallies, for the frontend's accuracy readout.
+    pub fn stats(&self) -> PracticeStats {
+        self.score.stats()
     }
 }
 
@@ -197,6 +207,23 @@ mod tests {
             matcher.evaluate(1010.0, 60).map(|j| j.verdict),
             Some(super::Verdict::Correct)
         );
+    }
+
+    #[test]
+    fn stats_count_each_attempt() {
+        let mut matcher = matcher(&[(60, 1000.0), (64, 1000.0), (67, 2000.0)]);
+
+        matcher.evaluate(900.0, 60); // correct, early
+        matcher.evaluate(1000.0, 62); // wrong pitch
+        matcher.evaluate(2100.0, 67); // correct, late
+
+        let stats = matcher.stats();
+        assert_eq!(stats.attempts, 3);
+        assert_eq!(stats.correct, 2);
+        assert_eq!(stats.wrong, 1);
+        assert_eq!(stats.ahead, 1);
+        assert_eq!(stats.on_time, 1);
+        assert_eq!(stats.behind, 1);
     }
 
     #[test]

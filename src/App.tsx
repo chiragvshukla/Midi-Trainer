@@ -7,9 +7,15 @@ import { usePcKeyboard } from "./lib/usePcKeyboard";
 import { SoundfontGate } from "./components/SoundfontGate";
 import { LibraryView } from "./components/LibraryView";
 import { MainMenu, type Section } from "./components/MainMenu";
+import { PracticeStatsBar } from "./components/PracticeStatsBar";
 import { FallingNotes } from "./piano-roll/FallingNotes";
 import { ScoreView } from "./score/ScoreView";
-import type { DownloadProgress, Judgement, PlayerNote } from "./lib/api";
+import type {
+  DownloadProgress,
+  Judgement,
+  PlayerNote,
+  PracticeStats,
+} from "./lib/api";
 import "./App.css";
 
 /** Which of the two piece displays is on within the Synth section. */
@@ -31,6 +37,7 @@ function App() {
   const connectDevice = useSession((state) => state.connectDevice);
   const updateDownload = useSession((state) => state.updateDownload);
   const recordJudgements = useSession((state) => state.recordJudgements);
+  const recordStats = useSession((state) => state.recordStats);
   const pressPitch = useSession((state) => state.pressPitch);
   const openPiece = useSession((state) => state.openPiece);
   const resume = useSession((state) => state.resume);
@@ -57,6 +64,9 @@ function App() {
       listen<Judgement[]>("note-judgements", (event) =>
         recordJudgements(event.payload),
       ),
+      listen<PracticeStats>("practice-stats", (event) =>
+        recordStats(event.payload),
+      ),
       listen<PlayerNote[]>("player-notes", (event) => {
         for (const note of event.payload) {
           pressPitch(note.pitch, note.down);
@@ -73,6 +83,7 @@ function App() {
     updateDownload,
     recordJudgements,
     pressPitch,
+    recordStats,
   ]);
 
   const chooseFile = async () => {
@@ -228,6 +239,7 @@ function App() {
           <ScoreView />
         </div>
       </main>
+      <PracticeStatsBar />
     </div>
   );
 }

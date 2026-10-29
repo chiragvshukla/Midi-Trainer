@@ -25,8 +25,10 @@ import {
   type Judgement,
   type LibraryEntry,
   type Piece,
+  type PracticeStats,
   type Settings,
   type SoundfontStatus,
+  type Timing,
   type Verdict,
 } from "../lib/api";
 import { log } from "../lib/logger";
@@ -73,6 +75,12 @@ interface SessionState {
   follow: boolean;
   /** Verdict per falling note, keyed by pitch and score time. */
   verdicts: Record<string, Verdict>;
+  /** The running practice tallies, from the engine, once a note has been judged. */
+  stats: PracticeStats | null;
+  /** Timing of the most recent judged note, for the live marker. */
+  lastTiming: Timing | null;
+  /** Offset in milliseconds of the most recent judged note; negative is early. */
+  lastOffsetMs: number | null;
   /** Pitches currently held down on any keyboard. */
   pressed: number[];
   /** First-run setup: SoundFont first (the engine needs it), then the saved settings. */
@@ -95,6 +103,7 @@ interface SessionState {
   changeMusicVolume: (volume: number) => Promise<void>;
   changePlayerVolume: (volume: number) => Promise<void>;
   recordJudgements: (judgements: Judgement[]) => void;
+  recordStats: (stats: PracticeStats) => void;
   pressPitch: (pitch: number, down: boolean) => void;
 }
 
@@ -110,6 +119,9 @@ export const useSession = create<SessionState>((set, get) => ({
   piecePath: null,
   follow: false,
   verdicts: {},
+  stats: null,
+  lastTiming: null,
+  lastOffsetMs: null,
   pressed: [],
 
   startup: async () => {
@@ -230,7 +242,14 @@ export const useSession = create<SessionState>((set, get) => ({
   openPiece: async (path) => {
     try {
       const piece = await playFile(path);
-      set({ piece, piecePath: path, verdicts: {} });
+      set({
+        piece,
+        piecePath: path,
+        verdicts: {},
+        stats: null,
+        lastTiming: null,
+        lastOffsetMs: null,
+      });
     } catch (error) {
       log.error(`failed to play ${path}: ${String(error)}`);
     }
@@ -332,8 +351,15 @@ export const useSession = create<SessionState>((set, get) => ({
       verdicts[verdictKey(expected, judgement.expected_start_ms)] =
         judgement.verdict;
     }
-    set({ verdicts });
+    const last = judgements[judgements.length - 1];
+    set({
+      verdicts,
+      lastTiming: last ? last.timing : get().lastTiming,
+      lastOffsetMs: last ? last.offset_ms : get().lastOffsetMs,
+    });
   },
+
+  recordStats: (stats) => set({ stats }),
 
   pressPitch: (pitch, down) => {
     const pressed = get().pressed.filter((held) => held !== pitch);

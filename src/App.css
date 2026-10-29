@@ -41,6 +41,38 @@
   position: relative;
 }
 
+.practice-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  font-size: 12px;
+  color: #aab2c5;
+  background: #1b1e27;
+  border-top: 1px solid #2a2e3a;
+}
+
+.stats-accuracy {
+  font-weight: 600;
+  color: #e8eaf0;
+}
+
+.stats-last {
+  margin-left: auto;
+}
+
+.stats-last.ahead {
+  color: #64b5f6;
+}
+
+.stats-last.ontime {
+  color: #43a047;
+}
+
+.stats-last.behind {
+  color: #ff9800;
+}
+
 .piano-roll {
   position: absolute;
   inset: 0;
