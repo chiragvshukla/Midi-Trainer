@@ -34,7 +34,8 @@ export interface NoteInfo {
 }
 
 /** Notatable note heads, longest to shortest, as the engine names them. */
-export type Base = "Whole" | "Half" | "Quarter" | "Eighth" | "Sixteenth" | "ThirtySecond";
+export type Base =
+  "Whole" | "Half" | "Quarter" | "Eighth" | "Sixteenth" | "ThirtySecond";
 
 export type Duration =
   | { type: "Straight"; base: Base; dotted: boolean }
@@ -58,7 +59,8 @@ export interface Chord {
   notes: ChordNote[];
 }
 
-export type VoiceEvent = ({ type: "Chord" } & Chord) | { type: "Rest"; duration: Duration };
+export type VoiceEvent =
+  ({ type: "Chord" } & Chord) | { type: "Rest"; duration: Duration };
 
 export interface Voice {
   events: VoiceEvent[];

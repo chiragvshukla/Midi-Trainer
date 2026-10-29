@@ -115,3 +115,83 @@
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
+
+.hidden {
+  display: none;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: #2a2e3a;
+}
+
+.view-toggle button {
+  border: none;
+  background: transparent;
+  color: #aab2c5;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.view-toggle button.active {
+  background: #3a4052;
+  color: #e8eaf0;
+}
+
+.sheet {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f4f2ec;
+}
+
+.sheet-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #1b1e27;
+  border-bottom: 1px solid #2a2e3a;
+}
+
+.sheet-tools button {
+  border: none;
+  background: #2a2e3a;
+  color: #e8eaf0;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.sheet-tools span {
+  font-size: 12px;
+  color: #aab2c5;
+  min-width: 40px;
+  text-align: center;
+}
+
+.sheet-scroll {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+}
+
+.sheet-cursor {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: #ff9800;
+  pointer-events: none;
+  z-index: 2;
+  display: none;
+}
+
+.sheet-empty {
+  padding: 24px;
+  color: #666;
+}

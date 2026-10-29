@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useAppStore } from "./state/appStore";
@@ -6,10 +6,15 @@ import { useSession } from "./state/sessionStore";
 import { usePcKeyboard } from "./lib/usePcKeyboard";
 import { SoundfontGate } from "./components/SoundfontGate";
 import { FallingNotes } from "./piano-roll/FallingNotes";
+import { ScoreView } from "./score/ScoreView";
 import type { DownloadProgress, Judgement, PlayerNote } from "./lib/api";
 import "./App.css";
 
+/** Which of the two note displays is on screen. */
+type View = "keys" | "sheet";
+
 function App() {
+  const [view, setView] = useState<View>("keys");
   const appInfo = useAppStore((state) => state.appInfo);
   const loadAppInfo = useAppStore((state) => state.loadAppInfo);
 
@@ -93,6 +98,22 @@ function App() {
         <button type="button" onClick={() => void stop()}>
           Stop
         </button>
+        <div className="view-toggle">
+          <button
+            type="button"
+            className={view === "keys" ? "active" : ""}
+            onClick={() => setView("keys")}
+          >
+            Keys
+          </button>
+          <button
+            type="button"
+            className={view === "sheet" ? "active" : ""}
+            onClick={() => setView("sheet")}
+          >
+            Sheet
+          </button>
+        </div>
         {devices.length > 0 && (
           <select
             value={settings?.midi_device ?? ""}
@@ -170,7 +191,12 @@ function App() {
         </label>
       </header>
       <main className="workspace">
-        <FallingNotes />
+        <div className={view === "keys" ? "" : "hidden"}>
+          <FallingNotes />
+        </div>
+        <div className={view === "sheet" ? "" : "hidden"}>
+          <ScoreView />
+        </div>
       </main>
     </div>
   );

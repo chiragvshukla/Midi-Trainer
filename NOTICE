@@ -1,10 +1,15 @@
-# Third-party notices
+﻿# Third-party notices
 
 MidiTrainer is MIT licensed (see `LICENSE`). It ships no third-party binaries. On first
 launch it downloads one asset, credited below, into the per-user app-data directory. That
 asset is not committed to this repository.
 
-## Fluid (R3) General MIDI SoundFont — `FluidR3_GM.sf2`
+## VexFlow (npm dependency)
+
+Used for the sheet-music view. Copyright (c) 2010-2023 VexFlow contributors, licensed
+under the MIT License. Bundled from npm as `vexflow`.
+
+## Fluid (R3) General MIDI SoundFont â€” `FluidR3_GM.sf2`
 
 Downloaded at first launch from the `pianobooster/fluid-soundfont` release v3.1, which
 mirrors the Ubuntu/Debian `fluid-soundfont-gm` package.
