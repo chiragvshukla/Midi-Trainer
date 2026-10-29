@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use super::scoring::{Judge, NoteMatch, Timing, Verdict};
 use super::timeline::Timeline;
+use crate::audio::PERCUSSION_CHANNEL;
 
 /// One note the piece expects the player to play.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -57,12 +58,14 @@ impl LiveMatcher {
         }
     }
 
-    /// Builds the matcher for a piece: every note in its timeline is expected.
+    /// Builds the matcher for a piece: every note the player is expected to play. The app plays
+    /// the percussion itself, so drums are never expected from the player.
     pub fn for_timeline(timeline: &Timeline) -> Self {
         Self::new(
             timeline
                 .notes
                 .iter()
+                .filter(|note| note.channel != PERCUSSION_CHANNEL)
                 .map(|note| (note.pitch, note.start_ms))
                 .collect(),
             Judge::default(),

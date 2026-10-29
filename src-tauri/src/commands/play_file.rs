@@ -58,10 +58,8 @@ pub fn play_file(
             end_ms: note.end_ms,
         })
         .collect();
-    let duration_ms = timeline
-        .notes
-        .iter()
-        .map(|note| note.end_ms)
-        .fold(0.0, f64::max);
-    Ok(Piece { notes, duration_ms })
+    Ok(Piece {
+        duration_ms: timeline.duration_ms,
+        notes,
+    })
 }

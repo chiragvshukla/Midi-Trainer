@@ -10,7 +10,10 @@ use crossbeam_queue::ArrayQueue;
 use super::AudioError;
 use super::event::{AudioCommand, Gate, PlaybackControl, PlayedNote, ScheduledCommand};
 use super::synth::{SoundFontSynth, Synth};
-use super::{PLAYER_CHANNEL, WRONG_NOTE_CHANNEL, WRONG_NOTE_PITCH, WRONG_NOTE_VELOCITY};
+use super::{
+    MAX_TEMPO_PERCENT, MIN_TEMPO_PERCENT, PLAYER_CHANNEL, TRANSPOSE_SEMITONES, WRONG_NOTE_CHANNEL,
+    WRONG_NOTE_PITCH, WRONG_NOTE_VELOCITY,
+};
 
 /// Commands the callback can hold waiting at once.
 const COMMAND_CAPACITY: usize = 1024;
@@ -20,10 +23,6 @@ const CONTROL_CAPACITY: usize = 64;
 
 /// Frames rendered per pass; a larger device buffer is rendered in slices.
 const MAX_BLOCK_FRAMES: usize = 2048;
-
-/// Tempo range accepted from the outside, as a percentage.
-const MIN_TEMPO_PERCENT: f32 = 10.0;
-const MAX_TEMPO_PERCENT: f32 = 400.0;
 
 /// How early the player may play a gate's note and still release it. Matches the scoring window.
 const FOLLOW_LEAD_MS: f64 = 250.0;
@@ -114,11 +113,6 @@ impl AudioEngine {
                 Err(AudioError::Stopped)
             }
         }
-    }
-
-    /// Whether this engine is running without a SoundFont.
-    pub fn is_silent(&self) -> bool {
-        self.control.is_none()
     }
 
     /// A handle any input thread can hold to feed live notes in.
@@ -453,7 +447,8 @@ impl<S: Synth> Renderer<S> {
                 self.playback.tempo_percent = percent.clamp(MIN_TEMPO_PERCENT, MAX_TEMPO_PERCENT);
             }
             PlaybackControl::SetTranspose(semitones) => {
-                self.playback.transpose = semitones.clamp(-12, 12);
+                self.playback.transpose =
+                    semitones.clamp(-TRANSPOSE_SEMITONES, TRANSPOSE_SEMITONES);
             }
             PlaybackControl::SetVolume(gain) => {
                 self.playback.volume = gain.clamp(0.0, 1.0);

@@ -2,9 +2,6 @@ use midly::{Format, MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 
 use super::EngineError;
 
-/// MIDI note number of middle C.
-pub const MIDDLE_C: u8 = 60;
-
 /// Tempo assumed when a file has no tempo event: 500,000 microseconds per quarter note (120 bpm).
 pub const DEFAULT_MICROS_PER_QUARTER: u32 = 500_000;
 

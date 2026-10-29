@@ -11,9 +11,19 @@ use std::fmt;
 /// (the matcher filters on it) and stays on the piano program.
 pub const PLAYER_CHANNEL: u8 = 15;
 
+/// GM percussion channel: the drums are played by the app, never expected from the player.
+pub const PERCUSSION_CHANNEL: u8 = 9;
+
 /// GM percussion channel, used for the wrong-note cue. rustysynth always banks it to the drum
 /// kit, so the cue is a short one-shot hit that needs no note-off.
-pub const WRONG_NOTE_CHANNEL: u8 = 9;
+pub const WRONG_NOTE_CHANNEL: u8 = PERCUSSION_CHANNEL;
+
+/// Tempo range accepted from the outside, as a percentage.
+pub const MIN_TEMPO_PERCENT: f32 = 10.0;
+pub const MAX_TEMPO_PERCENT: f32 = 400.0;
+
+/// Transpose range, in semitones either way.
+pub const TRANSPOSE_SEMITONES: i32 = 12;
 
 /// The drum used for the wrong-note cue: a side stick, short and unmistakable.
 pub const WRONG_NOTE_PITCH: u8 = 37;

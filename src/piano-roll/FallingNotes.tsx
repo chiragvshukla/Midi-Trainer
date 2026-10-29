@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { playbackPosition, type Verdict } from "../lib/api";
+import { playbackPosition, type NoteInfo, type Verdict } from "../lib/api";
 import { useSession, verdictKey } from "../state/sessionStore";
 
 /** Pitch classes drawn as black keys (C#, D#, F#, G#, A#). */
@@ -30,6 +30,31 @@ interface KeyRect {
   black: boolean;
 }
 
+/** Pitch range and longest note of a piece, computed once per load. */
+interface PieceBounds {
+  low: number;
+  high: number;
+  maxDurationMs: number;
+}
+
+function boundsOf(notes: NoteInfo[]): PieceBounds {
+  let low = 48;
+  let high = 84;
+  let maxDurationMs = 0;
+  if (notes.length > 0) {
+    low = Infinity;
+    high = 0;
+    for (const note of notes) {
+      low = Math.min(low, note.pitch);
+      high = Math.max(high, note.pitch);
+      maxDurationMs = Math.max(maxDurationMs, note.end_ms - note.start_ms);
+    }
+    low = Math.max(21, low - 2);
+    high = Math.min(108, high + 2);
+  }
+  return { low, high, maxDurationMs };
+}
+
 /**
  * The falling-note view: score notes scroll onto an on-screen keyboard, keys light up while
  * their notes sound or while the player holds them, and played notes are colored by verdict.
@@ -52,6 +77,11 @@ export function FallingNotes() {
     }
     let frame = 0;
 
+    // The engine delivers the notes sorted by start time, so each frame scans one window
+    // instead of filtering and sorting the whole piece.
+    const notes = piece?.notes ?? [];
+    const bounds = boundsOf(notes);
+
     const draw = (positionMs: number) => {
       const ratio = window.devicePixelRatio || 1;
       const width = canvas.clientWidth;
@@ -63,18 +93,8 @@ export function FallingNotes() {
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       context.clearRect(0, 0, width, height);
 
-      const notes = piece?.notes ?? [];
-      const low = Math.max(
-        21,
-        notes.length ? Math.min(...notes.map((n) => n.pitch)) - 2 : 48,
-      );
-      const high = Math.min(
-        108,
-        notes.length ? Math.max(...notes.map((n) => n.pitch)) + 2 : 84,
-      );
-
       const whites: number[] = [];
-      for (let pitch = low; pitch <= high; pitch++) {
+      for (let pitch = bounds.low; pitch <= bounds.high; pitch++) {
         if (!BLACK_CLASSES.has(pitch % 12)) {
           whites.push(pitch);
         }
@@ -101,18 +121,37 @@ export function FallingNotes() {
       const pxPerMs = keyboardTop / LOOKAHEAD_MS || 0.1;
       const sounding = new Set<number>();
 
-      // Falling notes, closest to the keyboard last.
-      const visible = notes
-        .filter(
-          (note) =>
-            note.end_ms > positionMs &&
-            note.start_ms < positionMs + LOOKAHEAD_MS,
-        )
-        .sort((a, b) => b.start_ms - a.start_ms);
-      for (const note of visible) {
-        if (note.start_ms <= positionMs && positionMs < note.end_ms) {
+      // First note that can still be on screen: nothing longer than the longest note.
+      let windowStart = 0;
+      let hi = notes.length;
+      const earliest = positionMs - bounds.maxDurationMs;
+      while (windowStart < hi) {
+        const mid = (windowStart + hi) >> 1;
+        if (notes[mid].start_ms < earliest) {
+          windowStart = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+
+      const visible: NoteInfo[] = [];
+      for (let i = windowStart; i < notes.length; i++) {
+        const note = notes[i];
+        if (note.start_ms > positionMs + LOOKAHEAD_MS) {
+          break;
+        }
+        if (note.end_ms <= positionMs) {
+          continue;
+        }
+        if (note.start_ms <= positionMs) {
           sounding.add(note.pitch);
         }
+        visible.push(note);
+      }
+
+      // Falling notes, drawn furthest first so notes near the keyboard land on top.
+      for (let i = visible.length - 1; i >= 0; i--) {
+        const note = visible[i];
         const rect = keyRect(note.pitch);
         const bottom = Math.min(
           keyboardTop,
@@ -156,7 +195,7 @@ export function FallingNotes() {
           height - keyboardTop,
         );
       }
-      for (let pitch = low; pitch <= high; pitch++) {
+      for (let pitch = bounds.low; pitch <= bounds.high; pitch++) {
         if (!BLACK_CLASSES.has(pitch % 12)) {
           continue;
         }

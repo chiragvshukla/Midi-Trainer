@@ -7,7 +7,7 @@ import { useSession } from "../state/sessionStore";
 export function SoundfontGate() {
   const download = useSession((state) => state.download);
   const error = useSession((state) => state.soundfontError);
-  const initSoundfont = useSession((state) => state.initSoundfont);
+  const retry = useSession((state) => state.startup);
   const cancelDownload = useSession((state) => state.cancelDownload);
 
   const percent =
@@ -25,7 +25,7 @@ export function SoundfontGate() {
             fixed.
           </p>
           <p className="gate-error">{error}</p>
-          <button type="button" onClick={() => void initSoundfont()}>
+          <button type="button" onClick={() => void retry()}>
             Retry
           </button>
         </>

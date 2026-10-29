@@ -39,18 +39,32 @@ impl Settings {
     /// Reads the settings file, falling back to defaults when it is missing or unreadable.
     pub fn load(path: &Path) -> Settings {
         match std::fs::read_to_string(path) {
-            Ok(text) => serde_json::from_str(&text).unwrap_or_default(),
+            Ok(text) => match serde_json::from_str(&text) {
+                Ok(settings) => settings,
+                Err(err) => {
+                    log::warn!(
+                        "settings file {} is unreadable ({err}); using defaults",
+                        path.display()
+                    );
+                    Settings::default()
+                }
+            },
             Err(_) => Settings::default(),
         }
     }
 
-    /// Writes the settings file, creating the directory when needed.
+    /// Writes the settings file, creating the directory when needed. The write goes to a
+    /// temporary file first, so a crash mid-write never leaves a half-written file behind.
     pub fn save(&self, path: &Path) -> Result<(), String> {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir).map_err(|err| err.to_string())?;
         }
         let text = serde_json::to_string_pretty(self).map_err(|err| err.to_string())?;
-        std::fs::write(path, text).map_err(|err| err.to_string())
+        let temporary = path.with_extension("json.part");
+        std::fs::write(&temporary, text).map_err(|err| err.to_string())?;
+        // Windows refuses to rename over an existing file, so move the old one out of the way.
+        std::fs::remove_file(path).ok();
+        std::fs::rename(&temporary, path).map_err(|err| err.to_string())
     }
 
     /// Adds a file to the recent list, moving an existing entry to the front.
@@ -84,6 +98,9 @@ mod tests {
         settings.transpose = -2;
         settings.midi_device = Some("Piano".to_string());
         settings.save(&path).expect("the file should write");
+        // A second save replaces the first file, it does not fail on it.
+        settings.recent_files.clear();
+        settings.save(&path).expect("the overwrite should write");
 
         assert_eq!(Settings::load(&path), settings);
         std::fs::remove_dir_all(&dir).ok();

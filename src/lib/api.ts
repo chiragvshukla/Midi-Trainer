@@ -80,6 +80,26 @@ export function playFile(path: string): Promise<Piece> {
   return invoke<Piece>("play_file", { path });
 }
 
+export function play(): Promise<void> {
+  return invoke("play");
+}
+
+export function saveSettings(): Promise<void> {
+  return invoke("save_settings");
+}
+
+export function listMidiInputs(): Promise<string[]> {
+  return invoke<string[]>("list_midi_inputs");
+}
+
+export function connectMidiInput(name: string): Promise<void> {
+  return invoke("connect_midi_input", { name });
+}
+
+export function disconnectMidiInput(): Promise<void> {
+  return invoke("disconnect_midi_input");
+}
+
 export function stopPlayback(): Promise<void> {
   return invoke("stop_playback");
 }

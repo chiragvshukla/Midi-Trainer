@@ -2,7 +2,6 @@ use std::path::Path;
 
 use super::EngineError;
 use super::midi::{self, Division, MidiFile, TempoChange, TrackInfo};
-
 /// A note placed on the real-time timeline.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Note {

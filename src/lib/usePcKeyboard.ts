@@ -22,10 +22,12 @@ export function usePcKeyboard(): void {
       if (event.repeat || pressed.has(event.code)) {
         return;
       }
+      // -1 marks "waiting for the backend to tell us the pitch".
       pressed.set(event.code, -1);
       send(
         keyDown(event.code).then((pitch) => {
-          if (pitch !== null) {
+          // The key may have been released while the answer was in flight.
+          if (pitch !== null && pressed.get(event.code) === -1) {
             pressed.set(event.code, pitch);
             useSession.getState().pressPitch(pitch, true);
           }

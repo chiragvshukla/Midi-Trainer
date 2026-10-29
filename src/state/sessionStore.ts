@@ -1,11 +1,16 @@
 import { create } from "zustand";
 import {
   cancelSoundfontDownload,
+  connectMidiInput,
+  disconnectMidiInput,
   downloadSoundfont,
   fetchSettings,
   fetchSoundfontStatus,
+  listMidiInputs,
   loadSoundfont,
+  play,
   playFile,
+  saveSettings,
   setFollow,
   setTempoPercent,
   setTranspose,
@@ -24,6 +29,21 @@ export interface DownloadState {
   total: number;
 }
 
+/** How long slider changes wait before the settings file is rewritten. */
+const SAVE_DEBOUNCE_MS = 500;
+
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Persists the settings, but coalesces a burst of slider changes into one write. */
+function scheduleSave(): void {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    void saveSettings().catch((error) =>
+      log.error(`saving settings failed: ${String(error)}`),
+    );
+  }, SAVE_DEBOUNCE_MS);
+}
+
 /** Key of one falling note in the verdict map: pitch and score time. */
 export function verdictKey(pitch: number, startMs: number): string {
   return `${pitch}:${Math.round(startMs)}`;
@@ -34,17 +54,24 @@ interface SessionState {
   download: DownloadState | null;
   soundfontError: string | null;
   settings: Settings | null;
+  /** The connected MIDI input devices, as the system names them. */
+  devices: string[];
   piece: Piece | null;
   follow: boolean;
   /** Verdict per falling note, keyed by pitch and score time. */
   verdicts: Record<string, Verdict>;
   /** Pitches currently held down on any keyboard. */
   pressed: number[];
+  /** First-run setup: SoundFont first (the engine needs it), then the saved settings. */
+  startup: () => Promise<void>;
   initSoundfont: () => Promise<void>;
+  loadSettings: () => Promise<Settings | null>;
   cancelDownload: () => Promise<void>;
   updateDownload: (progress: DownloadState | null) => void;
-  loadSettings: () => Promise<Settings | null>;
+  loadDevices: () => Promise<void>;
+  connectDevice: (name: string | null) => Promise<void>;
   openPiece: (path: string) => Promise<void>;
+  resume: () => Promise<void>;
   stop: () => Promise<void>;
   toggleFollow: (follow: boolean) => Promise<void>;
   changeTempo: (percent: number) => Promise<void>;
@@ -59,10 +86,18 @@ export const useSession = create<SessionState>((set, get) => ({
   download: null,
   soundfontError: null,
   settings: null,
+  devices: [],
   piece: null,
   follow: false,
   verdicts: {},
   pressed: [],
+
+  startup: async () => {
+    await get().initSoundfont();
+    if (!get().soundfontError) {
+      await get().loadSettings();
+    }
+  },
 
   initSoundfont: async () => {
     set({ soundfontError: null, download: null });
@@ -70,8 +105,13 @@ export const useSession = create<SessionState>((set, get) => ({
       const soundfont = await fetchSoundfontStatus();
       set({ soundfont });
       if (soundfont.installed) {
-        await loadSoundfont(soundfont.path);
-        return;
+        try {
+          await loadSoundfont(soundfont.path);
+          return;
+        } catch (error) {
+          // The installed file is broken; downloading replaces it.
+          log.warn(`installed SoundFont failed to load: ${String(error)}`);
+        }
       }
       // First run: fetch the baseline font behind the visible progress screen.
       const path = await downloadSoundfont();
@@ -103,10 +143,36 @@ export const useSession = create<SessionState>((set, get) => ({
       await setVolume(settings.volume);
       await setTempoPercent(settings.tempo_percent);
       await setTranspose(settings.transpose);
+      if (settings.midi_device) {
+        await get().connectDevice(settings.midi_device);
+      }
       return settings;
     } catch (error) {
       log.error(`failed to load settings: ${String(error)}`);
       return null;
+    }
+  },
+
+  loadDevices: async () => {
+    try {
+      set({ devices: await listMidiInputs() });
+    } catch (error) {
+      log.error(`listing MIDI inputs failed: ${String(error)}`);
+    }
+  },
+
+  connectDevice: async (name) => {
+    try {
+      if (name) {
+        await connectMidiInput(name);
+      } else {
+        await disconnectMidiInput();
+      }
+      set((state) => ({
+        settings: state.settings && { ...state.settings, midi_device: name },
+      }));
+    } catch (error) {
+      log.error(`connecting MIDI input failed: ${String(error)}`);
     }
   },
 
@@ -116,6 +182,14 @@ export const useSession = create<SessionState>((set, get) => ({
       set({ piece, verdicts: {} });
     } catch (error) {
       log.error(`failed to play ${path}: ${String(error)}`);
+    }
+  },
+
+  resume: async () => {
+    try {
+      await play();
+    } catch (error) {
+      log.error(`starting playback failed: ${String(error)}`);
     }
   },
 
@@ -142,6 +216,7 @@ export const useSession = create<SessionState>((set, get) => ({
     }));
     try {
       await setTempoPercent(percent);
+      scheduleSave();
     } catch (error) {
       log.error(`setting tempo failed: ${String(error)}`);
     }
@@ -153,6 +228,7 @@ export const useSession = create<SessionState>((set, get) => ({
     }));
     try {
       await setTranspose(semitones);
+      scheduleSave();
     } catch (error) {
       log.error(`setting transpose failed: ${String(error)}`);
     }
@@ -164,6 +240,7 @@ export const useSession = create<SessionState>((set, get) => ({
     }));
     try {
       await setVolume(volume);
+      scheduleSave();
     } catch (error) {
       log.error(`setting volume failed: ${String(error)}`);
     }

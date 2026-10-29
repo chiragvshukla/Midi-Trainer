@@ -16,13 +16,16 @@ function App() {
   const soundfont = useSession((state) => state.soundfont);
   const soundfontError = useSession((state) => state.soundfontError);
   const settings = useSession((state) => state.settings);
+  const devices = useSession((state) => state.devices);
   const follow = useSession((state) => state.follow);
-  const initSoundfont = useSession((state) => state.initSoundfont);
-  const loadSettings = useSession((state) => state.loadSettings);
+  const startup = useSession((state) => state.startup);
+  const loadDevices = useSession((state) => state.loadDevices);
+  const connectDevice = useSession((state) => state.connectDevice);
   const updateDownload = useSession((state) => state.updateDownload);
   const recordJudgements = useSession((state) => state.recordJudgements);
   const pressPitch = useSession((state) => state.pressPitch);
   const openPiece = useSession((state) => state.openPiece);
+  const resume = useSession((state) => state.resume);
   const stop = useSession((state) => state.stop);
   const toggleFollow = useSession((state) => state.toggleFollow);
   const changeTempo = useSession((state) => state.changeTempo);
@@ -33,8 +36,9 @@ function App() {
 
   useEffect(() => {
     void loadAppInfo();
-    void loadSettings();
-    void initSoundfont();
+    void loadDevices();
+    // The saved settings must reach the engine after the SoundFont exists, or they are dropped.
+    void startup();
 
     const unlisten = Promise.all([
       listen<DownloadProgress>("soundfont-progress", (event) =>
@@ -54,8 +58,8 @@ function App() {
     };
   }, [
     loadAppInfo,
-    loadSettings,
-    initSoundfont,
+    loadDevices,
+    startup,
     updateDownload,
     recordJudgements,
     pressPitch,
@@ -83,14 +87,32 @@ function App() {
         <button type="button" onClick={() => void chooseFile()}>
           Open…
         </button>
+        <button type="button" onClick={() => void resume()}>
+          Play
+        </button>
         <button type="button" onClick={() => void stop()}>
           Stop
         </button>
+        {devices.length > 0 && (
+          <select
+            value={settings?.midi_device ?? ""}
+            onChange={(event) => void connectDevice(event.target.value || null)}
+          >
+            <option value="">No MIDI input</option>
+            {devices.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
         {settings && settings.recent_files.length > 0 && (
           <select
             defaultValue=""
             onChange={(event) => {
               if (event.target.value) void openPiece(event.target.value);
+              // Allow picking the same file again next time.
+              event.currentTarget.value = "";
             }}
           >
             <option value="">Recent…</option>

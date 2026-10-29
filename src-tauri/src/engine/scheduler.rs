@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::audio::{AudioCommand, Gate, ScheduledCommand};
+use crate::audio::{AudioCommand, Gate, PERCUSSION_CHANNEL, ScheduledCommand};
 
 use super::timeline::Timeline;
 
@@ -49,12 +49,14 @@ pub fn schedule(timeline: &Timeline) -> Vec<ScheduledCommand> {
     events
 }
 
-/// The notes the player must play, in time order, for follow-you mode.
+/// The notes the player must play, in time order, for follow-you mode. The app plays the
+/// percussion itself, so drums never hold the playhead.
 pub fn gates(timeline: &Timeline) -> Arc<Vec<Gate>> {
     Arc::new(
         timeline
             .notes
             .iter()
+            .filter(|note| note.channel != PERCUSSION_CHANNEL)
             .map(|note| Gate {
                 pitch: note.pitch,
                 start_ms: note.start_ms,
@@ -71,9 +73,14 @@ mod tests {
     use crate::engine::timeline::Timeline;
 
     #[test]
-    fn gates_list_every_note_in_time_order() {
-        // Notes given out of order, at distinct times.
-        let notes = vec![note(0, 0, 64, 480, 960), note(0, 0, 60, 0, 480)];
+    fn gates_list_every_played_note_in_time_order() {
+        // Notes given out of order, at distinct times. The percussion note is played by the app
+        // and must not become a gate.
+        let notes = vec![
+            note(9, 9, 38, 720, 960),
+            note(0, 0, 64, 480, 960),
+            note(0, 0, 60, 0, 480),
+        ];
         let tracks = vec![TrackInfo {
             index: 0,
             name: None,

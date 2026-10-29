@@ -54,6 +54,7 @@ pub fn run() {
             commands::log_message::log_message,
             commands::load_soundfont::load_soundfont,
             commands::play_file::play_file,
+            commands::play::play,
             commands::play_test_note::play_test_note,
             commands::stop_playback::stop_playback,
             commands::soundfont_status::soundfont_status,
@@ -70,6 +71,7 @@ pub fn run() {
             commands::seek::seek,
             commands::playback_position::playback_position,
             commands::get_settings::get_settings,
+            commands::save_settings::save_settings,
             commands::set_volume::set_volume,
         ])
         .setup(|app| {

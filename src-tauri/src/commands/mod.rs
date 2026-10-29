@@ -9,9 +9,11 @@ pub mod key_up;
 pub mod list_midi_inputs;
 pub mod load_soundfont;
 pub mod log_message;
+pub mod play;
 pub mod play_file;
 pub mod play_test_note;
 pub mod playback_position;
+pub mod save_settings;
 pub mod seek;
 pub mod set_follow;
 pub mod set_tempo_percent;
@@ -45,4 +47,16 @@ pub fn update_settings(app: &AppHandle, change: impl FnOnce(&mut Settings)) -> R
         .map_err(|_| "settings state is unavailable".to_string())?;
     change(&mut settings);
     settings.save(&settings_path(app)?)
+}
+
+/// Applies a change to the settings in memory only. Discrete events (a file opened, a device
+/// chosen) save at once; continuously changing values are saved later by `save_settings`, so
+/// dragging a slider does not rewrite the file on every tick.
+pub fn change_settings(app: &AppHandle, change: impl FnOnce(&mut Settings)) -> Result<(), String> {
+    let state = app.state::<Mutex<Settings>>();
+    let mut settings = state
+        .lock()
+        .map_err(|_| "settings state is unavailable".to_string())?;
+    change(&mut settings);
+    Ok(())
 }
