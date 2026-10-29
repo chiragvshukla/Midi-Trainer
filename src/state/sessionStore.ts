@@ -417,6 +417,16 @@ export const useSession = create<SessionState>((set, get) => ({
 
   resume: async () => {
     try {
+      const piece = get().piece;
+      // A piece that already ran to its end plays again from the top; otherwise resume where the
+      // playhead was left.
+      if (
+        piece &&
+        piece.duration_ms > 0 &&
+        get().positionMs >= piece.duration_ms
+      ) {
+        await get().seekTo(0);
+      }
       await play();
       set({ playing: true });
     } catch (error) {
@@ -425,9 +435,11 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   stop: async () => {
+    // Flip the flag first: the transport poll can call this at the end of a piece, and the next
+    // poll must see "not playing" rather than firing another stop.
+    set({ playing: false });
     try {
       await stopPlayback();
-      set({ playing: false });
     } catch (error) {
       log.error(`stopping playback failed: ${String(error)}`);
     }
@@ -456,7 +468,15 @@ export const useSession = create<SessionState>((set, get) => ({
     }
   },
 
-  setPositionMs: (positionMs) => set({ positionMs }),
+  setPositionMs: (positionMs) => {
+    set({ positionMs });
+    // The transport poll reports the playhead here; a piece reaching its end on its own stops,
+    // so the button and the Space key return to "play" instead of a no-op stop.
+    const duration = get().piece?.duration_ms ?? 0;
+    if (get().playing && duration > 0 && positionMs >= duration) {
+      void get().stop();
+    }
+  },
 
   startOver: async () => {
     await get().seekTo(0);
