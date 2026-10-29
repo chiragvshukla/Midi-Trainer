@@ -24,6 +24,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Chirag Shukla",
+    "copyright": "\u00a9 2026 Chirag Shukla",
+    "category": "Education",
+    "shortDescription": "Play-along piano trainer: MIDI playback with falling notes and sheet music, plus live accuracy feedback.",
+    "longDescription": "MidiTrainer is a Windows desktop app that helps you learn piano by playing along with MIDI files. It plays MIDI and karaoke-MIDI songs, listens to you play on a connected MIDI keyboard, and shows falling notes and sheet music with live right/wrong feedback. Follow-you mode keeps the accompaniment at your own tempo, so the music stops when you do, and one-hand practice lets you play a single part while the app covers the rest.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
