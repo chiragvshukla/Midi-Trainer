@@ -13,40 +13,53 @@ function baseName(path: string): string {
   return displayName(path.replace(/^.*[\\/]/, ""));
 }
 
+/** The last segment of a folder path, for a section header. */
+function folderName(folder: string): string {
+  return folder.replace(/[\\/]+$/, "").replace(/^.*[\\/]/, "") || folder;
+}
+
 /** A shared empty list, so a missing settings object does not make a new array each read. */
 const NO_RECENT: string[] = [];
 
 /**
- * The library browser: recent files, then the chosen folder's MIDI files, with a filter.
- * Opening an entry loads the piece paused and hands control back to the app to show the
- * piece views. Rendering only: the listings come from the session store.
+ * The library browser: recent files, then one collapsible section per chosen folder, with a
+ * filter across all of them. Opening an entry loads the piece paused and hands control back to
+ * the app to show the piece views. Rendering only: the listings come from the session store.
  */
 export function LibraryView({ onOpened }: { onOpened: () => void }) {
-  const library = useSession((state) => state.library);
-  const libraryFolder = useSession((state) => state.libraryFolder);
+  const libraries = useSession((state) => state.libraries);
+  const libraryFolders = useSession((state) => state.libraryFolders);
   const recent = useSession(
     (state) => state.settings?.recent_files ?? NO_RECENT,
   );
   const loadLibrary = useSession((state) => state.loadLibrary);
-  const chooseLibraryFolder = useSession((state) => state.chooseLibraryFolder);
+  const addLibraryFolder = useSession((state) => state.addLibraryFolder);
+  const removeLibraryFolder = useSession((state) => state.removeLibraryFolder);
   const openPiece = useSession((state) => state.openPiece);
   const piecePath = useSession((state) => state.piecePath);
   const [filter, setFilter] = useState("");
   const [recentOpen, setRecentOpen] = useState(true);
+  const [closedFolders, setClosedFolders] = useState<Set<string>>(new Set());
 
   const needle = filter.trim().toLowerCase();
-  const shown = needle
-    ? library.filter((entry) =>
-        entry.relative_path.toLowerCase().includes(needle),
-      )
-    : library;
 
-  const fullPath = (entry: LibraryEntry): string =>
-    `${(libraryFolder ?? "").replace(/[\\/]+$/, "")}/${entry.relative_path}`;
+  const fullPath = (folder: string, entry: LibraryEntry): string =>
+    `${folder.replace(/[\\/]+$/, "")}/${entry.relative_path}`;
 
   const open = (path: string): void => {
     void openPiece(path).then(onOpened);
   };
+
+  const toggleFolder = (folder: string): void =>
+    setClosedFolders((current) => {
+      const next = new Set(current);
+      if (next.has(folder)) {
+        next.delete(folder);
+      } else {
+        next.add(folder);
+      }
+      return next;
+    });
 
   const entry = (path: string, name: string, folder: string | null) => (
     <button
@@ -63,15 +76,27 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
     </button>
   );
 
+  // While filtering, a folder shows only matching files and disappears when none match.
+  const groups = libraries
+    .map((group) => ({
+      folder: group.folder,
+      entries: needle
+        ? group.entries.filter((item) =>
+            item.relative_path.toLowerCase().includes(needle),
+          )
+        : group.entries,
+    }))
+    .filter((group) => !needle || group.entries.length > 0);
+
   return (
     <div className="library">
       <div className="library-tools">
-        <button type="button" onClick={() => void chooseLibraryFolder()}>
-          {libraryFolder ? "Change folder…" : "Choose folder…"}
+        <button type="button" onClick={() => void addLibraryFolder()}>
+          Add folder…
         </button>
         <button
           type="button"
-          disabled={!libraryFolder}
+          disabled={libraryFolders.length === 0}
           onClick={() => void loadLibrary()}
         >
           Refresh
@@ -80,11 +105,13 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
           type="search"
           placeholder="Filter…"
           value={filter}
-          disabled={!libraryFolder}
+          disabled={libraryFolders.length === 0}
           onChange={(event) => setFilter(event.target.value)}
         />
         <span className="library-folder">
-          {libraryFolder ?? "No folder chosen"}
+          {libraryFolders.length === 0
+            ? "No folders chosen"
+            : `${libraryFolders.length} folder${libraryFolders.length === 1 ? "" : "s"}`}
         </span>
       </div>
       <div className="library-list">
@@ -105,27 +132,57 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
               recent.map((path) => entry(path, baseName(path), null))
             ))}
         </section>
-        <section className="library-folder-list">
-          {!libraryFolder ? (
-            <p className="library-empty">
-              Choose a folder to build your library.
-            </p>
-          ) : shown.length === 0 ? (
-            <p className="library-empty">
-              {library.length === 0
-                ? "No MIDI files found in this folder."
-                : "No files match the filter."}
-            </p>
-          ) : (
-            shown.map((item) =>
-              entry(
-                fullPath(item),
-                displayName(item.name),
-                item.relative_path === item.name ? null : item.relative_path,
-              ),
-            )
-          )}
-        </section>
+        {libraryFolders.length === 0 ? (
+          <p className="library-empty">Add a folder to build your library.</p>
+        ) : (
+          groups.map((group) => {
+            const isOpen = !closedFolders.has(group.folder);
+            return (
+              <section key={group.folder} className="library-folder-list">
+                <div className="library-folder-head">
+                  <button
+                    type="button"
+                    className="library-section"
+                    aria-expanded={isOpen}
+                    onClick={() => toggleFolder(group.folder)}
+                  >
+                    <span className="library-caret">{isOpen ? "▾" : "▸"}</span>
+                    <span className="library-folder-name" title={group.folder}>
+                      {folderName(group.folder)}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="library-remove"
+                    aria-label={`Remove ${group.folder}`}
+                    title="Remove folder"
+                    onClick={() => void removeLibraryFolder(group.folder)}
+                  >
+                    ×
+                  </button>
+                </div>
+                {isOpen &&
+                  (group.entries.length === 0 ? (
+                    <p className="library-empty">
+                      {needle
+                        ? "No files match the filter."
+                        : "No MIDI files found in this folder."}
+                    </p>
+                  ) : (
+                    group.entries.map((item) =>
+                      entry(
+                        fullPath(group.folder, item),
+                        displayName(item.name),
+                        item.relative_path === item.name
+                          ? null
+                          : item.relative_path,
+                      ),
+                    )
+                  ))}
+              </section>
+            );
+          })
+        )}
       </div>
     </div>
   );

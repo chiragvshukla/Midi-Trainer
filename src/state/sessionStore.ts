@@ -14,7 +14,7 @@ import {
   playFile,
   saveSettings,
   setSkill,
-  setLibraryFolder,
+  setLibraryFolders,
   setMusicVolume,
   setPlayerPart,
   setPlayerVolume,
@@ -38,6 +38,12 @@ import { log } from "../lib/logger";
 export interface DownloadState {
   received: number;
   total: number;
+}
+
+/** One library folder and the MIDI files found under it. */
+export interface LibraryGroup {
+  folder: string;
+  entries: LibraryEntry[];
 }
 
 /** How long slider changes wait before the settings file is rewritten. */
@@ -67,10 +73,10 @@ interface SessionState {
   settings: Settings | null;
   /** The connected MIDI input devices, as the system names them. */
   devices: string[];
-  /** The folder the user browses as their library, if one was chosen. */
-  libraryFolder: string | null;
-  /** The MIDI files found under the library folder. */
-  library: LibraryEntry[];
+  /** The folders the user browses as their library. */
+  libraryFolders: string[];
+  /** Each library folder's MIDI files, in folder order. */
+  libraries: LibraryGroup[];
   piece: Piece | null;
   /** Path of the loaded piece, so the library can highlight it. */
   piecePath: string | null;
@@ -97,7 +103,8 @@ interface SessionState {
   loadDevices: () => Promise<void>;
   connectDevice: (name: string | null) => Promise<void>;
   loadLibrary: () => Promise<void>;
-  chooseLibraryFolder: () => Promise<void>;
+  addLibraryFolder: () => Promise<void>;
+  removeLibraryFolder: (folder: string) => Promise<void>;
   openPiece: (path: string) => Promise<void>;
   toggleTrack: (index: number) => Promise<void>;
   resume: () => Promise<void>;
@@ -120,8 +127,8 @@ export const useSession = create<SessionState>((set, get) => ({
   soundfontError: null,
   settings: null,
   devices: [],
-  libraryFolder: null,
-  library: [],
+  libraryFolders: [],
+  libraries: [],
   piece: null,
   piecePath: null,
   selectedTracks: null,
@@ -180,7 +187,7 @@ export const useSession = create<SessionState>((set, get) => ({
     try {
       const settings = await fetchSettings();
       set({ settings });
-      set({ libraryFolder: settings.library_folder ?? null });
+      set({ libraryFolders: settings.library_folders });
       // The engine starts fresh every run; put the saved practice setup back.
       await setMusicVolume(settings.music_volume);
       await setPlayerVolume(settings.player_volume);
@@ -220,30 +227,47 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   loadLibrary: async () => {
-    const folder = get().libraryFolder;
-    if (!folder) {
-      set({ library: [] });
+    const folders = get().libraryFolders;
+    if (folders.length === 0) {
+      set({ libraries: [] });
       return;
     }
+    const libraries = await Promise.all(
+      folders.map(async (folder) => {
+        try {
+          return { folder, entries: await listLibrary(folder) };
+        } catch (error) {
+          log.error(`listing ${folder} failed: ${String(error)}`);
+          return { folder, entries: [] };
+        }
+      }),
+    );
+    set({ libraries });
+  },
+
+  addLibraryFolder: async () => {
     try {
-      set({ library: await listLibrary(folder) });
+      const folder = await open({ directory: true });
+      if (typeof folder !== "string" || get().libraryFolders.includes(folder)) {
+        return;
+      }
+      const folders = [...get().libraryFolders, folder];
+      await setLibraryFolders(folders);
+      set({ libraryFolders: folders });
+      await get().loadLibrary();
     } catch (error) {
-      log.error(`listing the library folder failed: ${String(error)}`);
-      set({ library: [] });
+      log.error(`adding a library folder failed: ${String(error)}`);
     }
   },
 
-  chooseLibraryFolder: async () => {
+  removeLibraryFolder: async (folder) => {
+    const folders = get().libraryFolders.filter((path) => path !== folder);
     try {
-      const folder = await open({ directory: true });
-      if (typeof folder !== "string") {
-        return;
-      }
-      await setLibraryFolder(folder);
-      set({ libraryFolder: folder });
+      await setLibraryFolders(folders);
+      set({ libraryFolders: folders });
       await get().loadLibrary();
     } catch (error) {
-      log.error(`choosing a library folder failed: ${String(error)}`);
+      log.error(`removing a library folder failed: ${String(error)}`);
     }
   },
 

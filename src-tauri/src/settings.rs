@@ -20,14 +20,35 @@ pub enum Skill {
 /// How many recent files are kept.
 const MAX_RECENT_FILES: usize = 10;
 
+/// Reads `library_folders` from the new array, or the old singular string or null, so a
+/// settings file written before folders became a list still loads.
+fn folders_from_json<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Stored {
+        Many(Vec<String>),
+        One(String),
+        None,
+    }
+    Ok(match Stored::deserialize(deserializer)? {
+        Stored::Many(folders) => folders,
+        Stored::One(folder) => vec![folder],
+        Stored::None => Vec::new(),
+    })
+}
+
 /// Everything the app remembers between runs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     /// Most recently played files, newest first.
     pub recent_files: Vec<String>,
-    /// The folder the user browses as their MIDI library, if one was chosen.
-    pub library_folder: Option<String>,
+    /// The folders the user browses as their MIDI library.
+    #[serde(alias = "library_folder", deserialize_with = "folders_from_json")]
+    pub library_folders: Vec<String>,
     /// The hardware MIDI input to reconnect to, if one was chosen.
     pub midi_device: Option<String>,
     /// Volume of the piece's own parts, as a linear gain, 0.0 to 1.0.
@@ -51,7 +72,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             recent_files: Vec::new(),
-            library_folder: None,
+            library_folders: Vec::new(),
             midi_device: None,
             music_volume: 1.0,
             player_volume: 1.0,
@@ -153,7 +174,7 @@ mod tests {
         settings.tempo_percent = 80.0;
         settings.transpose = -2;
         settings.midi_device = Some("Piano".to_string());
-        settings.library_folder = Some("C:/music".to_string());
+        settings.library_folders = vec!["C:/music".to_string(), "D:/midi".to_string()];
         settings.player_hand = super::Hand::Left;
         settings.player_track = Some(2);
         settings.skill = super::Skill::Follow;
@@ -174,6 +195,25 @@ mod tests {
         std::fs::write(&path, "{not json").expect("the file should write");
 
         assert_eq!(Settings::load(&path), Settings::default());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_legacy_single_folder_migrates_into_the_list() {
+        let dir = std::env::temp_dir().join("mt-settings-migrate-test");
+        std::fs::create_dir_all(&dir).expect("the directory should create");
+
+        // An old file stored one folder under `library_folder`; a chosen-none file stored null.
+        let path = dir.join("old.json");
+        std::fs::write(&path, r#"{"library_folder":"C:/music"}"#).unwrap();
+        assert_eq!(Settings::load(&path).library_folders, vec!["C:/music"]);
+
+        std::fs::write(&path, r#"{"library_folder":null}"#).unwrap();
+        assert!(Settings::load(&path).library_folders.is_empty());
+
+        // The new shape loads as-is.
+        std::fs::write(&path, r#"{"library_folders":["A","B"]}"#).unwrap();
+        assert_eq!(Settings::load(&path).library_folders, vec!["A", "B"]);
         std::fs::remove_dir_all(&dir).ok();
     }
 

@@ -354,7 +354,8 @@
   border: none;
   background: #2a2e3a;
   color: #e8eaf0;
-  padding: 4px 12px;
+  font-size: 13px;
+  padding: 6px 14px;
   border-radius: 6px;
   cursor: pointer;
 }
@@ -368,12 +369,13 @@
   background: #12141a;
   border: 1px solid #2a2e3a;
   color: #e8eaf0;
-  padding: 4px 8px;
+  font-size: 13px;
+  padding: 6px 10px;
   border-radius: 6px;
 }
 
 .library-folder {
-  font-size: 12px;
+  font-size: 13px;
   color: #8b93a8;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -389,13 +391,13 @@
 .library-entry {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   border: none;
   background: transparent;
   color: #e8eaf0;
   text-align: left;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
 }
@@ -416,17 +418,17 @@
 }
 
 .library-name {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .library-dir {
-  font-size: 11px;
+  font-size: 12px;
   color: #8b93a8;
 }
 
 .note-icon {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   flex: none;
   color: #8b93a8;
 }
@@ -439,7 +441,7 @@
   border: none;
   background: transparent;
   color: #aab2c5;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -448,13 +450,54 @@
 }
 
 .library-caret {
-  font-size: 10px;
+  font-size: 12px;
+}
+
+.library-folder-head {
+  display: flex;
+  align-items: center;
+}
+
+/* The header sits beside a remove button, so it takes the rest of the row. */
+.library-folder-head .library-section {
+  width: auto;
+  flex: 1;
+  min-width: 0;
+}
+
+.library-folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.library-remove {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: #8b93a8;
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.library-remove:hover {
+  color: #e8eaf0;
+  background: #2a2e3a;
 }
 
 .library-recent {
   margin-bottom: 6px;
   border-bottom: 1px solid #1b1e27;
   padding-bottom: 6px;
+}
+
+.library-folder-list {
+  margin-bottom: 4px;
 }
 
 .library-empty {

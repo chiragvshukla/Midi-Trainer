@@ -70,7 +70,7 @@ pub fn run() {
             commands::connect_midi_input::connect_midi_input,
             commands::disconnect_midi_input::disconnect_midi_input,
             commands::set_skill::set_skill,
-            commands::set_library_folder::set_library_folder,
+            commands::set_library_folders::set_library_folders,
             commands::set_music_volume::set_music_volume,
             commands::set_player_part::set_player_part,
             commands::set_player_volume::set_player_volume,

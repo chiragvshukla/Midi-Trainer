@@ -27,7 +27,7 @@ export interface DownloadProgress {
 
 export interface Settings {
   recent_files: string[];
-  library_folder: string | null;
+  library_folders: string[];
   midi_device: string | null;
   music_volume: number;
   player_volume: number;
@@ -203,8 +203,8 @@ export function listLibrary(folder: string): Promise<LibraryEntry[]> {
   return invoke<LibraryEntry[]>("list_library", { folder });
 }
 
-export function setLibraryFolder(folder: string | null): Promise<void> {
-  return invoke("set_library_folder", { folder });
+export function setLibraryFolders(folders: string[]): Promise<void> {
+  return invoke("set_library_folders", { folders });
 }
 
 export function setPlayerPart(hand: Hand, track: number | null): Promise<void> {

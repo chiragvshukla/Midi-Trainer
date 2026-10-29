@@ -16,7 +16,7 @@ pub mod play_test_note;
 pub mod playback_position;
 pub mod save_settings;
 pub mod seek;
-pub mod set_library_folder;
+pub mod set_library_folders;
 pub mod set_music_volume;
 pub mod set_player_part;
 pub mod set_player_volume;
