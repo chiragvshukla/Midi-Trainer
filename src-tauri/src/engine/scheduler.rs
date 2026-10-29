@@ -1,6 +1,7 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use crate::audio::{AudioCommand, ScheduledCommand};
+use crate::audio::{AudioCommand, Gate, ScheduledCommand};
 
 use super::timeline::Timeline;
 
@@ -48,12 +49,58 @@ pub fn schedule(timeline: &Timeline) -> Vec<ScheduledCommand> {
     events
 }
 
+/// The notes the player must play, in time order, for follow-you mode.
+pub fn gates(timeline: &Timeline) -> Arc<Vec<Gate>> {
+    Arc::new(
+        timeline
+            .notes
+            .iter()
+            .map(|note| Gate {
+                pitch: note.pitch,
+                start_ms: note.start_ms,
+            })
+            .collect(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
-    use super::schedule;
+    use super::{gates, schedule};
     use crate::audio::AudioCommand;
     use crate::engine::midi::{Division, MidiFile, NoteEvent, TempoChange, TrackInfo};
     use crate::engine::timeline::Timeline;
+
+    #[test]
+    fn gates_list_every_note_in_time_order() {
+        // Notes given out of order, at distinct times.
+        let notes = vec![note(0, 0, 64, 480, 960), note(0, 0, 60, 0, 480)];
+        let tracks = vec![TrackInfo {
+            index: 0,
+            name: None,
+            program: None,
+            note_count: 2,
+        }];
+        let timeline = Timeline::from_midi(&MidiFile {
+            format: 1,
+            division: Division::Metrical(480),
+            tempo_map: vec![TempoChange {
+                tick: 0,
+                micros_per_quarter: 500_000,
+            }],
+            time_signatures: Vec::new(),
+            lyrics: Vec::new(),
+            tracks,
+            notes,
+        });
+
+        let gates = gates(&timeline);
+
+        assert_eq!(gates.len(), 2);
+        assert_eq!(gates[0].pitch, 60);
+        assert!((gates[0].start_ms - 0.0).abs() < 1e-6);
+        assert_eq!(gates[1].pitch, 64);
+        assert!((gates[1].start_ms - 500.0).abs() < 1e-6);
+    }
 
     #[test]
     fn sets_each_tracks_instrument_then_plays_its_notes() {

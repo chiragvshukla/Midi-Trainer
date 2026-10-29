@@ -12,6 +12,7 @@ pub mod play_file;
 pub mod play_test_note;
 pub mod playback_position;
 pub mod seek;
+pub mod set_follow;
 pub mod set_tempo_percent;
 pub mod set_transpose;
 pub mod soundfont_status;

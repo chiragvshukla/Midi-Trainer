@@ -8,7 +8,7 @@ use cpal::{SampleFormat, StreamConfig};
 use crossbeam_queue::ArrayQueue;
 
 use super::AudioError;
-use super::event::{AudioCommand, PlaybackControl, PlayedNote, ScheduledCommand};
+use super::event::{AudioCommand, Gate, PlaybackControl, PlayedNote, ScheduledCommand};
 use super::synth::{SoundFontSynth, Synth};
 use super::{PLAYER_CHANNEL, WRONG_NOTE_CHANNEL, WRONG_NOTE_PITCH, WRONG_NOTE_VELOCITY};
 
@@ -24,6 +24,9 @@ const MAX_BLOCK_FRAMES: usize = 2048;
 /// Tempo range accepted from the outside, as a percentage.
 const MIN_TEMPO_PERCENT: f32 = 10.0;
 const MAX_TEMPO_PERCENT: f32 = 400.0;
+
+/// How early the player may play a gate's note and still release it. Matches the scoring window.
+const FOLLOW_LEAD_MS: f64 = 250.0;
 
 /// A request to load a SoundFont into the thread that owns the audio stream.
 struct AudioRequest {
@@ -167,6 +170,16 @@ impl AudioEngine {
         self.control(PlaybackControl::SetTempoPercent(percent));
     }
 
+    /// Replaces the notes the player must play for follow-you mode.
+    pub fn set_gates(&self, gates: Arc<Vec<Gate>>) {
+        self.control(PlaybackControl::SetGates(gates));
+    }
+
+    /// Turns follow-you mode on or off: the playhead waits at each gate until the note is played.
+    pub fn set_follow(&self, follow: bool) {
+        self.control(PlaybackControl::SetFollow(follow));
+    }
+
     /// Shifts the piece up (positive) or down (negative) by up to 12 semitones.
     pub fn set_transpose(&self, semitones: i32) {
         self.control(PlaybackControl::SetTranspose(semitones));
@@ -289,6 +302,11 @@ struct ScorePlayback {
     tempo_percent: f32,
     transpose: i32,
     playing: bool,
+    /// Whether the playhead waits for the player at each gate.
+    follow: bool,
+    gates: Arc<Vec<Gate>>,
+    /// The next gate the player has to play.
+    gate: usize,
 }
 
 impl Default for ScorePlayback {
@@ -301,6 +319,9 @@ impl Default for ScorePlayback {
             tempo_percent: 100.0,
             transpose: 0,
             playing: false,
+            follow: false,
+            gates: Arc::new(Vec::new()),
+            gate: 0,
         }
     }
 }
@@ -311,6 +332,28 @@ impl ScorePlayback {
         self.score
             .get(self.index)
             .map_or(f64::INFINITY, |event| event.at_ms)
+    }
+
+    /// Score time the playhead may not pass in follow mode, or infinity.
+    fn gate_ms(&self) -> f64 {
+        if self.follow {
+            self.gates
+                .get(self.gate)
+                .map_or(f64::INFINITY, |gate| gate.start_ms)
+        } else {
+            f64::INFINITY
+        }
+    }
+
+    /// Consumes the player's note, releasing the gate it belongs to.
+    fn player_note(&mut self, pitch: u8) {
+        if self.follow
+            && let Some(gate) = self.gates.get(self.gate)
+            && gate.pitch == pitch
+            && self.position_ms + FOLLOW_LEAD_MS >= gate.start_ms
+        {
+            self.gate += 1;
+        }
     }
 
     fn advance(&mut self, synth: &mut impl Synth) {
@@ -351,6 +394,8 @@ impl<S: Synth> Renderer<S> {
                 ..
             } = command
             {
+                // The same press both releases the next gate and is reported for judging.
+                self.playback.player_note(pitch);
                 let _ = self.played.push(PlayedNote {
                     position_ms: self.playback.position_ms,
                     pitch,
@@ -376,6 +421,14 @@ impl<S: Synth> Renderer<S> {
                 self.playback.score = score;
                 self.playback.index = 0;
                 self.playback.position_ms = 0.0;
+                self.playback.gate = 0;
+            }
+            PlaybackControl::SetGates(gates) => {
+                self.playback.gates = gates;
+                self.playback.gate = 0;
+            }
+            PlaybackControl::SetFollow(follow) => {
+                self.playback.follow = follow;
             }
             PlaybackControl::SetTempoPercent(percent) => {
                 self.playback.tempo_percent = percent.clamp(MIN_TEMPO_PERCENT, MAX_TEMPO_PERCENT);
@@ -390,6 +443,11 @@ impl<S: Synth> Renderer<S> {
                     .playback
                     .score
                     .partition_point(|event| event.at_ms < target);
+                // Skip gates the playhead has already passed, so follow mode waits at the next one.
+                self.playback.gate = self
+                    .playback
+                    .gates
+                    .partition_point(|gate| gate.start_ms <= target);
                 self.playback.position_ms = target;
                 self.synth.apply(AudioCommand::AllNotesOff);
             }
@@ -412,6 +470,10 @@ impl<S: Synth> Renderer<S> {
         while rendered < frames {
             let remaining = frames - rendered;
             let end_ms = self.playback.position_ms + remaining as f64 * ms_per_frame;
+            // In follow mode the playhead may not pass the next gate. If it already sits on the
+            // gate (or past a stale one), the limit is the current position and time stands still.
+            let limit = self.playback.gate_ms().max(self.playback.position_ms);
+            let end_ms = end_ms.min(limit);
             let next_ms = self.playback.next_ms();
 
             if next_ms >= end_ms {
@@ -495,6 +557,7 @@ fn device_error(error: impl std::fmt::Display) -> AudioError {
 #[cfg(test)]
 mod tests {
     use super::{MAX_BLOCK_FRAMES, Renderer, ScorePlayback, shift, transposed, write_frames};
+    use crate::audio::Gate;
     use crate::audio::PLAYER_CHANNEL;
     use crate::audio::event::{AudioCommand, PlaybackControl, PlayedNote, ScheduledCommand};
     use crate::audio::synth::Synth;
@@ -704,6 +767,64 @@ mod tests {
         assert_eq!(renderer.played.pop(), None);
     }
 
+    #[test]
+    fn follow_holds_at_a_gate_until_the_note_is_played() {
+        let mut renderer = renderer(1000, vec![scheduled(500.0, note_on(60))]);
+        renderer.push_control(PlaybackControl::SetGates(Arc::new(vec![gate(60, 500.0)])));
+        renderer.push_control(PlaybackControl::SetFollow(true));
+        renderer.push_control(PlaybackControl::Start);
+
+        // Past the note's time, but the playhead is clamped at the gate.
+        renderer.render(700);
+        assert_eq!(renderer.synth.events, vec![]);
+        assert_eq!(renderer.published_ms(), 500);
+
+        // Playing the gate's pitch releases it and the accompaniment resumes. Both the player's
+        // note and the score's note-on land on the same frame.
+        renderer
+            .commands
+            .push(player_note_on(60))
+            .expect("the command queue should fit");
+        renderer.render(100);
+
+        assert_eq!(
+            renderer.synth.events,
+            vec![(700, player_note_on(60)), (700, note_on(60))]
+        );
+        assert_eq!(renderer.published_ms(), 600);
+    }
+
+    #[test]
+    fn a_wrong_note_leaves_the_playhead_waiting() {
+        let mut renderer = renderer(1000, vec![scheduled(500.0, note_on(60))]);
+        renderer.push_control(PlaybackControl::SetGates(Arc::new(vec![gate(60, 500.0)])));
+        renderer.push_control(PlaybackControl::SetFollow(true));
+        renderer.push_control(PlaybackControl::Start);
+
+        renderer.render(500);
+        renderer
+            .commands
+            .push(player_note_on(62))
+            .expect("the command queue should fit");
+        renderer.render(200);
+
+        // The player's wrong note sounds, but the accompaniment stays clamped at the gate.
+        assert_eq!(renderer.synth.events, vec![(500, player_note_on(62))]);
+        assert_eq!(renderer.published_ms(), 500);
+    }
+
+    #[test]
+    fn follow_off_ignores_the_gates() {
+        let mut renderer = renderer(1000, vec![scheduled(500.0, note_on(60))]);
+        renderer.push_control(PlaybackControl::SetGates(Arc::new(vec![gate(60, 500.0)])));
+        renderer.push_control(PlaybackControl::Start);
+
+        renderer.render(1000);
+
+        assert_eq!(renderer.synth.events, vec![(500, note_on(60))]);
+        assert_eq!(renderer.published_ms(), 1000);
+    }
+
     /// A `Synth` that records the frame each command arrived at.
     #[derive(Default)]
     struct FakeSynth {
@@ -778,5 +899,9 @@ mod tests {
 
     fn note_off(pitch: u8) -> AudioCommand {
         AudioCommand::NoteOff { channel: 0, pitch }
+    }
+
+    fn gate(pitch: u8, start_ms: f64) -> Gate {
+        Gate { pitch, start_ms }
     }
 }

@@ -26,6 +26,7 @@ pub fn play_file(
         .lock()
         .map_err(|_| "audio state is unavailable".to_string())?;
     engine.set_score(score);
+    engine.set_gates(scheduler::gates(&timeline));
     engine.start();
     log::info!("playing {path}");
     Ok(())

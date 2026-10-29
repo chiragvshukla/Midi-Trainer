@@ -32,11 +32,22 @@ pub struct ScheduledCommand {
     pub command: AudioCommand,
 }
 
+/// A note the player must play before the accompaniment may pass this point.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Gate {
+    pub pitch: u8,
+    pub start_ms: f64,
+}
+
 /// A message that changes what the score playback is doing.
 #[derive(Debug)]
 pub enum PlaybackControl {
     /// Replaces the piece being played and starts it from the beginning.
     SetScore(Arc<Vec<ScheduledCommand>>),
+    /// Replaces the notes the player must play for follow-you mode.
+    SetGates(Arc<Vec<Gate>>),
+    /// Whether the playhead waits for the player at each gate.
+    SetFollow(bool),
     /// Tempo as a percentage of the original; 100 is normal speed.
     SetTempoPercent(f32),
     /// Semitones shifted up (positive) or down (negative).

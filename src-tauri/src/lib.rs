@@ -49,6 +49,7 @@ pub fn run() {
             commands::list_midi_inputs::list_midi_inputs,
             commands::connect_midi_input::connect_midi_input,
             commands::disconnect_midi_input::disconnect_midi_input,
+            commands::set_follow::set_follow,
             commands::set_tempo_percent::set_tempo_percent,
             commands::set_transpose::set_transpose,
             commands::seek::seek,
