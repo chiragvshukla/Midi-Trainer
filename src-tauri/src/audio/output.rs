@@ -199,6 +199,11 @@ impl AudioEngine {
         self.control(PlaybackControl::SetPlayerVolume(gain));
     }
 
+    /// Sets one track's channel volume, as a linear gain, 0.0 to 1.0.
+    pub fn set_track_volume(&self, channel: u8, gain: f32) {
+        self.control(PlaybackControl::SetTrackVolume { channel, gain });
+    }
+
     /// Moves the playhead to `position_ms` in the current piece.
     pub fn seek(&self, position_ms: u64) {
         self.control(PlaybackControl::Seek(position_ms as f64));
@@ -319,6 +324,8 @@ struct ScorePlayback {
     music_volume: f32,
     /// Volume of the player's notes, as a linear gain.
     player_volume: f32,
+    /// Per-channel gain for the piece's tracks, on top of the music gain.
+    track_volumes: [f32; 16],
     playing: bool,
     /// Whether the playhead waits for the player at each gate.
     follow: bool,
@@ -338,6 +345,7 @@ impl Default for ScorePlayback {
             transpose: 0,
             music_volume: 1.0,
             player_volume: 1.0,
+            track_volumes: [1.0; 16],
             playing: false,
             follow: false,
             gates: Arc::new(Vec::new()),
@@ -479,6 +487,12 @@ impl<S: Synth> Renderer<S> {
                 self.playback.player_volume = gain.clamp(0.0, 1.0);
                 self.apply_mix();
             }
+            PlaybackControl::SetTrackVolume { channel, gain } => {
+                if let Some(slot) = self.playback.track_volumes.get_mut(usize::from(channel)) {
+                    *slot = gain.clamp(0.0, 1.0);
+                    self.apply_mix();
+                }
+            }
             PlaybackControl::Seek(position_ms) => {
                 let target = position_ms.max(0.0);
                 // Skip every command before the target and silence anything still sounding.
@@ -509,15 +523,16 @@ impl<S: Synth> Renderer<S> {
     /// restarting them. The cue's instrument is set here too, since a new SoundFont resets every
     /// channel.
     fn apply_mix(&mut self) {
-        let music = cc7(self.playback.music_volume);
+        let music = self.playback.music_volume;
         for channel in 0..=15u8 {
             if channel == PLAYER_CHANNEL || channel == CUE_CHANNEL {
                 continue;
             }
+            let track = self.playback.track_volumes[usize::from(channel)];
             self.synth.apply(AudioCommand::ControlChange {
                 channel,
                 controller: VOLUME_CONTROLLER,
-                value: music,
+                value: cc7(music * track),
             });
         }
         self.synth.apply(AudioCommand::ControlChange {
@@ -933,6 +948,25 @@ mod tests {
         )));
         assert!(renderer.synth.events.contains(&(0, cc(CUE_CHANNEL, 127))));
         assert!(!renderer.synth.events.contains(&(0, cc(CUE_CHANNEL, 64))));
+    }
+
+    #[test]
+    fn track_volume_scales_only_its_channel() {
+        let mut renderer = renderer(1000, vec![]);
+        renderer.push_control(PlaybackControl::SetTrackVolume {
+            channel: 3,
+            gain: 0.5,
+        });
+        renderer.render(1);
+
+        let cc = |channel, value| AudioCommand::ControlChange {
+            channel,
+            controller: 7,
+            value,
+        };
+        // Channel 3 takes its own gain; an untouched channel keeps the full music gain.
+        assert!(renderer.synth.events.contains(&(0, cc(3, 64))));
+        assert!(renderer.synth.events.contains(&(0, cc(0, 127))));
     }
 
     #[test]

@@ -22,6 +22,7 @@ pub mod set_music_volume;
 pub mod set_player_part;
 pub mod set_player_volume;
 pub mod set_tempo_percent;
+pub mod set_track_volume;
 pub mod set_transpose;
 pub mod soundfont_status;
 pub mod stop_playback;

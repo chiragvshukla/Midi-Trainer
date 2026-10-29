@@ -19,6 +19,7 @@ import {
   setPlayerPart,
   setPlayerVolume,
   setTempoPercent,
+  setTrackVolume,
   setTranspose,
   stopPlayback,
   type Hand,
@@ -74,6 +75,8 @@ interface SessionState {
   piecePath: string | null;
   /** Track indices to keep; null means every track. */
   selectedTracks: number[] | null;
+  /** Per-channel track gain, 0 to 1; a channel absent from the map plays at full. */
+  trackVolumes: Record<number, number>;
   follow: boolean;
   /** Verdict per falling note, keyed by pitch and score time. */
   verdicts: Record<string, Verdict>;
@@ -105,6 +108,7 @@ interface SessionState {
   changeTranspose: (semitones: number) => Promise<void>;
   changeMusicVolume: (volume: number) => Promise<void>;
   changePlayerVolume: (volume: number) => Promise<void>;
+  changeTrackVolume: (channel: number, gain: number) => Promise<void>;
   recordJudgements: (judgements: Judgement[]) => void;
   recordStats: (stats: PracticeStats) => void;
   pressPitch: (pitch: number, down: boolean) => void;
@@ -121,6 +125,7 @@ export const useSession = create<SessionState>((set, get) => ({
   piece: null,
   piecePath: null,
   selectedTracks: null,
+  trackVolumes: {},
   follow: false,
   verdicts: {},
   stats: null,
@@ -372,6 +377,17 @@ export const useSession = create<SessionState>((set, get) => ({
       scheduleSave();
     } catch (error) {
       log.error(`setting the player volume failed: ${String(error)}`);
+    }
+  },
+
+  changeTrackVolume: async (channel, gain) => {
+    set((state) => ({
+      trackVolumes: { ...state.trackVolumes, [channel]: gain },
+    }));
+    try {
+      await setTrackVolume(channel, gain);
+    } catch (error) {
+      log.error(`setting a track's volume failed: ${String(error)}`);
     }
   },
 

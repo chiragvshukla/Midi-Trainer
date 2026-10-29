@@ -228,16 +228,26 @@
 
 .track-item {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   padding: 5px 8px;
   border-radius: 6px;
   font-size: 12px;
-  cursor: pointer;
 }
 
 .track-item:hover {
   background: #2a2e3a;
+}
+
+.track-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.track-item input[type="range"] {
+  width: 140px;
 }
 
 .view-toggle button {

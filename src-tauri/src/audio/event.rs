@@ -56,6 +56,11 @@ pub enum PlaybackControl {
     SetMusicVolume(f32),
     /// Volume of the player's notes, as a linear gain, 0.0 to 1.0.
     SetPlayerVolume(f32),
+    /// Volume of one track's channel, as a linear gain, 0.0 to 1.0.
+    SetTrackVolume {
+        channel: u8,
+        gain: f32,
+    },
     /// Moves the playhead to this position in the piece, in milliseconds.
     Seek(f64),
     Start,

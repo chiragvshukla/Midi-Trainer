@@ -75,6 +75,7 @@ pub fn run() {
             commands::set_player_part::set_player_part,
             commands::set_player_volume::set_player_volume,
             commands::set_tempo_percent::set_tempo_percent,
+            commands::set_track_volume::set_track_volume,
             commands::set_transpose::set_transpose,
             commands::seek::seek,
             commands::playback_position::playback_position,

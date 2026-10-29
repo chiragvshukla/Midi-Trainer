@@ -16,7 +16,9 @@ export function trackName(track: TrackInfo): string {
 export function TrackMenu() {
   const piece = useSession((state) => state.piece);
   const selectedTracks = useSession((state) => state.selectedTracks);
+  const trackVolumes = useSession((state) => state.trackVolumes);
   const toggleTrack = useSession((state) => state.toggleTrack);
+  const changeTrackVolume = useSession((state) => state.changeTrackVolume);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -62,18 +64,39 @@ export function TrackMenu() {
       </button>
       {open && (
         <div className="menu-items" role="menu">
-          {piece.tracks.map((track) => (
-            <label key={track.index} className="track-item">
-              <input
-                type="checkbox"
-                checked={isSelected(track.index)}
-                onChange={() => void toggleTrack(track.index)}
-              />
-              <span>
-                {trackName(track)} ({track.note_count})
-              </span>
-            </label>
-          ))}
+          {piece.tracks.map((track) => {
+            const channel = track.channel;
+            return (
+              <div key={track.index} className="track-item">
+                <label className="track-toggle">
+                  <input
+                    type="checkbox"
+                    checked={isSelected(track.index)}
+                    onChange={() => void toggleTrack(track.index)}
+                  />
+                  <span>
+                    {trackName(track)} ({track.note_count})
+                  </span>
+                </label>
+                {channel != null && (
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={trackVolumes[channel] ?? 1}
+                    aria-label={`${trackName(track)} volume`}
+                    onChange={(event) =>
+                      void changeTrackVolume(
+                        channel,
+                        Number(event.target.value),
+                      )
+                    }
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

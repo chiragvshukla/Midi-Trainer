@@ -235,6 +235,10 @@ export function setPlayerVolume(volume: number): Promise<void> {
   return invoke("set_player_volume", { volume });
 }
 
+export function setTrackVolume(channel: number, gain: number): Promise<void> {
+  return invoke("set_track_volume", { channel, gain });
+}
+
 export function setFollow(follow: boolean): Promise<void> {
   return invoke("set_follow", { follow });
 }
