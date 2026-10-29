@@ -56,6 +56,7 @@ export function AppearancePanel({
   const cancelDownload = useSession((state) => state.cancelDownload);
   const chooseSoundfont = useSession((state) => state.chooseSoundfontFile);
   const useBundled = useSession((state) => state.useBundledSoundfont);
+  const useDownloaded = useSession((state) => state.useDownloadedSoundfont);
 
   if (!open) {
     return null;
@@ -233,14 +234,24 @@ export function AppearancePanel({
               </div>
             ) : (
               <div className="field">
-                {soundfont?.kind !== "Downloaded" &&
-                soundfont?.full_available !== true ? (
+                {soundfont?.full_available !== true &&
+                soundfont?.kind !== "Downloaded" ? (
                   <button
                     type="button"
                     className="btn"
                     onClick={() => void downloadFull()}
                   >
                     Download full instruments (142 MB)
+                  </button>
+                ) : null}
+                {soundfont?.full_available === true &&
+                soundfont?.kind !== "Downloaded" ? (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => void useDownloaded()}
+                  >
+                    Use full instruments
                   </button>
                 ) : null}
                 {soundfont?.kind !== "Bundled" ? (

@@ -55,6 +55,8 @@ pub struct SoundfontStatus {
     pub path: String,
     /// Whether the full GM bank is present in app data and can be switched to.
     pub full_available: bool,
+    /// The full bank's path when present, so the frontend can switch back to it.
+    pub full_path: Option<String>,
 }
 
 /// Errors from downloading the SoundFont.
@@ -121,6 +123,7 @@ pub fn is_installed(app_data: &Path) -> bool {
 pub fn status(bundled: Option<&Path>, app_data: &Path, chosen: Option<&str>) -> SoundfontStatus {
     let full = installed_path(app_data);
     let full_available = full.is_file();
+    let full_path = full_available.then(|| full.to_string_lossy().into_owned());
     if let Some(chosen) = chosen {
         let path = Path::new(chosen);
         if path.is_file() {
@@ -133,6 +136,7 @@ pub fn status(bundled: Option<&Path>, app_data: &Path, chosen: Option<&str>) -> 
                 kind,
                 path: chosen.to_string(),
                 full_available,
+                full_path,
             };
         }
     }
@@ -142,6 +146,7 @@ pub fn status(bundled: Option<&Path>, app_data: &Path, chosen: Option<&str>) -> 
             .map(|path| path.to_string_lossy().into_owned())
             .unwrap_or_default(),
         full_available,
+        full_path,
     }
 }
 
@@ -280,6 +285,7 @@ mod tests {
         assert_eq!(result.kind, SoundfontKind::Bundled);
         assert_eq!(result.path, bundled.to_string_lossy());
         assert!(!result.full_available);
+        assert_eq!(result.full_path, None);
 
         // A chosen file that exists is used and reported as custom.
         let result = status(Some(bundled.as_path()), &dir, chosen.to_str());
@@ -292,10 +298,13 @@ mod tests {
         let result = status(Some(bundled.as_path()), &dir, full.to_str());
         assert_eq!(result.kind, SoundfontKind::Downloaded);
         assert!(result.full_available);
+        assert_eq!(result.full_path.as_deref(), full.to_str());
 
-        // A choice that no longer exists falls back to the bundled font.
+        // A choice that no longer exists falls back to the bundled font, but the full
+        // bank's path is still reported so the frontend can switch back to it.
         let result = status(Some(bundled.as_path()), &dir, Some("/missing/nope.sf2"));
         assert_eq!(result.kind, SoundfontKind::Bundled);
+        assert_eq!(result.full_path.as_deref(), full.to_str());
 
         std::fs::remove_dir_all(&dir).ok();
     }

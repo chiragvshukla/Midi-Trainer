@@ -187,6 +187,8 @@ interface SessionState {
   chooseSoundfontFile: () => Promise<void>;
   /** Returns to the bundled baseline font. */
   useBundledSoundfont: () => Promise<void>;
+  /** Switches to the downloaded full bank, if present. */
+  useDownloadedSoundfont: () => Promise<void>;
   loadDevices: () => Promise<void>;
   connectDevice: (name: string | null) => Promise<void>;
   loadLibrary: () => Promise<void>;
@@ -313,6 +315,19 @@ export const useSession = create<SessionState>((set, get) => ({
     } catch (error) {
       set({ soundfontError: String(error) });
       log.error(`switching to the bundled SoundFont failed: ${String(error)}`);
+    }
+  },
+
+  useDownloadedSoundfont: async () => {
+    const full = get().soundfont?.full_path;
+    if (!full) {
+      return;
+    }
+    try {
+      set({ soundfont: await setSoundfont(full), soundfontError: null });
+    } catch (error) {
+      set({ soundfontError: String(error) });
+      log.error(`switching to the full SoundFont failed: ${String(error)}`);
     }
   },
 

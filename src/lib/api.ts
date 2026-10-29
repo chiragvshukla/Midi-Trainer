@@ -24,6 +24,8 @@ export interface SoundfontStatus {
   path: string;
   /** Whether the full GM bank is present and can be switched to. */
   full_available: boolean;
+  /** The full bank's path when present, so it can be switched back to. */
+  full_path: string | null;
 }
 
 export interface DownloadProgress {
