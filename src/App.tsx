@@ -49,6 +49,7 @@ function App() {
   const changeSkill = useSession((state) => state.changeSkill);
   const changePart = useSession((state) => state.changePart);
   const changeHandSplit = useSession((state) => state.changeHandSplit);
+  const changePlayAlong = useSession((state) => state.changePlayAlong);
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
   const changeMusicVolume = useSession((state) => state.changeMusicVolume);
@@ -216,6 +217,16 @@ function App() {
               onChange={(event) => void changeHandSplit(event.target.checked)}
             />
             Practice by hand
+          </label>
+        )}
+        {handValue !== "Both" && (settings?.skill ?? "Strict") === "Follow" && (
+          <label>
+            <input
+              type="checkbox"
+              checked={settings?.play_along ?? false}
+              onChange={(event) => void changePlayAlong(event.target.checked)}
+            />
+            App plays the other hand
           </label>
         )}
         <label>

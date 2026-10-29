@@ -16,6 +16,7 @@ import {
   setSkill,
   setLibraryFolders,
   setHandSplit,
+  setPlayAlong,
   setMusicVolume,
   setPlayerPart,
   setPlayerVolume,
@@ -113,6 +114,7 @@ interface SessionState {
   changeSkill: (skill: Skill) => Promise<void>;
   changePart: (hand: Hand, track: number | null) => Promise<void>;
   changeHandSplit: (on: boolean) => Promise<void>;
+  changePlayAlong: (on: boolean) => Promise<void>;
   changeTempo: (percent: number) => Promise<void>;
   changeTranspose: (semitones: number) => Promise<void>;
   changeMusicVolume: (volume: number) => Promise<void>;
@@ -346,6 +348,12 @@ export const useSession = create<SessionState>((set, get) => ({
     }));
     try {
       await setSkill(skill);
+      // The score the app plays depends on the mode (a guide, silent, or the other hand), so
+      // a loaded piece is rebuilt; nothing to do before one is loaded.
+      const path = get().piecePath;
+      if (path) {
+        await get().openPiece(path);
+      }
     } catch (error) {
       log.error(`setting the skill level failed: ${String(error)}`);
     }
@@ -385,6 +393,22 @@ export const useSession = create<SessionState>((set, get) => ({
       }
     } catch (error) {
       log.error(`setting hand practice failed: ${String(error)}`);
+    }
+  },
+
+  changePlayAlong: async (on) => {
+    set((state) => ({
+      settings: state.settings && { ...state.settings, play_along: on },
+    }));
+    try {
+      await setPlayAlong(on);
+      // The accompaniment is scheduled when a piece loads, so rebuild it to hear the change.
+      const path = get().piecePath;
+      if (path) {
+        await get().openPiece(path);
+      }
+    } catch (error) {
+      log.error(`setting play-along failed: ${String(error)}`);
     }
   },
 

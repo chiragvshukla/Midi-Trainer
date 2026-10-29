@@ -19,6 +19,7 @@ pub mod seek;
 pub mod set_hand_split;
 pub mod set_library_folders;
 pub mod set_music_volume;
+pub mod set_play_along;
 pub mod set_player_part;
 pub mod set_player_volume;
 pub mod set_skill;

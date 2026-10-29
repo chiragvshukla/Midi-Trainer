@@ -8,6 +8,9 @@ const BLACK_CLASSES = new Set([1, 3, 6, 8, 10]);
 /** How much score time is visible above the keyboard at zoom 1, in milliseconds. */
 const LOOKAHEAD_MS = 4000;
 
+/** Middle C: the boundary between the hands, as the engine splits them. */
+const MIDDLE_C = 60;
+
 /** Zoom limits: below 1 fits more time in, above 1 spreads it out. */
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
@@ -17,6 +20,8 @@ const KEYBOARD_SHARE = 0.24;
 
 const COLORS = {
   note: "#64b5f6",
+  left: "#26a69a",
+  right: "#ab47bc",
   correct: "#43a047",
   wrong: "#e53935",
   soundingKey: "#4fc3f7",
@@ -57,8 +62,20 @@ export function FallingNotes() {
   const piece = useSession((state) => state.piece);
   const verdicts = useSession((state) => state.verdicts);
   const pressed = useSession((state) => state.pressed);
+  const settings = useSession((state) => state.settings);
   // Zoom lives here, so it is remembered across toggles to the sheet view and back.
   const [zoom, setZoom] = useState(1);
+
+  // A single hand taken with hand practice: only that hand's notes are drawn. Otherwise both
+  // hands show, coloured apart, unless a whole track is the player's part.
+  const soloHand =
+    settings &&
+    settings.player_track == null &&
+    settings.hand_split &&
+    settings.player_hand !== "Both"
+      ? settings.player_hand
+      : null;
+  const byHand = settings?.player_track == null;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -73,8 +90,25 @@ export function FallingNotes() {
 
     // The engine delivers the notes sorted by start time, so each frame scans one window
     // instead of filtering and sorting the whole piece.
-    const notes = piece?.notes ?? [];
+    const all = piece?.notes ?? [];
+    const notes = soloHand
+      ? all.filter((note) =>
+          soloHand === "Left" ? note.pitch < MIDDLE_C : note.pitch >= MIDDLE_C,
+        )
+      : all;
     const maxDurationMs = longestNoteMs(notes);
+
+    // Notes are coloured by hand: the two hands apart when both show, the one hand's colour
+    // when solo. A whole track as the player's part has no split, so notes stay the base colour.
+    const noteColor = (pitch: number): string => {
+      if (!byHand) {
+        return COLORS.note;
+      }
+      if (soloHand) {
+        return soloHand === "Left" ? COLORS.left : COLORS.right;
+      }
+      return pitch < MIDDLE_C ? COLORS.left : COLORS.right;
+    };
 
     const draw = (positionMs: number) => {
       const ratio = window.devicePixelRatio || 1;
@@ -163,7 +197,7 @@ export function FallingNotes() {
             ? COLORS.correct
             : verdict === "Wrong"
               ? COLORS.wrong
-              : COLORS.note;
+              : noteColor(note.pitch);
         context.fillRect(
           rect.x + 1,
           top,
@@ -223,7 +257,7 @@ export function FallingNotes() {
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [piece, verdicts, pressed, zoom]);
+  }, [piece, verdicts, pressed, zoom, soloHand, byHand]);
 
   return (
     <>

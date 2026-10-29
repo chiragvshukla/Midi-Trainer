@@ -36,6 +36,7 @@ export interface Settings {
   player_hand: Hand;
   player_track: number | null;
   hand_split: boolean;
+  play_along: boolean;
   skill: Skill;
 }
 
@@ -214,6 +215,10 @@ export function setPlayerPart(hand: Hand, track: number | null): Promise<void> {
 
 export function setHandSplit(on: boolean): Promise<void> {
   return invoke("set_hand_split", { on });
+}
+
+export function setPlayAlong(on: boolean): Promise<void> {
+  return invoke("set_play_along", { on });
 }
 
 export function connectMidiInput(name: string): Promise<void> {

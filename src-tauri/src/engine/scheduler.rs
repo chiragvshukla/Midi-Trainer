@@ -24,6 +24,17 @@ pub enum Part {
     Track(u16),
 }
 
+/// What the app sounds under the player.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppPlay {
+    /// Everything the player is not taking; the ordinary accompaniment.
+    Complement,
+    /// Exactly the player's hand, as a guide they can play along with.
+    PlayerHand,
+    /// Nothing; the app only waits for the player.
+    Silent,
+}
+
 /// Whether the player is expected to play this note. Drums are always the app's.
 pub fn player_plays(note: &Note, part: Part) -> bool {
     if note.channel == PERCUSSION_CHANNEL {
@@ -35,14 +46,18 @@ pub fn player_plays(note: &Note, part: Part) -> bool {
     }
 }
 
-/// Whether the app should sound this note. Drums always sound.
-fn app_plays(note: &Note, part: Part) -> bool {
+/// Whether the app should sound this note. Drums are never the player's, so they always sound.
+fn app_plays(note: &Note, part: Part, app: AppPlay) -> bool {
     if note.channel == PERCUSSION_CHANNEL {
         return true;
     }
-    match part {
-        Part::Hands(hand) => hand_app_plays(note.pitch, hand),
-        Part::Track(index) => note.track != index,
+    match app {
+        AppPlay::Silent => false,
+        AppPlay::PlayerHand => player_plays(note, part),
+        AppPlay::Complement => match part {
+            Part::Hands(hand) => hand_app_plays(note.pitch, hand),
+            Part::Track(index) => note.track != index,
+        },
     }
 }
 
@@ -68,7 +83,7 @@ fn hand_app_plays(pitch: u8, hand: Hand) -> bool {
 /// Flattens a timeline into one time-sorted command stream: a program change per track, then
 /// the note-ons and note-offs of every note the app plays. The playback scheduler applies
 /// these in order. Drums are always played by the app.
-pub fn schedule(timeline: &Timeline, part: Part) -> Vec<ScheduledCommand> {
+pub fn schedule(timeline: &Timeline, part: Part, app: AppPlay) -> Vec<ScheduledCommand> {
     let mut events = Vec::with_capacity(timeline.notes.len() * 2 + timeline.tracks.len());
 
     // Set each track's instrument on the channel its notes use, before the first note.
@@ -89,7 +104,7 @@ pub fn schedule(timeline: &Timeline, part: Part) -> Vec<ScheduledCommand> {
     }
 
     for note in &timeline.notes {
-        if !app_plays(note, part) {
+        if !app_plays(note, part, app) {
             continue;
         }
         events.push(ScheduledCommand {
@@ -132,7 +147,7 @@ pub fn gates(timeline: &Timeline, part: Part) -> Arc<Vec<Gate>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Hand, Part, gates, schedule};
+    use super::{AppPlay, Hand, Part, gates, schedule};
     use crate::audio::AudioCommand;
     use crate::engine::midi::{Division, MidiFile, NoteEvent, TempoChange, TrackInfo};
     use crate::engine::timeline::Timeline;
@@ -180,7 +195,7 @@ mod tests {
     fn sets_each_tracks_instrument_then_plays_its_notes() {
         let timeline = fixture_timeline();
 
-        let events = schedule(&timeline, Part::Hands(Hand::Both));
+        let events = schedule(&timeline, Part::Hands(Hand::Both), AppPlay::Complement);
 
         let commands: Vec<AudioCommand> = events.iter().map(|event| event.command).collect();
         assert_eq!(
@@ -245,8 +260,8 @@ mod tests {
             notes,
         });
 
-        let played = |hand| {
-            schedule(&timeline, Part::Hands(hand))
+        let played = |hand, app| {
+            schedule(&timeline, Part::Hands(hand), app)
                 .into_iter()
                 .filter_map(|event| match event.command {
                     AudioCommand::NoteOn { pitch, .. } => Some(pitch),
@@ -261,15 +276,22 @@ mod tests {
                 .collect::<Vec<u8>>()
         };
 
-        // Taking the left hand: the player plays the bass note, the app sounds the treble note.
+        // The player always gates their own hand, whichever way the app sounds.
         assert_eq!(gated(Hand::Left), vec![48]);
-        assert_eq!(played(Hand::Left), vec![72]);
-        // Taking the right hand: the player plays the treble note, the app sounds the bass note.
         assert_eq!(gated(Hand::Right), vec![72]);
-        assert_eq!(played(Hand::Right), vec![48]);
-        // Both: the app plays everything and both notes are gates.
         assert_eq!(gated(Hand::Both), vec![48, 72]);
-        assert_eq!(played(Hand::Both), vec![48, 72]);
+
+        // Complement: the app sounds the other hand, as with play-along on a track.
+        assert_eq!(played(Hand::Left, AppPlay::Complement), vec![72]);
+        assert_eq!(played(Hand::Right, AppPlay::Complement), vec![48]);
+        assert_eq!(played(Hand::Both, AppPlay::Complement), vec![48, 72]);
+
+        // PlayerHand: the app sounds the player's own hand as a guide, as in Listen/Strict.
+        assert_eq!(played(Hand::Left, AppPlay::PlayerHand), vec![48]);
+        assert_eq!(played(Hand::Right, AppPlay::PlayerHand), vec![72]);
+
+        // Silent: the app sounds nothing, as in Follow without play-along.
+        assert!(played(Hand::Left, AppPlay::Silent).is_empty());
     }
 
     #[test]
@@ -298,7 +320,7 @@ mod tests {
             .iter()
             .map(|gate| gate.pitch)
             .collect();
-        let played: Vec<u8> = schedule(&timeline, Part::Track(0))
+        let played: Vec<u8> = schedule(&timeline, Part::Track(0), AppPlay::Complement)
             .into_iter()
             .filter_map(|event| match event.command {
                 AudioCommand::NoteOn { pitch, .. } => Some(pitch),

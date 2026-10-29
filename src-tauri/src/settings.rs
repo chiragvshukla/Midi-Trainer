@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::engine::scheduler::{Hand, Part};
+use crate::engine::scheduler::{AppPlay, Hand, Part};
 
 /// How strictly the app judges the player's notes, from a plain play-along to a scored test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,6 +66,9 @@ pub struct Settings {
     pub player_track: Option<u16>,
     /// Whether a one-track piece offers hand practice, split at middle C.
     pub hand_split: bool,
+    /// In Follow mode with one hand chosen, whether the app also plays the other hand. Off
+    /// leaves the player alone with the waiting.
+    pub play_along: bool,
     /// How strictly the player's notes are judged.
     pub skill: Skill,
 }
@@ -83,6 +86,7 @@ impl Default for Settings {
             player_hand: Hand::Both,
             player_track: None,
             hand_split: false,
+            play_along: false,
             skill: Skill::Strict,
         }
     }
@@ -102,6 +106,20 @@ impl Settings {
     /// Whether the accompaniment waits for the player at each note.
     pub fn follow(&self) -> bool {
         self.skill == Skill::Follow
+    }
+
+    /// What the app sounds under the player. With one hand taken, Listen and Strict play that
+    /// hand back as a guide; Follow goes silent and waits, unless play-along adds the other
+    /// hand. Both hands and a chosen track keep the ordinary accompaniment.
+    pub fn app_play(&self) -> AppPlay {
+        match self.part() {
+            Part::Hands(hand) if hand != Hand::Both => match self.skill {
+                Skill::Follow if !self.play_along => AppPlay::Silent,
+                Skill::Follow => AppPlay::Complement,
+                _ => AppPlay::PlayerHand,
+            },
+            _ => AppPlay::Complement,
+        }
     }
 
     /// Whether the player's notes are judged and cued.
@@ -242,6 +260,37 @@ mod tests {
         // A chosen track overrides the hand split.
         settings.player_track = Some(3);
         assert_eq!(settings.part(), Part::Track(3));
+    }
+
+    #[test]
+    fn app_play_follows_the_hand_and_mode() {
+        use crate::engine::scheduler::{AppPlay, Hand, Part};
+
+        let mut settings = Settings::default();
+        // Both hands and a chosen track keep the ordinary accompaniment.
+        assert_eq!(settings.app_play(), AppPlay::Complement);
+        settings.player_track = Some(1);
+        assert_eq!(settings.app_play(), AppPlay::Complement);
+
+        // One hand taken: Listen and Strict play that hand back as a guide.
+        settings.player_track = None;
+        settings.hand_split = true;
+        settings.player_hand = Hand::Left;
+        settings.skill = super::Skill::Listen;
+        assert_eq!(settings.app_play(), AppPlay::PlayerHand);
+        settings.skill = super::Skill::Strict;
+        assert_eq!(settings.app_play(), AppPlay::PlayerHand);
+
+        // Follow goes silent, unless play-along adds the other hand.
+        settings.skill = super::Skill::Follow;
+        assert_eq!(settings.app_play(), AppPlay::Silent);
+        settings.play_along = true;
+        assert_eq!(settings.app_play(), AppPlay::Complement);
+
+        // Without hand practice the player plays everything, so it is the ordinary accompaniment.
+        settings.hand_split = false;
+        assert_eq!(settings.part(), Part::Hands(Hand::Both));
+        assert_eq!(settings.app_play(), AppPlay::Complement);
     }
 
     #[test]

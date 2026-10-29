@@ -55,13 +55,13 @@ pub fn play_file(
         file.notes.retain(|note| tracks.contains(&note.track));
     }
     let timeline = Timeline::from_midi(&file);
-    let (part, follow) = {
+    let (part, follow, app_play) = {
         let settings = settings
             .lock()
             .map_err(|_| "settings state is unavailable".to_string())?;
-        (settings.part(), settings.follow())
+        (settings.part(), settings.follow(), settings.app_play())
     };
-    let score = Arc::new(scheduler::schedule(&timeline, part));
+    let score = Arc::new(scheduler::schedule(&timeline, part, app_play));
     {
         let mut matcher = matcher
             .lock()
