@@ -29,6 +29,10 @@ import "./App.css";
 /** Which of the two piece displays is on within the Practice section. */
 type PieceView = "keys" | "sheet";
 
+/** Default volume levels, matching the engine defaults; double-click snaps a slider back. */
+const DEFAULT_MUSIC_VOLUME = 0.8;
+const DEFAULT_PLAYER_VOLUME = 0.5;
+
 function App() {
   const [section, setSection] = useState<Section>("library");
   const [view, setView] = useState<PieceView>("keys");
@@ -184,7 +188,7 @@ function App() {
             <div className="volumes">
               <label
                 className="volume"
-                title={`Music ${Math.round((settings?.music_volume ?? 1) * 100)}%`}
+                title={`Music ${Math.round((settings?.music_volume ?? DEFAULT_MUSIC_VOLUME) * 100)}%`}
               >
                 <span>Music</span>
                 <input
@@ -192,7 +196,10 @@ function App() {
                   min={0}
                   max={1}
                   step={0.05}
-                  value={settings?.music_volume ?? 1}
+                  value={settings?.music_volume ?? DEFAULT_MUSIC_VOLUME}
+                  onDoubleClick={() =>
+                    void changeMusicVolume(DEFAULT_MUSIC_VOLUME)
+                  }
                   onChange={(event) =>
                     void changeMusicVolume(Number(event.target.value))
                   }
@@ -200,7 +207,7 @@ function App() {
               </label>
               <label
                 className="volume"
-                title={`My notes ${Math.round((settings?.player_volume ?? 0.5) * 100)}%`}
+                title={`My notes ${Math.round((settings?.player_volume ?? DEFAULT_PLAYER_VOLUME) * 100)}%`}
               >
                 <span>Notes</span>
                 <input
@@ -208,7 +215,10 @@ function App() {
                   min={0}
                   max={1}
                   step={0.05}
-                  value={settings?.player_volume ?? 0.5}
+                  value={settings?.player_volume ?? DEFAULT_PLAYER_VOLUME}
+                  onDoubleClick={() =>
+                    void changePlayerVolume(DEFAULT_PLAYER_VOLUME)
+                  }
                   onChange={(event) =>
                     void changePlayerVolume(Number(event.target.value))
                   }

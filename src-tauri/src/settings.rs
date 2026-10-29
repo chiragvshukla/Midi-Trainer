@@ -81,7 +81,7 @@ impl Default for Settings {
             recent_files: Vec::new(),
             library_folders: Vec::new(),
             midi_device: None,
-            music_volume: 1.0,
+            music_volume: 0.8,
             player_volume: 0.5,
             output_volume: 1.0,
             tempo_percent: 100.0,
