@@ -262,14 +262,3 @@ export function canvasColors() {
     track6: read("--roll-track-6"),
   };
 }
-
-/** The sheet-music colours for the current theme, read from the CSS tokens. */
-export function scoreColors() {
-  const style = getComputedStyle(document.documentElement);
-  const read = (name: string) => style.getPropertyValue(name).trim();
-  return {
-    correct: read("--roll-correct"),
-    wrong: read("--roll-wrong"),
-    cursor: read("--roll-playhead"),
-  };
-}
