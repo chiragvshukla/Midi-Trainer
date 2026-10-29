@@ -16,7 +16,6 @@ import {
   type Base,
   type Chord,
   type Duration,
-  type Measure,
   type Score,
   type Voice,
   type VoiceEvent,
@@ -55,7 +54,52 @@ const COLORS = {
 
 const MEASURE_WIDTH = 340;
 const STAFF_GAP = 130;
-const SHEET_HEIGHT = 340;
+/** Vertical distance between one system's top and the next system's top. */
+const SYSTEM_HEIGHT = 230;
+/** Padding around the sheet, in SVG units. */
+const MARGIN = 12;
+
+/** VexFlow key names by fifths (index 0 = Cb, index 7 = C, index 14 = C#). */
+const MAJOR_KEYS = [
+  "Cb",
+  "Gb",
+  "Db",
+  "Ab",
+  "Eb",
+  "Bb",
+  "F",
+  "C",
+  "G",
+  "D",
+  "A",
+  "E",
+  "B",
+  "F#",
+  "C#",
+];
+const MINOR_KEYS = [
+  "Abm",
+  "Ebm",
+  "Bbm",
+  "Fm",
+  "Cm",
+  "Gm",
+  "Dm",
+  "Am",
+  "Em",
+  "Bm",
+  "F#m",
+  "C#m",
+  "G#m",
+  "D#m",
+  "A#m",
+];
+
+/** The VexFlow name for a key signature, e.g. 2 fifths -> "D". */
+function keyName(signature: { fifths: number; minor: boolean }): string {
+  const keys = signature.minor ? MINOR_KEYS : MAJOR_KEYS;
+  return keys[Math.min(14, Math.max(0, signature.fifths + 7))];
+}
 
 /** VexFlow key for a MIDI pitch, e.g. 60 -> "c/4". */
 function keyOf(pitch: number): string {
@@ -76,17 +120,20 @@ interface DrawnEvent {
 /** Where a measure sits on the rendered sheet, in SVG units. */
 interface MeasureRange {
   x: number;
+  y: number;
   width: number;
+  height: number;
   startMs: number;
   endMs: number;
 }
 
 /**
- * The sheet-music view: a thin renderer over the engine's score. It draws the measures in
- * one scrolling system, sweeps a cursor from the playback position, and colors notes by
- * their playback verdicts. Scroll position and zoom live in the DOM, so they survive
- * toggling between the two views. The whole sheet is redrawn when verdicts change; for
- * very long pieces this redraw is the cost center to optimize first.
+ * The sheet-music view: a thin renderer over the engine's score. Measures wrap into grand-
+ * staff systems that fit the window, each starting with clef, key and time signature. A
+ * cursor sweeps the score from the playback position, and notes are colored by their
+ * playback verdicts. Scroll position and zoom live in the DOM, so they survive toggling
+ * between the two views. The whole sheet is redrawn when verdicts change; for very long
+ * pieces this redraw is the cost center to optimize first.
  */
 export function ScoreView() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -96,7 +143,20 @@ export function ScoreView() {
   const piece = useSession((state) => state.piece);
   const verdicts = useSession((state) => state.verdicts);
   const [zoom, setZoom] = useState(1);
+  const [width, setWidth] = useState(0);
   const score = piece?.score;
+
+  // The measures-per-system wrap depends on how much width the window gives us.
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheet) {
+      return;
+    }
+    const observer = new ResizeObserver(() => setWidth(sheet.clientWidth));
+    observer.observe(sheet);
+    setWidth(sheet.clientWidth);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -108,8 +168,8 @@ export function ScoreView() {
     if (!score || score.measures.length === 0) {
       return;
     }
-    render(score, piece.duration_ms, verdicts, zoom, host, rangesRef);
-  }, [score, verdicts, zoom]);
+    render(score, piece.duration_ms, verdicts, zoom, width, host, rangesRef);
+  }, [score, verdicts, zoom, width]);
 
   useEffect(() => {
     let frame = 0;
@@ -164,21 +224,30 @@ function render(
   durationMs: number,
   verdicts: Record<string, string>,
   zoom: number,
+  viewWidth: number,
   host: HTMLDivElement,
   rangesRef: React.RefObject<MeasureRange[]>,
 ): void {
   const measures = score.measures;
-  const width = 10 + measures.length * MEASURE_WIDTH + 30;
+  // Layout is in SVG units; the context is scaled by zoom, so a CSS pixel of view width
+  // is 1/zoom SVG units.
+  const available = Math.max(MEASURE_WIDTH, viewWidth / zoom - 2 * MARGIN);
+  const perSystem = Math.max(1, Math.floor(available / MEASURE_WIDTH));
+  const systems = Math.ceil(measures.length / perSystem);
+  const sheetWidth =
+    2 * MARGIN + Math.min(perSystem, measures.length) * MEASURE_WIDTH;
+  const sheetHeight = 2 * MARGIN + Math.max(1, systems) * SYSTEM_HEIGHT;
+
   const renderer = new Renderer(host, Renderer.Backends.SVG);
-  renderer.resize(Math.ceil(width * zoom), SHEET_HEIGHT);
+  renderer.resize(Math.ceil(sheetWidth * zoom), Math.ceil(sheetHeight * zoom));
   const context = renderer.getContext();
   context.scale(zoom, zoom);
 
-  const signatureChanged = (measure: Measure, index: number): boolean =>
+  const signatureChanged = (index: number): boolean =>
     index > 0 &&
-    (measure.time_signature.numerator !==
+    (measures[index].time_signature.numerator !==
       measures[index - 1].time_signature.numerator ||
-      measure.time_signature.denominator !==
+      measures[index].time_signature.denominator !==
         measures[index - 1].time_signature.denominator);
 
   // (staff, measure, voice index) -> drawn events, so ties can cross measure boundaries.
@@ -186,15 +255,23 @@ function render(
   const ranges: MeasureRange[] = [];
 
   measures.forEach((measure, index) => {
-    const x = 10 + index * MEASURE_WIDTH;
+    const inSystem = index % perSystem;
+    const systemTop = MARGIN + Math.floor(index / perSystem) * SYSTEM_HEIGHT;
+    const x = MARGIN + inSystem * MEASURE_WIDTH;
     const innerWidth = MEASURE_WIDTH - 20;
-    const treble = new Stave(x, 10, innerWidth);
-    const bass = new Stave(x, 10 + STAFF_GAP, innerWidth);
-    if (index === 0) {
+    const treble = new Stave(x, systemTop, innerWidth);
+    const bass = new Stave(x, systemTop + STAFF_GAP, innerWidth);
+    const atSystemStart = inSystem === 0;
+    if (atSystemStart) {
       treble.addClef("treble");
       bass.addClef("bass");
+      if (score.key_signature) {
+        const key = keyName(score.key_signature);
+        treble.addKeySignature(key);
+        bass.addKeySignature(key);
+      }
     }
-    if (index === 0 || signatureChanged(measure, index)) {
+    if (atSystemStart || signatureChanged(index)) {
       const signature = `${measure.time_signature.numerator}/${measure.time_signature.denominator}`;
       treble.addTimeSignature(signature);
       bass.addTimeSignature(signature);
@@ -205,14 +282,18 @@ function render(
       .setType(StaveConnector.type.SINGLE_LEFT)
       .setContext(context)
       .draw();
-    new StaveConnector(treble, bass)
-      .setType(StaveConnector.type.BRACE)
-      .setContext(context)
-      .draw();
+    if (atSystemStart) {
+      new StaveConnector(treble, bass)
+        .setType(StaveConnector.type.BRACE)
+        .setContext(context)
+        .draw();
+    }
 
     ranges.push({
       x: treble.getX(),
+      y: systemTop,
       width: innerWidth,
+      height: SYSTEM_HEIGHT,
       startMs: measure.start_ms,
       endMs: measures[index + 1]?.start_ms ?? durationMs,
     });
@@ -383,7 +464,7 @@ function drawTies(
   }
 }
 
-/** Moves the cursor to the playback position and keeps the current measure in view. */
+/** Moves the cursor to the playback position and keeps the active system in view. */
 function moveCursor(
   positionMs: number,
   ranges: MeasureRange[],
@@ -408,12 +489,21 @@ function moveCursor(
     Math.max(0, (positionMs - active.startMs) / span),
   );
   const x = (active.x + progress * active.width) * zoom;
+  const top = active.y * zoom;
+  const height = active.height * zoom;
   cursor.style.left = `${x}px`;
+  cursor.style.top = `${top}px`;
+  cursor.style.height = `${height}px`;
   cursor.style.display = "block";
 
+  // Follow the active system vertically; only nudge sideways if it is off-screen.
+  const bottom = top + height;
+  if (top < sheet.scrollTop || bottom > sheet.scrollTop + sheet.clientHeight) {
+    sheet.scrollTop = Math.max(0, top - 20);
+  }
   const view = sheet.clientWidth;
   const target = x - view / 3;
-  if (Math.abs(sheet.scrollLeft - target) > view / 4) {
+  if (x < sheet.scrollLeft || x > sheet.scrollLeft + view) {
     sheet.scrollLeft = Math.max(0, target);
   }
 }
