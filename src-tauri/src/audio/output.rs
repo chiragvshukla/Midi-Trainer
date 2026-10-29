@@ -10,6 +10,7 @@ use crossbeam_queue::ArrayQueue;
 use super::AudioError;
 use super::event::{AudioCommand, PlaybackControl, ScheduledCommand};
 use super::synth::{SoundFontSynth, Synth};
+use super::{WRONG_NOTE_CHANNEL, WRONG_NOTE_PITCH, WRONG_NOTE_VELOCITY};
 
 /// Commands the callback can hold waiting at once.
 const COMMAND_CAPACITY: usize = 1024;
@@ -122,6 +123,16 @@ impl AudioEngine {
     /// Queues a command to play immediately, for live input. Dropped when the queue is full.
     pub fn send(&self, command: AudioCommand) {
         self.input_sink().send(command);
+    }
+
+    /// Sounds the distinct cue for a wrong note: a drum hit that stands apart from the piano the
+    /// player is hearing, so a mistake is audible without a note-off to clean up.
+    pub fn play_wrong_note(&self) {
+        self.send(AudioCommand::NoteOn {
+            channel: WRONG_NOTE_CHANNEL,
+            pitch: WRONG_NOTE_PITCH,
+            velocity: WRONG_NOTE_VELOCITY,
+        });
     }
 
     /// Replaces the piece being played and starts it from the beginning.
