@@ -503,6 +503,21 @@ body {
   background: var(--warn);
 }
 
+/* A lone start or end point, shown before a full region exists. */
+.timeline-point {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--early);
+}
+
+.timeline-point.end {
+  background: var(--accent);
+}
+
 .timeline-loop {
   display: flex;
   gap: 6px;

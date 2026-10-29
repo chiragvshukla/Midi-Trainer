@@ -66,7 +66,10 @@ export function TransportTimeline() {
                 wrappingRef.current = true;
                 void seekTo(loopStartMs ?? 0);
               }
-            } else if (position <= (loopStartMs ?? 0)) {
+            } else {
+              // Back inside the region: arm the next wrap. Testing against the start was
+              // unreliable — the engine reports a position just past it after the seek, so the
+              // guard latched and the loop only ever ran once.
               wrappingRef.current = false;
             }
           }
@@ -142,6 +145,18 @@ export function TransportTimeline() {
             }}
           />
         )}
+        {loopStartMs !== null && (
+          <div
+            className="timeline-point start"
+            style={{ left: `${ratio(loopStartMs, duration) * 100}%` }}
+          />
+        )}
+        {loopEndMs !== null && (
+          <div
+            className="timeline-point end"
+            style={{ left: `${ratio(loopEndMs, duration) * 100}%` }}
+          />
+        )}
         <div
           className="timeline-playhead"
           style={{ left: `${ratio(positionMs, duration) * 100}%` }}
@@ -150,7 +165,13 @@ export function TransportTimeline() {
       <span className="timeline-clock">{clock(duration)}</span>
       <div className="timeline-loop">
         <span className="timeline-loop-label">
-          {hasRegion ? `Loop ${clock(start)}–${clock(end)}` : "No loop"}
+          {hasRegion
+            ? `Loop ${clock(start)}–${clock(end)}`
+            : loopStartMs !== null
+              ? `Start ${clock(loopStartMs)}`
+              : loopEndMs !== null
+                ? `End ${clock(loopEndMs)}`
+                : "No loop"}
         </span>
         <button
           type="button"
