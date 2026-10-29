@@ -3,11 +3,13 @@ import { create } from "zustand";
 /** The chosen base brightness; `system` follows the operating system. */
 export type Theme = "dark" | "light" | "system";
 
-/** A named chrome treatment laid over the theme. */
-export type Look = "matte" | "atomic";
-
-/** The accent hue for lit controls. */
-export type Accent = "orange" | "teal" | "magenta" | "green";
+/**
+ * A fixed colour palette, each a well-known publishing with dark and light variants. The palette
+ * owns every chrome and note colour, so the whole app stays cohesive instead of mixing a hue
+ * into a background that is already tinted.
+ */
+export type Palette =
+  "slate" | "catppuccin" | "nord" | "solarized" | "gruvbox" | "tokyo";
 
 /** Where note names are drawn: on the keys, on the falling notes, both, or nowhere. */
 export type NoteLabels = "off" | "keys" | "notes" | "both";
@@ -24,9 +26,8 @@ export const TRACK_COLOR_COUNT = 6;
 /** The appearance the user has chosen; everything here is UI-only. */
 interface Appearance {
   theme: Theme;
-  look: Look;
-  accent: Accent;
-  /** Per-track overrides, index 0..5; an empty string means "use the theme's colour". */
+  palette: Palette;
+  /** Per-track overrides, index 0..5; an empty string means "use the palette's colour". */
   trackColors: string[];
   /** Whether the left navigation rail is collapsed to icons. */
   collapsed: boolean;
@@ -40,8 +41,7 @@ interface Appearance {
 
 const DEFAULTS: Appearance = {
   theme: "dark",
-  look: "matte",
-  accent: "orange",
+  palette: "slate",
   trackColors: Array<string>(TRACK_COLOR_COUNT).fill(""),
   collapsed: false,
   reducedMotion: false,
@@ -53,12 +53,14 @@ function isTheme(value: unknown): value is Theme {
   return value === "dark" || value === "light" || value === "system";
 }
 
-function isAccent(value: unknown): value is Accent {
+function isPalette(value: unknown): value is Palette {
   return (
-    value === "orange" ||
-    value === "teal" ||
-    value === "magenta" ||
-    value === "green"
+    value === "slate" ||
+    value === "catppuccin" ||
+    value === "nord" ||
+    value === "solarized" ||
+    value === "gruvbox" ||
+    value === "tokyo"
   );
 }
 
@@ -85,8 +87,7 @@ function read(): Appearance {
       const saved = JSON.parse(raw) as Partial<Appearance>;
       return {
         theme: isTheme(saved.theme) ? saved.theme : DEFAULTS.theme,
-        look: saved.look === "atomic" ? "atomic" : "matte",
-        accent: isAccent(saved.accent) ? saved.accent : DEFAULTS.accent,
+        palette: isPalette(saved.palette) ? saved.palette : DEFAULTS.palette,
         trackColors: Array.from({ length: TRACK_COLOR_COUNT }, (_, index) =>
           typeof saved.trackColors?.[index] === "string"
             ? saved.trackColors[index]
@@ -111,8 +112,7 @@ function read(): Appearance {
 function apply(state: Appearance): void {
   const root = document.documentElement;
   root.dataset.theme = resolvedTheme(state.theme);
-  root.dataset.look = state.look;
-  root.dataset.accent = state.accent;
+  root.dataset.palette = state.palette;
   if (state.reducedMotion) {
     root.dataset.motion = "reduced";
   } else {
@@ -136,7 +136,7 @@ function apply(state: Appearance): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
-    // A machine that forbids storage just forgets the choice; the look still applies.
+    // A machine that forbids storage just forgets the choice; the palette still applies.
   }
 }
 
@@ -146,8 +146,7 @@ interface AppearanceState extends Appearance {
   /** Bumped when the theme or a canvas colour changes, so the canvases redraw. */
   version: number;
   setTheme: (theme: Theme) => void;
-  setLook: (look: Look) => void;
-  setAccent: (accent: Accent) => void;
+  setPalette: (palette: Palette) => void;
   setTrackColor: (index: number, color: string) => void;
   resetTrackColors: () => void;
   setReducedMotion: (on: boolean) => void;
@@ -178,8 +177,7 @@ export const useAppearance = create<AppearanceState>((set) => ({
   resolved: resolvedTheme(initial.theme),
   version: 0,
   setTheme: (theme) => set((state) => advance(state, { theme })),
-  setLook: (look) => set((state) => advance(state, { look })),
-  setAccent: (accent) => set((state) => advance(state, { accent })),
+  setPalette: (palette) => set((state) => advance(state, { palette })),
   setTrackColor: (index, color) =>
     set((state) => {
       const trackColors = [...state.trackColors];

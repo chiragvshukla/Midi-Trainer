@@ -1,46 +1,46 @@
-/* Design tokens: one place for colour, spacing and shape. The dark theme is the default;
-   [data-theme="light"] overrides the colours. The falling-note canvas reads the --roll-*
+/* Design tokens: one place for colour, spacing and shape. Each colour palette is a fixed,
+   published set of hues (Slate is the neutral default); a palette block sets the core and
+   falling-note colours for both dark and light. The falling-note canvas reads the --roll-*
    tokens at runtime (see lib/theme.ts), since a canvas cannot read CSS variables itself. */
 :root {
   color-scheme: dark;
-  --bg: #17110b;
-  --surface: #211912;
-  --surface-2: #2e2218;
-  --surface-3: #40301f;
-  --border: #55402a;
-  --border-subtle: #362818;
-  --text: #f4e8d4;
-  --muted: #c8ad8c;
-  --faint: #9c8465;
-  --accent: #ff7a1a;
-  --accent-hover: #ff9a4d;
+  /* Slate (default) — neutral cool grey. */
+  --bg: #0f1117;
+  --surface: #161922;
+  --surface-2: #1e2230;
+  --surface-3: #2a3040;
+  --border: #333a4d;
+  --border-subtle: #232838;
+  --text: #e6e9f0;
+  --muted: #a3aec4;
+  --faint: #6f7a91;
+  --accent: #5b8dee;
+  --accent-hover: #7aa6f5;
+  --on-accent: #0b0e14;
   --ok: #46b98a;
-  --warn: #ffb454;
-  --bad: #e5524f;
-  --early: #37c6b6;
-  --lyric-sung: #ffd27a;
-  --radius: 8px;
-  --radius-sm: 6px;
-  --shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --warn: #e0a94a;
+  --bad: #e5646b;
+  --early: #38b2ac;
+  --lyric-sung: #f0c674;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  /* Retro-futuristic voice: a geometric display face for chrome, mono for readouts. */
   --font-display:
     "Bahnschrift", "Franklin Gothic Medium", "Segoe UI", system-ui, sans-serif;
   --font-mono:
     ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
-  /* Chrome accents: glow around lit controls, top-edge sheen on panels, backdrop grid. */
-  --glow: rgba(255, 122, 26, 0.45);
-  --panel-hi: rgba(255, 226, 184, 0.07);
-  --grid-line: rgba(255, 200, 140, 0.05);
+  --panel-hi: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(255, 255, 255, 0.035);
 
   /* Falling-note canvas colours, mirrored at runtime by lib/theme.ts. */
-  --roll-bg: #120d08;
-  --roll-lane: rgba(255, 210, 150, 0.045);
-  --roll-grid: rgba(255, 210, 150, 0.09);
-  --roll-label: #1a1206;
-  --roll-note: #64b5f6;
-  --roll-left: #26a69a;
-  --roll-right: #ab47bc;
+  --roll-bg: #0b0d13;
+  --roll-lane: rgba(255, 255, 255, 0.035);
+  --roll-grid: rgba(255, 255, 255, 0.07);
+  --roll-label: #0b0e14;
+  --roll-note: #5b8dee;
+  --roll-left: #38b2ac;
+  --roll-right: #b07de0;
   --roll-correct: #43a047;
   --roll-wrong: #e53935;
   --roll-sounding-key: #4fc3f7;
@@ -49,45 +49,46 @@
   --roll-white-key: #fafafa;
   --roll-black-key: #222222;
   --roll-key-border: #cccccc;
-  --roll-playhead: #ff9800;
-  --roll-track-1: #ff8a3d;
-  --roll-track-2: #2ec4b6;
-  --roll-track-3: #ffd166;
-  --roll-track-4: #e5486b;
-  --roll-track-5: #9b8cff;
-  --roll-track-6: #4fb0ff;
+  --roll-playhead: #5b8dee;
+  --roll-track-1: #5b8dee;
+  --roll-track-2: #38b2ac;
+  --roll-track-3: #e0a94a;
+  --roll-track-4: #e5646b;
+  --roll-track-5: #b07de0;
+  --roll-track-6: #5fb3a1;
 }
 
 [data-theme="light"] {
   color-scheme: light;
-  --bg: #f6efe3;
-  --surface: #fbf5ea;
-  --surface-2: #f0e2cd;
-  --surface-3: #e6d2b6;
-  --border: #d8c2a2;
-  --border-subtle: #e9dac2;
-  --text: #3b2a18;
-  --muted: #6d5433;
-  --faint: #8d7553;
-  --accent: #d9601a;
-  --accent-hover: #ef7a34;
+  /* Slate (default), light. */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --surface-3: #e2e7ee;
+  --border: #cfd6e0;
+  --border-subtle: #e4e8ee;
+  --text: #1b2230;
+  --muted: #5a6577;
+  --faint: #8b95a7;
+  --accent: #3b6fd4;
+  --accent-hover: #2f5cb0;
+  --on-accent: #ffffff;
   --ok: #1f7a58;
-  --warn: #c97a00;
+  --warn: #b0761a;
   --bad: #c0392b;
   --early: #1f9d92;
   --lyric-sung: #a35a00;
-  --shadow: 0 14px 30px rgba(90, 60, 20, 0.2);
-  --glow: rgba(217, 96, 26, 0.32);
+  --shadow: 0 12px 26px rgba(30, 40, 60, 0.16);
   --panel-hi: rgba(255, 255, 255, 0.6);
-  --grid-line: rgba(120, 80, 30, 0.07);
+  --grid-line: rgba(30, 40, 60, 0.05);
 
-  --roll-bg: #efe6d5;
-  --roll-lane: rgba(90, 60, 25, 0.05);
-  --roll-grid: rgba(90, 60, 25, 0.12);
-  --roll-label: #fbf5ea;
-  --roll-note: #3f7fd0;
-  --roll-left: #00897b;
-  --roll-right: #8e24aa;
+  --roll-bg: #eef1f5;
+  --roll-lane: rgba(30, 40, 60, 0.04);
+  --roll-grid: rgba(30, 40, 60, 0.09);
+  --roll-label: #ffffff;
+  --roll-note: #3b6fd4;
+  --roll-left: #0f8f84;
+  --roll-right: #8e5bd0;
   --roll-correct: #2e7d32;
   --roll-wrong: #c62828;
   --roll-sounding-key: #29b6f6;
@@ -96,13 +97,378 @@
   --roll-white-key: #ffffff;
   --roll-black-key: #333333;
   --roll-key-border: #b9bec7;
-  --roll-playhead: #ef6c00;
-  --roll-track-1: #d9601a;
-  --roll-track-2: #1f9d92;
-  --roll-track-3: #b8860b;
-  --roll-track-4: #c2185b;
-  --roll-track-5: #5e35b1;
-  --roll-track-6: #1976d2;
+  --roll-playhead: #3b6fd4;
+  --roll-track-1: #3b6fd4;
+  --roll-track-2: #0f8f84;
+  --roll-track-3: #b0761a;
+  --roll-track-4: #c0392b;
+  --roll-track-5: #8e5bd0;
+  --roll-track-6: #2e8b74;
+}
+
+/* Catppuccin — Mocha (dark) / Latte (light); https://catppuccin.com */
+[data-palette="catppuccin"] {
+  --bg: #1e1e2e;
+  --surface: #181825;
+  --surface-2: #313244;
+  --surface-3: #45475a;
+  --border: #585b70;
+  --border-subtle: #313244;
+  --text: #cdd6f4;
+  --muted: #a6adc8;
+  --faint: #7f849c;
+  --accent: #cba6f7;
+  --accent-hover: #d7b8ff;
+  --on-accent: #1e1e2e;
+  --ok: #a6e3a1;
+  --warn: #f9e2af;
+  --bad: #f38ba8;
+  --early: #94e2d5;
+  --lyric-sung: #fab387;
+  --panel-hi: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(205, 214, 244, 0.06);
+  --roll-bg: #11111b;
+  --roll-lane: rgba(205, 214, 244, 0.04);
+  --roll-grid: rgba(205, 214, 244, 0.09);
+  --roll-label: #1e1e2e;
+  --roll-note: #cba6f7;
+  --roll-left: #94e2d5;
+  --roll-right: #f5c2e7;
+  --roll-playhead: #cba6f7;
+  --roll-track-1: #89b4fa;
+  --roll-track-2: #a6e3a1;
+  --roll-track-3: #f9e2af;
+  --roll-track-4: #f38ba8;
+  --roll-track-5: #cba6f7;
+  --roll-track-6: #fab387;
+}
+
+[data-palette="catppuccin"][data-theme="light"] {
+  --bg: #eff1f5;
+  --surface: #e6e9ef;
+  --surface-2: #ccd0da;
+  --surface-3: #bcc0cc;
+  --border: #acb0be;
+  --border-subtle: #dce0e8;
+  --text: #4c4f69;
+  --muted: #6c6f85;
+  --faint: #8c8fa1;
+  --accent: #8839ef;
+  --accent-hover: #9a54f2;
+  --on-accent: #eff1f5;
+  --ok: #40a02b;
+  --warn: #df8e1d;
+  --bad: #d20f39;
+  --early: #179299;
+  --lyric-sung: #fe640b;
+  --panel-hi: rgba(255, 255, 255, 0.6);
+  --grid-line: rgba(76, 79, 105, 0.05);
+  --roll-bg: #e6e9ef;
+  --roll-lane: rgba(76, 79, 105, 0.04);
+  --roll-grid: rgba(76, 79, 105, 0.09);
+  --roll-label: #eff1f5;
+  --roll-note: #8839ef;
+  --roll-left: #179299;
+  --roll-right: #ea76cb;
+  --roll-playhead: #8839ef;
+  --roll-track-1: #1e66f5;
+  --roll-track-2: #40a02b;
+  --roll-track-3: #df8e1d;
+  --roll-track-4: #d20f39;
+  --roll-track-5: #8839ef;
+  --roll-track-6: #fe640b;
+}
+
+/* Nord — Polar Night (dark) / Snow Storm (light); https://www.nordtheme.com */
+[data-palette="nord"] {
+  --bg: #2e3440;
+  --surface: #3b4252;
+  --surface-2: #434c5e;
+  --surface-3: #4c566a;
+  --border: #4c566a;
+  --border-subtle: #3b4252;
+  --text: #eceff4;
+  --muted: #d8dee9;
+  --faint: #7b88a1;
+  --accent: #88c0d0;
+  --accent-hover: #9ed0dd;
+  --on-accent: #2e3440;
+  --ok: #a3be8c;
+  --warn: #ebcb8b;
+  --bad: #bf616a;
+  --early: #8fbcbb;
+  --lyric-sung: #d08770;
+  --panel-hi: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(216, 222, 233, 0.05);
+  --roll-bg: #292e39;
+  --roll-lane: rgba(216, 222, 233, 0.04);
+  --roll-grid: rgba(216, 222, 233, 0.08);
+  --roll-label: #2e3440;
+  --roll-note: #88c0d0;
+  --roll-left: #8fbcbb;
+  --roll-right: #b48ead;
+  --roll-playhead: #88c0d0;
+  --roll-track-1: #88c0d0;
+  --roll-track-2: #a3be8c;
+  --roll-track-3: #ebcb8b;
+  --roll-track-4: #bf616a;
+  --roll-track-5: #b48ead;
+  --roll-track-6: #d08770;
+}
+
+[data-palette="nord"][data-theme="light"] {
+  --bg: #eceff4;
+  --surface: #e5e9f0;
+  --surface-2: #d8dee9;
+  --surface-3: #c8cedb;
+  --border: #b8c0d0;
+  --border-subtle: #d8dee9;
+  --text: #2e3440;
+  --muted: #4c566a;
+  --faint: #7b88a1;
+  --accent: #5e81ac;
+  --accent-hover: #4c6f99;
+  --on-accent: #eceff4;
+  --ok: #4f7a3a;
+  --warn: #a67c00;
+  --bad: #b04049;
+  --early: #3f8f8c;
+  --lyric-sung: #b06a34;
+  --panel-hi: rgba(255, 255, 255, 0.6);
+  --grid-line: rgba(46, 52, 64, 0.05);
+  --roll-bg: #e5e9f0;
+  --roll-lane: rgba(46, 52, 64, 0.04);
+  --roll-grid: rgba(46, 52, 64, 0.09);
+  --roll-label: #e5e9f0;
+  --roll-note: #5e81ac;
+  --roll-left: #3f8f8c;
+  --roll-right: #8f6fa8;
+  --roll-playhead: #5e81ac;
+  --roll-track-1: #5e81ac;
+  --roll-track-2: #4f7a3a;
+  --roll-track-3: #a67c00;
+  --roll-track-4: #b04049;
+  --roll-track-5: #8f6fa8;
+  --roll-track-6: #b06a34;
+}
+
+/* Solarized — by Ethan Schoonover; https://ethanschoonover.com/solarized */
+[data-palette="solarized"] {
+  --bg: #002b36;
+  --surface: #073642;
+  --surface-2: #0d4754;
+  --surface-3: #15505f;
+  --border: #1c5b6b;
+  --border-subtle: #073642;
+  --text: #93a1a1;
+  --muted: #839496;
+  --faint: #657b83;
+  --accent: #268bd2;
+  --accent-hover: #3fa0e0;
+  --on-accent: #002b36;
+  --ok: #859900;
+  --warn: #b58900;
+  --bad: #dc322f;
+  --early: #2aa198;
+  --lyric-sung: #cb4b16;
+  --panel-hi: rgba(255, 255, 255, 0.05);
+  --grid-line: rgba(147, 161, 161, 0.06);
+  --roll-bg: #00252e;
+  --roll-lane: rgba(147, 161, 161, 0.04);
+  --roll-grid: rgba(147, 161, 161, 0.09);
+  --roll-label: #002b36;
+  --roll-note: #268bd2;
+  --roll-left: #2aa198;
+  --roll-right: #6c71c4;
+  --roll-playhead: #268bd2;
+  --roll-track-1: #268bd2;
+  --roll-track-2: #859900;
+  --roll-track-3: #b58900;
+  --roll-track-4: #dc322f;
+  --roll-track-5: #6c71c4;
+  --roll-track-6: #cb4b16;
+}
+
+[data-palette="solarized"][data-theme="light"] {
+  --bg: #fdf6e3;
+  --surface: #eee8d5;
+  --surface-2: #e4ddc8;
+  --surface-3: #d6cfb8;
+  --border: #c4bda6;
+  --border-subtle: #e4ddc8;
+  --text: #586e75;
+  --muted: #657b83;
+  --faint: #839496;
+  --accent: #268bd2;
+  --accent-hover: #1f74af;
+  --on-accent: #fdf6e3;
+  --ok: #6f7f00;
+  --warn: #8a6d00;
+  --bad: #b02a27;
+  --early: #1f8a82;
+  --lyric-sung: #b0400f;
+  --panel-hi: rgba(255, 255, 255, 0.6);
+  --grid-line: rgba(88, 110, 117, 0.05);
+  --roll-bg: #f5efdc;
+  --roll-lane: rgba(88, 110, 117, 0.04);
+  --roll-grid: rgba(88, 110, 117, 0.09);
+  --roll-label: #fdf6e3;
+  --roll-note: #268bd2;
+  --roll-left: #1f8a82;
+  --roll-right: #6c71c4;
+  --roll-playhead: #268bd2;
+  --roll-track-1: #268bd2;
+  --roll-track-2: #6f7f00;
+  --roll-track-3: #8a6d00;
+  --roll-track-4: #b02a27;
+  --roll-track-5: #6c71c4;
+  --roll-track-6: #b0400f;
+}
+
+/* Gruvbox — by morhetz; https://github.com/morhetz/gruvbox */
+[data-palette="gruvbox"] {
+  --bg: #1d2021;
+  --surface: #282828;
+  --surface-2: #3c3836;
+  --surface-3: #504945;
+  --border: #665c54;
+  --border-subtle: #3c3836;
+  --text: #ebdbb2;
+  --muted: #bdae93;
+  --faint: #a89984;
+  --accent: #fe8019;
+  --accent-hover: #ffa057;
+  --on-accent: #282828;
+  --ok: #b8bb26;
+  --warn: #fabd2f;
+  --bad: #fb4934;
+  --early: #8ec07c;
+  --lyric-sung: #fabd2f;
+  --panel-hi: rgba(255, 255, 255, 0.05);
+  --grid-line: rgba(235, 219, 178, 0.05);
+  --roll-bg: #1d2021;
+  --roll-lane: rgba(235, 219, 178, 0.04);
+  --roll-grid: rgba(235, 219, 178, 0.09);
+  --roll-label: #282828;
+  --roll-note: #83a598;
+  --roll-left: #8ec07c;
+  --roll-right: #d3869b;
+  --roll-playhead: #fe8019;
+  --roll-track-1: #83a598;
+  --roll-track-2: #b8bb26;
+  --roll-track-3: #fabd2f;
+  --roll-track-4: #fb4934;
+  --roll-track-5: #d3869b;
+  --roll-track-6: #8ec07c;
+}
+
+[data-palette="gruvbox"][data-theme="light"] {
+  --bg: #fbf1c7;
+  --surface: #f2e5bc;
+  --surface-2: #ebdbb2;
+  --surface-3: #d5c4a1;
+  --border: #bdae93;
+  --border-subtle: #ebdbb2;
+  --text: #3c3836;
+  --muted: #504945;
+  --faint: #7c6f64;
+  --accent: #af3a03;
+  --accent-hover: #d65d0e;
+  --on-accent: #fbf1c7;
+  --ok: #79740e;
+  --warn: #b57614;
+  --bad: #9d0006;
+  --early: #427b58;
+  --lyric-sung: #b57614;
+  --panel-hi: rgba(255, 255, 255, 0.6);
+  --grid-line: rgba(60, 56, 54, 0.05);
+  --roll-bg: #f2e5bc;
+  --roll-lane: rgba(60, 56, 54, 0.04);
+  --roll-grid: rgba(60, 56, 54, 0.09);
+  --roll-label: #fbf1c7;
+  --roll-note: #076678;
+  --roll-left: #427b58;
+  --roll-right: #8f3f71;
+  --roll-playhead: #af3a03;
+  --roll-track-1: #076678;
+  --roll-track-2: #79740e;
+  --roll-track-3: #b57614;
+  --roll-track-4: #9d0006;
+  --roll-track-5: #8f3f71;
+  --roll-track-6: #427b58;
+}
+
+/* Tokyo Night — by enkia; https://github.com/enkia/tokyo-night-vscode-theme */
+[data-palette="tokyo"] {
+  --bg: #1a1b26;
+  --surface: #1f2335;
+  --surface-2: #24283b;
+  --surface-3: #292e42;
+  --border: #3b4261;
+  --border-subtle: #292e42;
+  --text: #c0caf5;
+  --muted: #a9b1d6;
+  --faint: #565f89;
+  --accent: #7aa2f7;
+  --accent-hover: #94b3ff;
+  --on-accent: #1a1b26;
+  --ok: #9ece6a;
+  --warn: #e0af68;
+  --bad: #f7768e;
+  --early: #7dcfff;
+  --lyric-sung: #ff9e64;
+  --panel-hi: rgba(255, 255, 255, 0.05);
+  --grid-line: rgba(192, 202, 245, 0.05);
+  --roll-bg: #16161e;
+  --roll-lane: rgba(192, 202, 245, 0.035);
+  --roll-grid: rgba(192, 202, 245, 0.08);
+  --roll-label: #1a1b26;
+  --roll-note: #7aa2f7;
+  --roll-left: #7dcfff;
+  --roll-right: #bb9af7;
+  --roll-playhead: #7aa2f7;
+  --roll-track-1: #7aa2f7;
+  --roll-track-2: #9ece6a;
+  --roll-track-3: #e0af68;
+  --roll-track-4: #f7768e;
+  --roll-track-5: #bb9af7;
+  --roll-track-6: #ff9e64;
+}
+
+[data-palette="tokyo"][data-theme="light"] {
+  --bg: #e1e2e7;
+  --surface: #d0d5e3;
+  --surface-2: #c4c8da;
+  --surface-3: #b7bcd0;
+  --border: #9aa0b8;
+  --border-subtle: #ccd0da;
+  --text: #343b58;
+  --muted: #6172b0;
+  --faint: #8a94b5;
+  --accent: #2e7de9;
+  --accent-hover: #1f66cc;
+  --on-accent: #e1e2e7;
+  --ok: #587539;
+  --warn: #8c6c3e;
+  --bad: #c4214f;
+  --early: #007197;
+  --lyric-sung: #b15c00;
+  --panel-hi: rgba(255, 255, 255, 0.6);
+  --grid-line: rgba(52, 59, 88, 0.05);
+  --roll-bg: #d0d5e3;
+  --roll-lane: rgba(52, 59, 88, 0.04);
+  --roll-grid: rgba(52, 59, 88, 0.09);
+  --roll-label: #e1e2e7;
+  --roll-note: #2e7de9;
+  --roll-left: #007197;
+  --roll-right: #9854f1;
+  --roll-playhead: #2e7de9;
+  --roll-track-1: #2e7de9;
+  --roll-track-2: #587539;
+  --roll-track-3: #8c6c3e;
+  --roll-track-4: #c4214f;
+  --roll-track-5: #9854f1;
+  --roll-track-6: #b15c00;
 }
 
 * {
@@ -1027,49 +1393,12 @@ body {
   color: var(--faint);
 }
 
-/* --- Look, accent and chrome ---
-   `matte` (the default) is flat and minimal; `atomic` re-adds the lit retro
-   treatment. The look tokens set the difference, so the component rules below
-   never branch on the look. Accent blocks set the hue and match the glow to it. */
+/* --- Chrome ---
+   One flat treatment for every palette: fills come straight from the surface tokens, with no
+   sheen, bevel or neon glow, so the look is the palette's own colours and nothing else. */
 
 :root {
-  --chrome-sheen: linear-gradient(180deg, var(--panel-hi), transparent 40%);
-  --chrome-raised: linear-gradient(180deg, var(--surface-3), var(--surface-2));
-  --chrome-nav-active: linear-gradient(
-    90deg,
-    var(--surface-3),
-    var(--surface-2)
-  );
-  --chrome-toggle-active: linear-gradient(
-    180deg,
-    var(--surface-3),
-    var(--surface-2)
-  );
-  --chrome-primary: linear-gradient(180deg, var(--accent-hover), var(--accent));
-  --chrome-primary-hover: linear-gradient(180deg, #ffb066, var(--accent-hover));
-  --chrome-track: linear-gradient(var(--surface-3), var(--surface-2));
-  --chrome-thumb: radial-gradient(circle at 35% 30%, #fff6e8, var(--accent));
-  --chrome-thumb-radius: 50%;
-  --chrome-text-glow: 0 0 12px var(--glow);
-  --chrome-rail: var(--accent);
-  --shadow-control: inset 0 1px 0 var(--panel-hi);
-  --shadow-control-hover: inset 0 1px 0 var(--panel-hi), 0 0 12px var(--glow);
-  --shadow-nav-active:
-    inset 3px 0 0 var(--accent), inset 0 1px 0 var(--panel-hi);
-  --shadow-toggle-active: inset 0 1px 0 var(--panel-hi), 0 0 8px var(--glow);
-  --shadow-primary:
-    inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 14px var(--glow);
-  --shadow-inset: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-thumb: 0 0 8px var(--glow);
-  --shadow-rail: inset 0 1px 0 var(--panel-hi);
-  --chrome-toggle-inset: inset 0 1px 3px rgba(0, 0, 0, 0.45);
-  --chrome-panel-shadow: var(--shadow), inset 0 1px 0 var(--panel-hi);
-}
-
-/* Matte: flat fills, thin borders, squarer corners, no glow. */
-[data-look="matte"] {
-  --radius: 5px;
-  --radius-sm: 4px;
+  --glow: color-mix(in srgb, var(--accent) 40%, transparent);
   --chrome-sheen: none;
   --chrome-raised: var(--surface-2);
   --chrome-nav-active: var(--surface-2);
@@ -1091,43 +1420,6 @@ body {
   --shadow-rail: none;
   --chrome-toggle-inset: none;
   --chrome-panel-shadow: var(--shadow);
-}
-
-/* Accent hues. Orange is the theme default, so it needs no block. */
-[data-accent="teal"] {
-  --accent: #2ec4b6;
-  --accent-hover: #57d8cc;
-  --glow: color-mix(in srgb, #2ec4b6 45%, transparent);
-}
-
-[data-accent="magenta"] {
-  --accent: #ff3ea5;
-  --accent-hover: #ff6cbb;
-  --glow: color-mix(in srgb, #ff3ea5 45%, transparent);
-}
-
-[data-accent="green"] {
-  --accent: #3ddc84;
-  --accent-hover: #64e69f;
-  --glow: color-mix(in srgb, #3ddc84 45%, transparent);
-}
-
-[data-theme="light"][data-accent="teal"] {
-  --accent: #0f8f84;
-  --accent-hover: #14a89b;
-  --glow: color-mix(in srgb, #0f8f84 32%, transparent);
-}
-
-[data-theme="light"][data-accent="magenta"] {
-  --accent: #c2185b;
-  --accent-hover: #d81b60;
-  --glow: color-mix(in srgb, #c2185b 30%, transparent);
-}
-
-[data-theme="light"][data-accent="green"] {
-  --accent: #1f8a4c;
-  --accent-hover: #26a35b;
-  --glow: color-mix(in srgb, #1f8a4c 30%, transparent);
 }
 
 /* Display voice: geometric capitals with wide tracking. */
@@ -1210,7 +1502,7 @@ body {
 
 .btn.primary {
   background: var(--chrome-primary);
-  color: #1b0f04;
+  color: var(--on-accent);
   font-weight: 700;
   box-shadow: var(--shadow-primary);
 }
@@ -1322,24 +1614,6 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* --- Appearance controls --- */
-
-.swatches {
-  display: flex;
-  gap: 8px;
-}
-
-.swatch {
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 2px solid var(--border);
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.swatch.selected {
-  border-color: var(--text);
-}
 
 .color-grid {
   display: grid;

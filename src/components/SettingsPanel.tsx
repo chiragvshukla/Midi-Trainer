@@ -2,21 +2,22 @@ import { useSession } from "../state/sessionStore";
 import {
   canvasColors,
   useAppearance,
-  type Accent,
-  type Look,
   type NoteLabels,
+  type Palette,
   type Theme,
 } from "../lib/theme";
 import { InfoHint } from "./InfoHint";
 import { trackName } from "./TrackMenu";
 import type { Hand, Skill } from "../lib/api";
 
-/** The accent hues offered in Appearance. */
-const ACCENTS: { id: Accent; label: string; color: string }[] = [
-  { id: "orange", label: "Orange", color: "#ff7a1a" },
-  { id: "teal", label: "Teal", color: "#2ec4b6" },
-  { id: "magenta", label: "Magenta", color: "#ff3ea5" },
-  { id: "green", label: "Green", color: "#3ddc84" },
+/** The fixed colour palettes offered in Appearance, in the order shown. */
+const PALETTES: { id: Palette; label: string }[] = [
+  { id: "slate", label: "Slate (neutral)" },
+  { id: "catppuccin", label: "Catppuccin" },
+  { id: "nord", label: "Nord" },
+  { id: "solarized", label: "Solarized" },
+  { id: "gruvbox", label: "Gruvbox" },
+  { id: "tokyo", label: "Tokyo Night" },
 ];
 
 /**
@@ -42,12 +43,10 @@ export function SettingsPanel({
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
   const theme = useAppearance((state) => state.theme);
-  const look = useAppearance((state) => state.look);
-  const accent = useAppearance((state) => state.accent);
+  const palette = useAppearance((state) => state.palette);
   const trackColors = useAppearance((state) => state.trackColors);
   const setTheme = useAppearance((state) => state.setTheme);
-  const setLook = useAppearance((state) => state.setLook);
-  const setAccent = useAppearance((state) => state.setAccent);
+  const setPalette = useAppearance((state) => state.setPalette);
   const setTrackColor = useAppearance((state) => state.setTrackColor);
   const resetTrackColors = useAppearance((state) => state.resetTrackColors);
   const reducedMotion = useAppearance((state) => state.reducedMotion);
@@ -111,34 +110,18 @@ export function SettingsPanel({
               </select>
             </label>
             <label className="field">
-              <span>Look</span>
+              <span>Palette</span>
               <select
-                value={look}
-                onChange={(event) => setLook(event.target.value as Look)}
+                value={palette}
+                onChange={(event) => setPalette(event.target.value as Palette)}
               >
-                <option value="matte">Matte</option>
-                <option value="atomic">Atomic</option>
+                {PALETTES.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </label>
-            <div className="field">
-              <span>Accent</span>
-              <div className="swatches">
-                {ACCENTS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className={
-                      accent === option.id ? "swatch selected" : "swatch"
-                    }
-                    style={{ background: option.color }}
-                    aria-label={option.label}
-                    aria-pressed={accent === option.id}
-                    title={option.label}
-                    onClick={() => setAccent(option.id)}
-                  />
-                ))}
-              </div>
-            </div>
             <div className="field">
               <span>Note names</span>
               <select
