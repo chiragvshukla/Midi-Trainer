@@ -36,6 +36,11 @@ const FOLLOW_TOLERANCE_MS: f64 = 250.0;
 /// The MIDI controller for channel volume, the SoundFont synth's per-source gain.
 const VOLUME_CONTROLLER: u8 = 7;
 
+/// Master make-up gain applied after synthesis, on top of the Output slider. rustysynth renders
+/// most SoundFonts well below full scale, so this brings the app up to a usable level; samples
+/// are clamped afterwards so a loud moment distorts rather than overflows.
+const OUTPUT_MAKEUP_GAIN: f32 = 4.0;
+
 /// A request to load a SoundFont into the thread that owns the audio stream.
 struct AudioRequest {
     path: PathBuf,
@@ -199,6 +204,11 @@ impl AudioEngine {
         self.control(PlaybackControl::SetPlayerVolume(gain));
     }
 
+    /// Sets the master output volume, as a linear gain, 0.0 to 1.0, applied to the whole mix.
+    pub fn set_output_volume(&self, gain: f32) {
+        self.control(PlaybackControl::SetOutputVolume(gain));
+    }
+
     /// Sets one track's channel volume, as a linear gain, 0.0 to 1.0.
     pub fn set_track_volume(&self, channel: u8, gain: f32) {
         self.control(PlaybackControl::SetTrackVolume { channel, gain });
@@ -324,6 +334,8 @@ struct ScorePlayback {
     music_volume: f32,
     /// Volume of the player's notes, as a linear gain.
     player_volume: f32,
+    /// Master output volume, as a linear gain, applied to the whole mix.
+    output_volume: f32,
     /// Per-channel gain for the piece's tracks, on top of the music gain.
     track_volumes: [f32; 16],
     playing: bool,
@@ -345,6 +357,7 @@ impl Default for ScorePlayback {
             transpose: 0,
             music_volume: 1.0,
             player_volume: 1.0,
+            output_volume: 1.0,
             track_volumes: [1.0; 16],
             playing: false,
             follow: false,
@@ -487,6 +500,9 @@ impl<S: Synth> Renderer<S> {
                 self.playback.player_volume = gain.clamp(0.0, 1.0);
                 self.apply_mix();
             }
+            PlaybackControl::SetOutputVolume(gain) => {
+                self.playback.output_volume = gain.clamp(0.0, 1.0);
+            }
             PlaybackControl::SetTrackVolume { channel, gain } => {
                 if let Some(slot) = self.playback.track_volumes.get_mut(usize::from(channel)) {
                     *slot = gain.clamp(0.0, 1.0);
@@ -586,9 +602,18 @@ impl<S: Synth> Renderer<S> {
     }
 
     fn render_segment(&mut self, data: &mut [f32], offset: usize, count: usize) {
-        let left = &mut self.left[..count];
-        let right = &mut self.right[..count];
-        self.synth.render(left, right);
+        // rustysynth renders most SoundFonts well below full scale, so the mix takes a make-up
+        // gain scaled by the Output slider, then a clamp so a loud moment distorts rather than
+        // overflows.
+        let gain = self.playback.output_volume * OUTPUT_MAKEUP_GAIN;
+        {
+            let left = &mut self.left[..count];
+            let right = &mut self.right[..count];
+            self.synth.render(left, right);
+            for sample in left.iter_mut().chain(right.iter_mut()) {
+                *sample = (*sample * gain).clamp(-1.0, 1.0);
+            }
+        }
         let start = offset * self.channels;
         let end = start + count * self.channels;
         write_frames(
@@ -653,7 +678,10 @@ fn device_error(error: impl std::fmt::Display) -> AudioError {
 
 #[cfg(test)]
 mod tests {
-    use super::{MAX_BLOCK_FRAMES, Renderer, ScorePlayback, cc7, shift, transposed, write_frames};
+    use super::{
+        MAX_BLOCK_FRAMES, OUTPUT_MAKEUP_GAIN, Renderer, ScorePlayback, cc7, shift, transposed,
+        write_frames,
+    };
     use crate::audio::Gate;
     use crate::audio::PLAYER_CHANNEL;
     use crate::audio::event::{AudioCommand, PlaybackControl, PlayedNote, ScheduledCommand};
@@ -967,6 +995,45 @@ mod tests {
         // Channel 3 takes its own gain; an untouched channel keeps the full music gain.
         assert!(renderer.synth.events.contains(&(0, cc(3, 64))));
         assert!(renderer.synth.events.contains(&(0, cc(0, 127))));
+    }
+
+    #[test]
+    fn output_gain_scales_and_clamps_the_mix() {
+        // A synth returning a constant, so the master stage is easy to read.
+        struct ConstSynth;
+        impl Synth for ConstSynth {
+            fn apply(&mut self, _command: AudioCommand) {}
+            fn render(&mut self, left: &mut [f32], right: &mut [f32]) {
+                left.fill(0.5);
+                right.fill(0.5);
+            }
+        }
+
+        let mut renderer = Renderer {
+            synth: ConstSynth,
+            commands: Arc::new(ArrayQueue::new(16)),
+            played: Arc::new(ArrayQueue::new(16)),
+            control: Arc::new(ArrayQueue::new(16)),
+            position: Arc::new(AtomicU64::new(0)),
+            channels: 2,
+            sample_rate: 1000,
+            playback: ScorePlayback {
+                output_volume: 0.25,
+                ..ScorePlayback::default()
+            },
+            left: vec![0.0; MAX_BLOCK_FRAMES],
+            right: vec![0.0; MAX_BLOCK_FRAMES],
+        };
+
+        // A quarter of the output gain scales the quiet sample, away from the rail.
+        let mut data = vec![0.0; 8];
+        renderer.render_block(&mut data);
+        assert!((data[0] - 0.5 * 0.25 * OUTPUT_MAKEUP_GAIN).abs() < 1e-6);
+
+        // Full output gain on the same sample clamps to the rail instead of overflowing.
+        renderer.playback.output_volume = 1.0;
+        renderer.render_block(&mut data);
+        assert_eq!(data[0], 1.0);
     }
 
     #[test]

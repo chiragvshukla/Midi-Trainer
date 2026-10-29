@@ -54,6 +54,7 @@ function App() {
   const changeTranspose = useSession((state) => state.changeTranspose);
   const changeMusicVolume = useSession((state) => state.changeMusicVolume);
   const changePlayerVolume = useSession((state) => state.changePlayerVolume);
+  const changeOutputVolume = useSession((state) => state.changeOutputVolume);
 
   usePcKeyboard();
 
@@ -278,6 +279,19 @@ function App() {
             value={settings?.player_volume ?? 1}
             onChange={(event) =>
               void changePlayerVolume(Number(event.target.value))
+            }
+          />
+        </label>
+        <label>
+          Output
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={settings?.output_volume ?? 1}
+            onChange={(event) =>
+              void changeOutputVolume(Number(event.target.value))
             }
           />
         </label>

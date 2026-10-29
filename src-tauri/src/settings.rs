@@ -55,6 +55,8 @@ pub struct Settings {
     pub music_volume: f32,
     /// Volume of the player's own notes, as a linear gain, 0.0 to 1.0.
     pub player_volume: f32,
+    /// Master output volume, as a linear gain, 0.0 to 1.0, applied to the whole mix.
+    pub output_volume: f32,
     /// Playback tempo as a percentage of the original.
     pub tempo_percent: f32,
     /// Semitones the playback is shifted by.
@@ -81,6 +83,7 @@ impl Default for Settings {
             midi_device: None,
             music_volume: 1.0,
             player_volume: 1.0,
+            output_volume: 1.0,
             tempo_percent: 100.0,
             transpose: 0,
             player_hand: Hand::Both,

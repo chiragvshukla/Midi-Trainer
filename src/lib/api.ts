@@ -31,6 +31,7 @@ export interface Settings {
   midi_device: string | null;
   music_volume: number;
   player_volume: number;
+  output_volume: number;
   tempo_percent: number;
   transpose: number;
   player_hand: Hand;
@@ -247,6 +248,10 @@ export function setMusicVolume(volume: number): Promise<void> {
 
 export function setPlayerVolume(volume: number): Promise<void> {
   return invoke("set_player_volume", { volume });
+}
+
+export function setOutputVolume(volume: number): Promise<void> {
+  return invoke("set_output_volume", { volume });
 }
 
 export function setTrackVolume(channel: number, gain: number): Promise<void> {

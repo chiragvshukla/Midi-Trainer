@@ -20,6 +20,7 @@ import {
   setMusicVolume,
   setPlayerPart,
   setPlayerVolume,
+  setOutputVolume,
   setTempoPercent,
   setTrackVolume,
   setTranspose,
@@ -119,6 +120,7 @@ interface SessionState {
   changeTranspose: (semitones: number) => Promise<void>;
   changeMusicVolume: (volume: number) => Promise<void>;
   changePlayerVolume: (volume: number) => Promise<void>;
+  changeOutputVolume: (volume: number) => Promise<void>;
   changeTrackVolume: (channel: number, gain: number) => Promise<void>;
   recordJudgements: (judgements: Judgement[]) => void;
   recordStats: (stats: PracticeStats) => void;
@@ -195,6 +197,7 @@ export const useSession = create<SessionState>((set, get) => ({
       // The engine starts fresh every run; put the saved practice setup back.
       await setMusicVolume(settings.music_volume);
       await setPlayerVolume(settings.player_volume);
+      await setOutputVolume(settings.output_volume);
       await setTempoPercent(settings.tempo_percent);
       await setTranspose(settings.transpose);
       if (settings.midi_device) {
@@ -457,6 +460,18 @@ export const useSession = create<SessionState>((set, get) => ({
       scheduleSave();
     } catch (error) {
       log.error(`setting the player volume failed: ${String(error)}`);
+    }
+  },
+
+  changeOutputVolume: async (volume) => {
+    set((state) => ({
+      settings: state.settings && { ...state.settings, output_volume: volume },
+    }));
+    try {
+      await setOutputVolume(volume);
+      scheduleSave();
+    } catch (error) {
+      log.error(`setting the output volume failed: ${String(error)}`);
     }
   },
 
