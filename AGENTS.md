@@ -8,6 +8,13 @@ MidiTrainer is a cross-platform desktop app that plays MIDI files and teaches pi
 
 Licensing is strict: **clean-room**. PianoBooster is GPLv3; this project is MIT. Never copy, paste, translate, or port code from PianoBooster or any other GPL source. Reimplement behavior from observation and documentation only. If any external code is ever used, its license must be MIT-compatible and stated in the commit.
 
+## Plan tracking
+
+The plan file at `C:\Users\Chirag\.opencode\plan\plan.md` is the live status of the work: read it before starting to see what is done and what still needs completing.
+
+- Update it as part of finishing any work: mark completed items done and record new features or bugs addressed, so it always matches reality.
+- If a change is not reflected in the plan (a new feature, a fixed bug, a scope shift), add or amend the relevant entry in the same change.
+
 ## What exists today
 
 Step 2 (scaffold) is done and the app runs (`npm run tauri dev`). Present today: the root meta files (`README.md`, `LICENSE`, `package.json`, `eslint.config.js`, `index.html`), `src/App.tsx` with `src/lib/` (logger, IPC bindings) and `src/state/appStore.ts`, and `src-tauri/src/commands/` (`app_info.rs`, `log_message.rs`).
