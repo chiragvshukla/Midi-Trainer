@@ -202,7 +202,7 @@ function App() {
               </label>
               <label
                 className="volume"
-                title={`My notes ${Math.round((settings?.player_volume ?? 1) * 100)}%`}
+                title={`My notes ${Math.round((settings?.player_volume ?? 0.5) * 100)}%`}
               >
                 <span>Notes</span>
                 <input
@@ -210,7 +210,7 @@ function App() {
                   min={0}
                   max={1}
                   step={0.05}
-                  value={settings?.player_volume ?? 1}
+                  value={settings?.player_volume ?? 0.5}
                   onChange={(event) =>
                     void changePlayerVolume(Number(event.target.value))
                   }

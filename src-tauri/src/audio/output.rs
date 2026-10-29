@@ -38,8 +38,10 @@ const VOLUME_CONTROLLER: u8 = 7;
 
 /// Master make-up gain applied after synthesis, on top of the Output slider. rustysynth renders
 /// most SoundFonts well below full scale, so this brings the app up to a usable level; a soft
-/// limiter afterwards rounds off hot peaks instead of hard-clipping them.
-const OUTPUT_MAKEUP_GAIN: f32 = 8.0;
+/// limiter afterwards rounds off hot peaks instead of hard-clipping them. The Music slider is
+/// already at the CC7 ceiling, so lifting the whole mix is the only way to make the music itself
+/// louder without touching the player's own notes (which default to half).
+const OUTPUT_MAKEUP_GAIN: f32 = 12.0;
 
 /// A request to load a SoundFont into the thread that owns the audio stream.
 struct AudioRequest {
