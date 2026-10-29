@@ -41,6 +41,8 @@ pub enum PlaybackControl {
     SetTempoPercent(f32),
     /// Semitones shifted up (positive) or down (negative).
     SetTranspose(i32),
+    /// Moves the playhead to this position in the piece, in milliseconds.
+    Seek(f64),
     Start,
     Stop,
 }

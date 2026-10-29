@@ -147,6 +147,11 @@ impl AudioEngine {
         self.control(PlaybackControl::SetTranspose(semitones));
     }
 
+    /// Moves the playhead to `position_ms` in the current piece.
+    pub fn seek(&self, position_ms: u64) {
+        self.control(PlaybackControl::Seek(position_ms as f64));
+    }
+
     /// Position of the playhead in the current piece, in milliseconds.
     pub fn position_ms(&self) -> u64 {
         self.position.load(Ordering::Relaxed)
@@ -331,6 +336,16 @@ impl<S: Synth> Renderer<S> {
             }
             PlaybackControl::SetTranspose(semitones) => {
                 self.playback.transpose = semitones.clamp(-12, 12);
+            }
+            PlaybackControl::Seek(position_ms) => {
+                let target = position_ms.max(0.0);
+                // Skip every command before the target and silence anything still sounding.
+                self.playback.index = self
+                    .playback
+                    .score
+                    .partition_point(|event| event.at_ms < target);
+                self.playback.position_ms = target;
+                self.synth.apply(AudioCommand::AllNotesOff);
             }
             PlaybackControl::Start => self.playback.playing = true,
             PlaybackControl::Stop => {
@@ -578,6 +593,35 @@ mod tests {
             Some(&(10, AudioCommand::AllNotesOff))
         );
         assert_eq!(renderer.published_ms(), 10);
+    }
+
+    #[test]
+    fn seek_skips_passed_events_and_resumes_at_the_target() {
+        let mut renderer = renderer(
+            1000,
+            vec![
+                scheduled(0.0, note_on(60)),
+                scheduled(500.0, note_off(60)),
+                scheduled(1000.0, note_on(62)),
+            ],
+        );
+        renderer.push_control(PlaybackControl::Start);
+        renderer.render(100);
+
+        renderer.push_control(PlaybackControl::Seek(750.0));
+        renderer.render(100);
+        assert_eq!(renderer.published_ms(), 850);
+
+        // The 0 and 500 commands were skipped; the playhead resumes at 750.
+        renderer.render(200);
+        assert_eq!(
+            renderer.synth.events,
+            vec![
+                (0, note_on(60)),
+                (100, AudioCommand::AllNotesOff),
+                (350, note_on(62)),
+            ]
+        );
     }
 
     /// A `Synth` that records the frame each command arrived at.
