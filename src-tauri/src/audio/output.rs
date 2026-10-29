@@ -11,8 +11,8 @@ use super::AudioError;
 use super::event::{AudioCommand, Gate, PlaybackControl, PlayedNote, ScheduledCommand};
 use super::synth::{SoundFontSynth, Synth};
 use super::{
-    CUE_CHANNEL, CUE_PITCH, CUE_PROGRAM, CUE_VELOCITY, MAX_TEMPO_PERCENT, MIN_TEMPO_PERCENT,
-    PLAYER_CHANNEL, TRANSPOSE_SEMITONES,
+    CUE_CHANNEL, CUE_PITCH, CUE_PROGRAM, CUE_VELOCITY, MAX_OUTPUT_VOLUME, MAX_TEMPO_PERCENT,
+    MIN_TEMPO_PERCENT, PLAYER_CHANNEL, TRANSPOSE_SEMITONES,
 };
 
 /// Commands the callback can hold waiting at once.
@@ -35,13 +35,6 @@ const FOLLOW_TOLERANCE_MS: f64 = 250.0;
 
 /// The MIDI controller for channel volume, the SoundFont synth's per-source gain.
 const VOLUME_CONTROLLER: u8 = 7;
-
-/// Master make-up gain applied after synthesis, on top of the Output slider. rustysynth renders
-/// most SoundFonts well below full scale, so this brings the app up to a usable level; a soft
-/// limiter afterwards rounds off hot peaks instead of hard-clipping them. The Music slider is
-/// already at the CC7 ceiling, so lifting the whole mix is the only way to make the music itself
-/// louder without touching the player's own notes (which default to half).
-const OUTPUT_MAKEUP_GAIN: f32 = 12.0;
 
 /// A request to load a SoundFont into the thread that owns the audio stream.
 struct AudioRequest {
@@ -361,7 +354,7 @@ impl Default for ScorePlayback {
             transpose: 0,
             music_volume: 1.0,
             player_volume: 1.0,
-            cue_volume: 1.0,
+            cue_volume: 0.5,
             output_volume: 1.0,
             track_volumes: [1.0; 16],
             playing: false,
@@ -511,7 +504,7 @@ impl<S: Synth> Renderer<S> {
                 self.apply_mix();
             }
             PlaybackControl::SetOutputVolume(gain) => {
-                self.playback.output_volume = gain.clamp(0.0, 1.0);
+                self.playback.output_volume = gain.clamp(0.0, MAX_OUTPUT_VOLUME);
             }
             PlaybackControl::SetTrackVolume { channel, gain } => {
                 if let Some(slot) = self.playback.track_volumes.get_mut(usize::from(channel)) {
@@ -611,10 +604,10 @@ impl<S: Synth> Renderer<S> {
     }
 
     fn render_segment(&mut self, data: &mut [f32], offset: usize, count: usize) {
-        // rustysynth renders most SoundFonts well below full scale, so the mix takes a make-up
-        // gain scaled by the Output slider, then a soft limiter so a loud moment rounds off
-        // instead of hard-clipping.
-        let gain = self.playback.output_volume * OUTPUT_MAKEUP_GAIN;
+        // Each font is measured at load, so its own make-up gain brings it to a usable level; the
+        // Output slider trims on top, and a soft limiter rounds a loud moment off instead of
+        // hard-clipping it.
+        let gain = self.playback.output_volume * self.synth.makeup();
         {
             let left = &mut self.left[..count];
             let right = &mut self.right[..count];
@@ -695,10 +688,10 @@ fn device_error(error: impl std::fmt::Display) -> AudioError {
 #[cfg(test)]
 mod tests {
     use super::{
-        MAX_BLOCK_FRAMES, OUTPUT_MAKEUP_GAIN, Renderer, ScorePlayback, cc7, shift, soft_limit,
-        transposed, write_frames,
+        MAX_BLOCK_FRAMES, Renderer, ScorePlayback, cc7, shift, soft_limit, transposed, write_frames,
     };
     use crate::audio::Gate;
+    use crate::audio::MAX_OUTPUT_VOLUME;
     use crate::audio::PLAYER_CHANNEL;
     use crate::audio::event::{AudioCommand, PlaybackControl, PlayedNote, ScheduledCommand};
     use crate::audio::synth::Synth;
@@ -1025,6 +1018,10 @@ mod tests {
                 left.fill(0.5);
                 right.fill(0.5);
             }
+            fn makeup(&self) -> f32 {
+                // Stands in for a font that needs a strong lift to reach a usable level.
+                12.0
+            }
         }
 
         let mut renderer = Renderer {
@@ -1046,12 +1043,25 @@ mod tests {
         // A quiet mix follows the gain closely (soft limiter is near linear at low level).
         let mut data = vec![0.0; 8];
         renderer.render_block(&mut data);
-        assert!((data[0] - soft_limit(0.5 * 0.25 * OUTPUT_MAKEUP_GAIN)).abs() < 1e-6);
+        assert!((data[0] - soft_limit(0.5 * 0.25 * renderer.synth.makeup())).abs() < 1e-6);
 
         // Full output gain on the same sample is loud but stays under the rail, not clipped flat.
         renderer.playback.output_volume = 1.0;
         renderer.render_block(&mut data);
         assert!(data[0] > 0.99 && data[0] < 1.0);
+    }
+
+    #[test]
+    fn output_volume_is_capped_at_the_trim_ceiling() {
+        let mut renderer = renderer(1000, vec![]);
+
+        renderer.push_control(PlaybackControl::SetOutputVolume(99.0));
+        renderer.render(1);
+        assert_eq!(renderer.playback.output_volume, MAX_OUTPUT_VOLUME);
+
+        renderer.push_control(PlaybackControl::SetOutputVolume(-1.0));
+        renderer.render(1);
+        assert_eq!(renderer.playback.output_volume, 0.0);
     }
 
     #[test]
@@ -1080,6 +1090,10 @@ mod tests {
 
         fn render(&mut self, left: &mut [f32], _right: &mut [f32]) {
             self.rendered += left.len();
+        }
+
+        fn makeup(&self) -> f32 {
+            1.0
         }
     }
 

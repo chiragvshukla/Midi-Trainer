@@ -58,7 +58,7 @@ pub enum PlaybackControl {
     SetPlayerVolume(f32),
     /// Volume of the wrong-note cue, as a linear gain, 0.0 to 1.0.
     SetCueVolume(f32),
-    /// Master output volume, as a linear gain, 0.0 to 1.0, applied to the whole mix.
+    /// Master output volume, as a linear gain up to `MAX_OUTPUT_VOLUME`, applied to the whole mix.
     SetOutputVolume(f32),
     /// Volume of one track's channel, as a linear gain, 0.0 to 1.0.
     SetTrackVolume {

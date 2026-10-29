@@ -32,6 +32,11 @@ type PieceView = "keys" | "sheet";
 /** Default volume levels, matching the engine defaults; double-click snaps a slider back. */
 const DEFAULT_MUSIC_VOLUME = 0.8;
 const DEFAULT_PLAYER_VOLUME = 0.5;
+const DEFAULT_OUTPUT_VOLUME = 1;
+
+/** The Output trim's top end, matching the engine's `MAX_OUTPUT_VOLUME`; above 1.0 lifts a quiet
+ * piece or font. Music, Notes and Cue stay at 1.0 — they are the piece's own channel gains. */
+const MAX_OUTPUT_VOLUME = 4;
 
 function App() {
   const [section, setSection] = useState<Section>("library");
@@ -220,15 +225,18 @@ function App() {
               </label>
               <label
                 className="volume"
-                title={`Output ${Math.round((settings?.output_volume ?? 1) * 100)}%`}
+                title={`Output ${Math.round((settings?.output_volume ?? DEFAULT_OUTPUT_VOLUME) * 100)}%`}
               >
                 <span>Output</span>
                 <input
                   type="range"
                   min={0}
-                  max={1}
+                  max={MAX_OUTPUT_VOLUME}
                   step={0.05}
-                  value={settings?.output_volume ?? 1}
+                  value={settings?.output_volume ?? DEFAULT_OUTPUT_VOLUME}
+                  onDoubleClick={() =>
+                    void changeOutputVolume(DEFAULT_OUTPUT_VOLUME)
+                  }
                   onChange={(event) =>
                     void changeOutputVolume(Number(event.target.value))
                   }

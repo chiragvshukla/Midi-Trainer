@@ -35,6 +35,10 @@ pub const MAX_TEMPO_PERCENT: f32 = 400.0;
 /// Transpose range, in semitones either way.
 pub const TRANSPOSE_SEMITONES: i32 = 12;
 
+/// The highest master output trim the user can set, as a linear gain. Above 1.0 lets a quiet piece
+/// or font be lifted; the soft limiter caps the result.
+pub const MAX_OUTPUT_VOLUME: f32 = 4.0;
+
 /// Errors from the audio subsystem.
 #[derive(Debug)]
 pub enum AudioError {
