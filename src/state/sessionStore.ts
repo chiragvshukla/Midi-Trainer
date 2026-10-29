@@ -70,6 +70,15 @@ export function verdictKey(pitch: number, startMs: number): string {
   return `${pitch}:${Math.round(startMs)}`;
 }
 
+/** How long a wrong played key stays red on the on-screen keyboard. */
+export const WRONG_FLASH_MS = 400;
+
+/** A pitch the player just played wrong, and when, so the keyboard can flash it red. */
+export interface WrongFlash {
+  pitch: number;
+  at: number;
+}
+
 /** The bar line nearest `ms` in the engraved measures, so loop points land on a bar. */
 function nearestBarMs(piece: Piece | null, ms: number): number {
   const measures = piece?.score.measures ?? [];
@@ -128,6 +137,8 @@ interface SessionState {
   trackVolumes: Record<number, number>;
   /** Verdict per falling note, keyed by pitch and score time. */
   verdicts: Record<string, Verdict>;
+  /** Pitches just played wrong, for the keyboard's red flash. */
+  wrongFlashes: WrongFlash[];
   /** The running practice tallies, from the engine, once a note has been judged. */
   stats: PracticeStats | null;
   /** Timing of the most recent judged note, for the live marker. */
@@ -199,6 +210,7 @@ export const useSession = create<SessionState>((set, get) => ({
   selectedTracks: null,
   trackVolumes: {},
   verdicts: {},
+  wrongFlashes: [],
   stats: null,
   lastTiming: null,
   lastOffsetMs: null,
@@ -364,6 +376,7 @@ export const useSession = create<SessionState>((set, get) => ({
         piecePath: path,
         selectedTracks: tracks,
         verdicts: {},
+        wrongFlashes: [],
         stats: null,
         lastTiming: null,
         lastOffsetMs: null,
@@ -427,7 +440,13 @@ export const useSession = create<SessionState>((set, get) => ({
     try {
       await seek(target);
       // The engine rewinds its scoring with the playhead; the readout mirrors that reset.
-      set({ verdicts: {}, stats: null, lastTiming: null, lastOffsetMs: null });
+      set({
+        verdicts: {},
+        wrongFlashes: [],
+        stats: null,
+        lastTiming: null,
+        lastOffsetMs: null,
+      });
     } catch (error) {
       log.error(`seeking failed: ${String(error)}`);
     }
@@ -639,9 +658,18 @@ export const useSession = create<SessionState>((set, get) => ({
       verdicts[verdictKey(expected, judgement.expected_start_ms)] =
         judgement.verdict;
     }
+    // A wrong press lights its key red for a moment; expired flashes drop off as new ones come.
+    const now = performance.now();
+    const wrongFlashes = [
+      ...get().wrongFlashes.filter((flash) => now - flash.at < WRONG_FLASH_MS),
+      ...judgements
+        .filter((judgement) => judgement.verdict === "Wrong")
+        .map((judgement) => ({ pitch: judgement.pitch, at: now })),
+    ];
     const last = judgements[judgements.length - 1];
     set({
       verdicts,
+      wrongFlashes,
       lastTiming: last ? last.timing : get().lastTiming,
       lastOffsetMs: last ? last.offset_ms : get().lastOffsetMs,
     });

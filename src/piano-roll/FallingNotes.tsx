@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { playbackPosition, type NoteInfo, type Verdict } from "../lib/api";
 import { pitchName } from "../lib/pitch";
 import { canvasColors, useAppearance } from "../lib/theme";
-import { useSession, verdictKey } from "../state/sessionStore";
+import { useSession, verdictKey, WRONG_FLASH_MS } from "../state/sessionStore";
 
 /** Pitch classes drawn as black keys (C#, D#, F#, G#, A#). */
 const BLACK_CLASSES = new Set([1, 3, 6, 8, 10]);
@@ -53,6 +53,7 @@ export function FallingNotes() {
   const piece = useSession((state) => state.piece);
   const verdicts = useSession((state) => state.verdicts);
   const pressed = useSession((state) => state.pressed);
+  const wrongFlashes = useSession((state) => state.wrongFlashes);
   const settings = useSession((state) => state.settings);
   const version = useAppearance((state) => state.version);
   const noteLabels = useAppearance((state) => state.noteLabels);
@@ -258,13 +259,22 @@ export function FallingNotes() {
 
       // Keyboard: white keys first, black keys over them.
       const isPressed = (pitch: number) => pressed.includes(pitch);
+      // A key just played wrong flashes red, overriding its normal colour until the flash ages.
+      const now = performance.now();
+      const wrongKeys = new Set(
+        wrongFlashes
+          .filter((flash) => now - flash.at < WRONG_FLASH_MS)
+          .map((flash) => flash.pitch),
+      );
       for (const pitch of whites) {
         const rect = keyRect(pitch);
-        context.fillStyle = isPressed(pitch)
-          ? COLORS.pressedWhite
-          : sounding.has(pitch)
-            ? COLORS.soundingKey
-            : COLORS.white;
+        context.fillStyle = wrongKeys.has(pitch)
+          ? COLORS.wrong
+          : isPressed(pitch)
+            ? COLORS.pressedWhite
+            : sounding.has(pitch)
+              ? COLORS.soundingKey
+              : COLORS.white;
         context.fillRect(rect.x, keyboardTop, rect.width, height - keyboardTop);
         context.strokeStyle = COLORS.keyBorder;
         context.strokeRect(
@@ -279,11 +289,13 @@ export function FallingNotes() {
           continue;
         }
         const rect = keyRect(pitch);
-        context.fillStyle = isPressed(pitch)
-          ? COLORS.pressedBlack
-          : sounding.has(pitch)
-            ? COLORS.soundingKey
-            : COLORS.black;
+        context.fillStyle = wrongKeys.has(pitch)
+          ? COLORS.wrong
+          : isPressed(pitch)
+            ? COLORS.pressedBlack
+            : sounding.has(pitch)
+              ? COLORS.soundingKey
+              : COLORS.black;
         context.fillRect(
           rect.x,
           keyboardTop,
@@ -332,6 +344,7 @@ export function FallingNotes() {
     piece,
     verdicts,
     pressed,
+    wrongFlashes,
     zoom,
     soloHand,
     byHand,
