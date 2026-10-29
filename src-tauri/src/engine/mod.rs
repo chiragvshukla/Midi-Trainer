@@ -1,4 +1,5 @@
 pub mod midi;
+pub mod scoring;
 pub mod timeline;
 
 use std::fmt;
