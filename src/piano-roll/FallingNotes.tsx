@@ -13,6 +13,11 @@ const LABEL_FONT = '10px "Cascadia Mono", Consolas, monospace';
 /** How much score time is visible above the keyboard at zoom 1, in milliseconds. */
 const LOOKAHEAD_MS = 4000;
 
+/** How long a note lingers at the keyboard after it ends. A skipped note is judged once the
+ * playhead passes its start by the matcher's window (±250 ms), so a short note needs a tail
+ * this long to still be on screen when its verdict arrives. */
+const NOTE_LINGER_MS = 300;
+
 /** Middle C: the boundary between the hands, as the engine splits them. */
 const MIDDLE_C = 60;
 
@@ -209,7 +214,7 @@ export function FallingNotes() {
         if (note.start_ms > positionMs + lookahead) {
           break;
         }
-        if (note.end_ms <= positionMs) {
+        if (note.end_ms + NOTE_LINGER_MS <= positionMs) {
           continue;
         }
         if (note.start_ms <= positionMs) {
@@ -228,7 +233,7 @@ export function FallingNotes() {
         );
         const top = Math.max(
           0,
-          keyboardTop - (note.end_ms - positionMs) * pxPerMs,
+          keyboardTop - (note.end_ms + NOTE_LINGER_MS - positionMs) * pxPerMs,
         );
         const verdict: Verdict | undefined =
           verdicts[verdictKey(note.pitch, note.start_ms)];
