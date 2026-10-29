@@ -18,14 +18,18 @@ const LOOKAHEAD_MS = 4000;
  * this long to still be on screen when its verdict arrives. */
 const NOTE_LINGER_MS = 300;
 
-/** The gap left before the next note in the same lane, so two close notes never touch. */
-const NOTE_GAP_MS = 25;
+/** A minimum time gap before the next note in the same lane, so close notes never touch. */
+const NOTE_GAP_MS = 20;
 
-/** A note is never drawn shorter than this, so even a blip reads as a bar. */
-const MIN_NOTE_HEIGHT = 3;
+/** A minimum pixel gap before the next note in the same lane, so the separation stays visible
+ * however far the view is zoomed out. */
+const NOTE_GAP_PX = 2;
 
-/** Horizontal gap between a lane's edge and its note. 0 lets a note fill its lane. */
-const NOTE_INSET = 0;
+/** A note is never drawn shorter than this, so even a short note reads as a bar. */
+const MIN_NOTE_HEIGHT = 4;
+
+/** Small gutter between a lane's edge and its note, so neighbouring columns stay distinct. */
+const NOTE_INSET = 1;
 
 /** Middle C: the boundary between the hands, as the engine splits them. */
 const MIDDLE_C = 60;
@@ -252,23 +256,34 @@ export function FallingNotes() {
         const i = visible[v];
         const note = notes[i];
         const rect = keyRect(note.pitch);
-        // The linger tail is capped at the next note in the same lane, so two close notes never
-        // paint over each other; a lane's last note keeps the full linger for its verdict.
-        const drawnEndMs = Math.max(
-          note.end_ms,
-          Math.min(note.end_ms + NOTE_LINGER_MS, nextStart[i] - NOTE_GAP_MS),
+        // The linger tail is capped at the next note in the same lane, so two close notes never paint
+        // over each other; a lane's last note keeps the full linger for its verdict. The cap may
+        // shorten a legato note (whose end meets the next start) — that is the point.
+        const cappedEndMs = Math.min(
+          note.end_ms + NOTE_LINGER_MS,
+          nextStart[i] - NOTE_GAP_MS,
         );
-        if (drawnEndMs <= positionMs) {
+        if (cappedEndMs <= positionMs) {
           continue;
         }
         const bottom = Math.min(
           keyboardTop,
           keyboardTop - (note.start_ms - positionMs) * pxPerMs,
         );
-        const top = Math.max(
+        let top = Math.max(
           0,
-          keyboardTop - (drawnEndMs - positionMs) * pxPerMs,
+          keyboardTop - (cappedEndMs - positionMs) * pxPerMs,
         );
+        // Keep a visible gap to the next note in the lane at any zoom, in pixels.
+        if (Number.isFinite(nextStart[i])) {
+          const nextBottom = Math.min(
+            keyboardTop,
+            keyboardTop - (nextStart[i] - positionMs) * pxPerMs,
+          );
+          if (nextBottom > 0 && nextBottom < keyboardTop) {
+            top = Math.max(top, nextBottom + NOTE_GAP_PX);
+          }
+        }
         const verdict: Verdict | undefined =
           verdicts[verdictKey(note.pitch, note.start_ms)];
         // The track colour always fills the note; a verdict is shown by shape (outline and, for
@@ -285,7 +300,7 @@ export function FallingNotes() {
         context.globalAlpha = 1;
         // Every note keeps a thin outline, so crowded notes still read apart; a verdict then
         // overdraws it in the correct/wrong colour.
-        context.strokeStyle = "rgba(0, 0, 0, 0.35)";
+        context.strokeStyle = "rgba(0, 0, 0, 0.3)";
         context.lineWidth = 1;
         context.strokeRect(
           noteX + 0.5,
@@ -293,6 +308,21 @@ export function FallingNotes() {
           noteWidth - 1,
           noteHeight - 1,
         );
+        // The note the playhead is sitting on is the one to play now: ring it and glow it, so it
+        // stands out from the notes yet to come. A judged note is never "required".
+        if (
+          verdict === undefined &&
+          note.start_ms <= positionMs &&
+          cappedEndMs >= positionMs
+        ) {
+          context.save();
+          context.strokeStyle = COLORS.playhead;
+          context.shadowColor = COLORS.playhead;
+          context.shadowBlur = 8;
+          context.lineWidth = 2;
+          context.strokeRect(noteX + 1, top + 1, noteWidth - 2, noteHeight - 2);
+          context.restore();
+        }
         if (verdict === "Correct" || verdict === "Wrong") {
           context.strokeStyle =
             verdict === "Correct" ? COLORS.correct : COLORS.wrong;
