@@ -68,14 +68,15 @@ pub fn run() {
             commands::disconnect_midi_input::disconnect_midi_input,
             commands::set_follow::set_follow,
             commands::set_library_folder::set_library_folder,
+            commands::set_music_volume::set_music_volume,
             commands::set_player_hand::set_player_hand,
+            commands::set_player_volume::set_player_volume,
             commands::set_tempo_percent::set_tempo_percent,
             commands::set_transpose::set_transpose,
             commands::seek::seek,
             commands::playback_position::playback_position,
             commands::get_settings::get_settings,
             commands::save_settings::save_settings,
-            commands::set_volume::set_volume,
         ])
         .setup(|app| {
             info!("MidiTrainer {} starting", env!("CARGO_PKG_VERSION"));

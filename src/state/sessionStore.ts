@@ -15,10 +15,11 @@ import {
   saveSettings,
   setFollow,
   setLibraryFolder,
+  setMusicVolume,
   setPlayerHand,
+  setPlayerVolume,
   setTempoPercent,
   setTranspose,
-  setVolume,
   stopPlayback,
   type Hand,
   type Judgement,
@@ -91,7 +92,8 @@ interface SessionState {
   changeHand: (hand: Hand) => Promise<void>;
   changeTempo: (percent: number) => Promise<void>;
   changeTranspose: (semitones: number) => Promise<void>;
-  changeVolume: (volume: number) => Promise<void>;
+  changeMusicVolume: (volume: number) => Promise<void>;
+  changePlayerVolume: (volume: number) => Promise<void>;
   recordJudgements: (judgements: Judgement[]) => void;
   pressPitch: (pitch: number, down: boolean) => void;
 }
@@ -160,7 +162,8 @@ export const useSession = create<SessionState>((set, get) => ({
       set({ settings });
       set({ libraryFolder: settings.library_folder ?? null });
       // The engine starts fresh every run; put the saved practice setup back.
-      await setVolume(settings.volume);
+      await setMusicVolume(settings.music_volume);
+      await setPlayerVolume(settings.player_volume);
       await setTempoPercent(settings.tempo_percent);
       await setTranspose(settings.transpose);
       if (settings.midi_device) {
@@ -298,15 +301,27 @@ export const useSession = create<SessionState>((set, get) => ({
     }
   },
 
-  changeVolume: async (volume) => {
+  changeMusicVolume: async (volume) => {
     set((state) => ({
-      settings: state.settings && { ...state.settings, volume },
+      settings: state.settings && { ...state.settings, music_volume: volume },
     }));
     try {
-      await setVolume(volume);
+      await setMusicVolume(volume);
       scheduleSave();
     } catch (error) {
-      log.error(`setting volume failed: ${String(error)}`);
+      log.error(`setting the music volume failed: ${String(error)}`);
+    }
+  },
+
+  changePlayerVolume: async (volume) => {
+    set((state) => ({
+      settings: state.settings && { ...state.settings, player_volume: volume },
+    }));
+    try {
+      await setPlayerVolume(volume);
+      scheduleSave();
+    } catch (error) {
+      log.error(`setting the player volume failed: ${String(error)}`);
     }
   },
 

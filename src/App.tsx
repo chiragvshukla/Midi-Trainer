@@ -39,7 +39,8 @@ function App() {
   const changeHand = useSession((state) => state.changeHand);
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
-  const changeVolume = useSession((state) => state.changeVolume);
+  const changeMusicVolume = useSession((state) => state.changeMusicVolume);
+  const changePlayerVolume = useSession((state) => state.changePlayerVolume);
 
   usePcKeyboard();
 
@@ -183,14 +184,29 @@ function App() {
           {settings?.transpose ?? 0}
         </label>
         <label>
-          Volume
+          Music
           <input
             type="range"
             min={0}
             max={1}
             step={0.05}
-            value={settings?.volume ?? 1}
-            onChange={(event) => void changeVolume(Number(event.target.value))}
+            value={settings?.music_volume ?? 1}
+            onChange={(event) =>
+              void changeMusicVolume(Number(event.target.value))
+            }
+          />
+        </label>
+        <label>
+          My notes
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={settings?.player_volume ?? 1}
+            onChange={(event) =>
+              void changePlayerVolume(Number(event.target.value))
+            }
           />
         </label>
       </header>

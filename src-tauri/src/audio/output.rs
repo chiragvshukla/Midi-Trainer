@@ -27,6 +27,15 @@ const MAX_BLOCK_FRAMES: usize = 2048;
 /// How early the player may play a gate's note and still release it. Matches the scoring window.
 const FOLLOW_LEAD_MS: f64 = 250.0;
 
+/// How far the playhead may run past an unplayed gate before follow-you mode waits for it. This
+/// is the slack that keeps the accompaniment flowing instead of stopping at every single note.
+/// It must stay within the matcher's window (`scoring::DEFAULT_WINDOW_MS`), or a correct note
+/// played at the limit would be scored as wrong and dropped by the matcher.
+const FOLLOW_TOLERANCE_MS: f64 = 250.0;
+
+/// The MIDI controller for channel volume, the SoundFont synth's per-source gain.
+const VOLUME_CONTROLLER: u8 = 7;
+
 /// A request to load a SoundFont into the thread that owns the audio stream.
 struct AudioRequest {
     path: PathBuf,
@@ -179,9 +188,14 @@ impl AudioEngine {
         self.control(PlaybackControl::SetTranspose(semitones));
     }
 
-    /// Sets the output volume as a linear gain, 0.0 to 1.0.
-    pub fn set_volume(&self, gain: f32) {
-        self.control(PlaybackControl::SetVolume(gain));
+    /// Sets the volume of the piece's own parts, as a linear gain, 0.0 to 1.0.
+    pub fn set_music_volume(&self, gain: f32) {
+        self.control(PlaybackControl::SetMusicVolume(gain));
+    }
+
+    /// Sets the volume of the player's own notes, as a linear gain, 0.0 to 1.0.
+    pub fn set_player_volume(&self, gain: f32) {
+        self.control(PlaybackControl::SetPlayerVolume(gain));
     }
 
     /// Moves the playhead to `position_ms` in the current piece.
@@ -300,8 +314,10 @@ struct ScorePlayback {
     position_ms: f64,
     tempo_percent: f32,
     transpose: i32,
-    /// Output volume as a linear gain.
-    volume: f32,
+    /// Volume of the piece's own parts, as a linear gain.
+    music_volume: f32,
+    /// Volume of the player's notes, as a linear gain.
+    player_volume: f32,
     playing: bool,
     /// Whether the playhead waits for the player at each gate.
     follow: bool,
@@ -319,7 +335,8 @@ impl Default for ScorePlayback {
             // Normal speed. A zero here would make the frame conversion divide by zero.
             tempo_percent: 100.0,
             transpose: 0,
-            volume: 1.0,
+            music_volume: 1.0,
+            player_volume: 1.0,
             playing: false,
             follow: false,
             gates: Arc::new(Vec::new()),
@@ -336,12 +353,13 @@ impl ScorePlayback {
             .map_or(f64::INFINITY, |event| event.at_ms)
     }
 
-    /// Score time the playhead may not pass in follow mode, or infinity.
+    /// Score time the playhead may not pass in follow mode, or infinity. The player is allowed to
+    /// fall `FOLLOW_TOLERANCE_MS` behind an unplayed gate before the accompaniment waits for it.
     fn gate_ms(&self) -> f64 {
         if self.follow {
             self.gates
                 .get(self.gate)
-                .map_or(f64::INFINITY, |gate| gate.start_ms)
+                .map_or(f64::INFINITY, |gate| gate.start_ms + FOLLOW_TOLERANCE_MS)
         } else {
             f64::INFINITY
         }
@@ -435,6 +453,8 @@ impl<S: Synth> Renderer<S> {
                 self.playback.index = 0;
                 self.playback.position_ms = 0.0;
                 self.playback.gate = 0;
+                // A new SoundFont may be in place since the gains were last set.
+                self.apply_volumes();
             }
             PlaybackControl::SetGates(gates) => {
                 self.playback.gates = gates;
@@ -450,8 +470,13 @@ impl<S: Synth> Renderer<S> {
                 self.playback.transpose =
                     semitones.clamp(-TRANSPOSE_SEMITONES, TRANSPOSE_SEMITONES);
             }
-            PlaybackControl::SetVolume(gain) => {
-                self.playback.volume = gain.clamp(0.0, 1.0);
+            PlaybackControl::SetMusicVolume(gain) => {
+                self.playback.music_volume = gain.clamp(0.0, 1.0);
+                self.apply_volumes();
+            }
+            PlaybackControl::SetPlayerVolume(gain) => {
+                self.playback.player_volume = gain.clamp(0.0, 1.0);
+                self.apply_volumes();
             }
             PlaybackControl::Seek(position_ms) => {
                 let target = position_ms.max(0.0);
@@ -474,6 +499,29 @@ impl<S: Synth> Renderer<S> {
                 self.synth.apply(AudioCommand::AllNotesOff);
             }
         }
+    }
+
+    /// Pushes the two gains to the synthesizer as channel volume: the file's own parts scale with
+    /// Music, and the player's channel with My notes. Channel volume is the only per-source gain
+    /// the SoundFont synth offers, and it rides notes that are already sounding, so a slider move
+    /// takes effect without restarting them. Drums share the wrong-note cue's channel and scale
+    /// with Music with it.
+    fn apply_volumes(&mut self) {
+        let music = cc7(self.playback.music_volume);
+        for channel in 0..=15u8 {
+            if channel != PLAYER_CHANNEL {
+                self.synth.apply(AudioCommand::ControlChange {
+                    channel,
+                    controller: VOLUME_CONTROLLER,
+                    value: music,
+                });
+            }
+        }
+        self.synth.apply(AudioCommand::ControlChange {
+            channel: PLAYER_CHANNEL,
+            controller: VOLUME_CONTROLLER,
+            value: cc7(self.playback.player_volume),
+        });
     }
 
     /// Renders `frames`, applying each score command at its exact sample offset.
@@ -514,10 +562,6 @@ impl<S: Synth> Renderer<S> {
         let left = &mut self.left[..count];
         let right = &mut self.right[..count];
         self.synth.render(left, right);
-        let volume = self.playback.volume;
-        for sample in left.iter_mut().chain(right.iter_mut()) {
-            *sample *= volume;
-        }
         let start = offset * self.channels;
         let end = start + count * self.channels;
         write_frames(
@@ -556,6 +600,11 @@ fn shift(pitch: u8, semitones: i32) -> u8 {
     (i32::from(pitch) + semitones).clamp(0, 127) as u8
 }
 
+/// A 0.0..=1.0 gain as a 7-bit MIDI channel-volume value.
+fn cc7(gain: f32) -> u8 {
+    (gain.clamp(0.0, 1.0) * 127.0).round() as u8
+}
+
 /// Writes one rendered frame into the device's interleaved samples.
 fn write_frames(left: &[f32], right: &[f32], channels: usize, out: &mut [f32]) {
     for (frame, samples) in out.chunks_mut(channels).enumerate() {
@@ -577,7 +626,7 @@ fn device_error(error: impl std::fmt::Display) -> AudioError {
 
 #[cfg(test)]
 mod tests {
-    use super::{MAX_BLOCK_FRAMES, Renderer, ScorePlayback, shift, transposed, write_frames};
+    use super::{MAX_BLOCK_FRAMES, Renderer, ScorePlayback, cc7, shift, transposed, write_frames};
     use crate::audio::Gate;
     use crate::audio::PLAYER_CHANNEL;
     use crate::audio::event::{AudioCommand, PlaybackControl, PlayedNote, ScheduledCommand};
@@ -790,30 +839,28 @@ mod tests {
     }
 
     #[test]
-    fn follow_holds_at_a_gate_until_the_note_is_played() {
+    fn follow_only_waits_once_the_player_falls_behind() {
         let mut renderer = renderer(1000, vec![scheduled(500.0, note_on(60))]);
         renderer.push_control(PlaybackControl::SetGates(Arc::new(vec![gate(60, 500.0)])));
         renderer.push_control(PlaybackControl::SetFollow(true));
         renderer.push_control(PlaybackControl::Start);
 
-        // Past the note's time, but the playhead is clamped at the gate.
+        // The accompaniment keeps flowing within the tolerance, and the score note plays.
         renderer.render(700);
-        assert_eq!(renderer.synth.events, vec![]);
-        assert_eq!(renderer.published_ms(), 500);
+        assert_eq!(renderer.synth.events, vec![(500, note_on(60))]);
+        assert_eq!(renderer.published_ms(), 700);
 
-        // Playing the gate's pitch releases it and the accompaniment resumes. Both the player's
-        // note and the score's note-on land on the same frame.
+        // Past the gate plus the tolerance it waits, instead of running further ahead.
+        renderer.render(1000);
+        assert_eq!(renderer.published_ms(), 750);
+
+        // Playing the note releases the gate and the playhead resumes.
         renderer
             .commands
             .push(player_note_on(60))
             .expect("the command queue should fit");
-        renderer.render(100);
-
-        assert_eq!(
-            renderer.synth.events,
-            vec![(700, player_note_on(60)), (700, note_on(60))]
-        );
-        assert_eq!(renderer.published_ms(), 600);
+        renderer.render(10);
+        assert_eq!(renderer.published_ms(), 760);
     }
 
     #[test]
@@ -823,16 +870,46 @@ mod tests {
         renderer.push_control(PlaybackControl::SetFollow(true));
         renderer.push_control(PlaybackControl::Start);
 
-        renderer.render(500);
+        // Fall far enough behind to be waiting at the gate.
+        renderer.render(1000);
         renderer
             .commands
             .push(player_note_on(62))
             .expect("the command queue should fit");
         renderer.render(200);
 
-        // The player's wrong note sounds, but the accompaniment stays clamped at the gate.
-        assert_eq!(renderer.synth.events, vec![(500, player_note_on(62))]);
-        assert_eq!(renderer.published_ms(), 500);
+        // The player's wrong note sounds, but the accompaniment stays clamped.
+        assert_eq!(
+            renderer.synth.events.last(),
+            Some(&(1000, player_note_on(62)))
+        );
+        assert_eq!(renderer.published_ms(), 750);
+    }
+
+    #[test]
+    fn maps_gain_to_channel_volume() {
+        assert_eq!(cc7(0.0), 0);
+        assert_eq!(cc7(1.0), 127);
+        assert_eq!(cc7(0.5), 64);
+        assert_eq!(cc7(2.0), 127);
+    }
+
+    #[test]
+    fn volume_changes_scale_each_source_on_its_own_channel() {
+        let mut renderer = renderer(1000, vec![]);
+        renderer.push_control(PlaybackControl::SetMusicVolume(0.5));
+        renderer.push_control(PlaybackControl::SetPlayerVolume(0.25));
+        renderer.render(1);
+
+        let cc = |channel, value| AudioCommand::ControlChange {
+            channel,
+            controller: 7,
+            value,
+        };
+        // The file's parts take the music gain; the player's channel takes its own.
+        assert!(renderer.synth.events.contains(&(0, cc(0, 64))));
+        assert!(renderer.synth.events.contains(&(0, cc(PLAYER_CHANNEL, 32))));
+        assert!(!renderer.synth.events.contains(&(0, cc(PLAYER_CHANNEL, 64))));
     }
 
     #[test]

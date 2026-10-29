@@ -26,7 +26,8 @@ export interface Settings {
   recent_files: string[];
   library_folder: string | null;
   midi_device: string | null;
-  volume: number;
+  music_volume: number;
+  player_volume: number;
   tempo_percent: number;
   transpose: number;
   player_hand: Hand;
@@ -190,8 +191,12 @@ export function setTranspose(semitones: number): Promise<void> {
   return invoke("set_transpose", { semitones });
 }
 
-export function setVolume(volume: number): Promise<void> {
-  return invoke("set_volume", { volume });
+export function setMusicVolume(volume: number): Promise<void> {
+  return invoke("set_music_volume", { volume });
+}
+
+export function setPlayerVolume(volume: number): Promise<void> {
+  return invoke("set_player_volume", { volume });
 }
 
 export function setFollow(follow: boolean): Promise<void> {

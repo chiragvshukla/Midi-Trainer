@@ -5,9 +5,9 @@ use tauri::{AppHandle, State};
 use crate::audio::AudioEngine;
 use crate::commands::change_settings;
 
-/// Sets the output volume, from 0.0 (silent) to 1.0 (full).
+/// Sets the volume of the piece's own parts, from 0.0 (silent) to 1.0 (full).
 #[tauri::command]
-pub fn set_volume(
+pub fn set_music_volume(
     volume: f32,
     app: AppHandle,
     engine: State<'_, Mutex<AudioEngine>>,
@@ -16,7 +16,7 @@ pub fn set_volume(
     let engine = engine
         .lock()
         .map_err(|_| "audio state is unavailable".to_string())?;
-    engine.set_volume(volume);
-    change_settings(&app, |settings| settings.volume = volume)?;
+    engine.set_music_volume(volume);
+    change_settings(&app, |settings| settings.music_volume = volume)?;
     Ok(())
 }

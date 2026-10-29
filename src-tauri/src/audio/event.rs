@@ -52,8 +52,10 @@ pub enum PlaybackControl {
     SetTempoPercent(f32),
     /// Semitones shifted up (positive) or down (negative).
     SetTranspose(i32),
-    /// Output volume as a linear gain, 0.0 to 1.0.
-    SetVolume(f32),
+    /// Volume of the piece's own parts, as a linear gain, 0.0 to 1.0.
+    SetMusicVolume(f32),
+    /// Volume of the player's notes, as a linear gain, 0.0 to 1.0.
+    SetPlayerVolume(f32),
     /// Moves the playhead to this position in the piece, in milliseconds.
     Seek(f64),
     Start,

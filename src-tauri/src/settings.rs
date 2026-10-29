@@ -19,8 +19,10 @@ pub struct Settings {
     pub library_folder: Option<String>,
     /// The hardware MIDI input to reconnect to, if one was chosen.
     pub midi_device: Option<String>,
-    /// Output volume as a linear gain, 0.0 to 1.0.
-    pub volume: f32,
+    /// Volume of the piece's own parts, as a linear gain, 0.0 to 1.0.
+    pub music_volume: f32,
+    /// Volume of the player's own notes, as a linear gain, 0.0 to 1.0.
+    pub player_volume: f32,
     /// Playback tempo as a percentage of the original.
     pub tempo_percent: f32,
     /// Semitones the playback is shifted by.
@@ -35,7 +37,8 @@ impl Default for Settings {
             recent_files: Vec::new(),
             library_folder: None,
             midi_device: None,
-            volume: 1.0,
+            music_volume: 1.0,
+            player_volume: 1.0,
             tempo_percent: 100.0,
             transpose: 0,
             player_hand: Hand::Both,
@@ -111,7 +114,8 @@ mod tests {
         let path = dir.join("settings.json");
         let mut settings = Settings::default();
         settings.record_recent_file("C:/music/sonata.mid");
-        settings.volume = 0.5;
+        settings.music_volume = 0.5;
+        settings.player_volume = 0.25;
         settings.tempo_percent = 80.0;
         settings.transpose = -2;
         settings.midi_device = Some("Piano".to_string());
