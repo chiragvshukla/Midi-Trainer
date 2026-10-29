@@ -18,14 +18,15 @@ pub const PERCUSSION_CHANNEL: u8 = 9;
 /// with the piece turned down. A file that assigns a track to this channel would take it over.
 pub const CUE_CHANNEL: u8 = 14;
 
-/// The wrong-note cue's instrument: a xylophone, short and bright, clearly not the piano.
-pub const CUE_PROGRAM: u8 = 13;
+/// The wrong-note cue's instrument: a marimba, short and soft, clearly not the piano. A
+/// xylophone was too shrill to hear on every mistake.
+pub const CUE_PROGRAM: u8 = 12;
 
-/// Pitch of the wrong-note cue, high and clean.
-pub const CUE_PITCH: u8 = 72;
+/// Pitch of the wrong-note cue, clear of the melody without being piercing.
+pub const CUE_PITCH: u8 = 67;
 
-/// Velocity for the wrong-note cue: loud enough to stand out over the music.
-pub const CUE_VELOCITY: u8 = 110;
+/// Velocity for the wrong-note cue: present enough to notice, not a slap.
+pub const CUE_VELOCITY: u8 = 100;
 
 /// Tempo range accepted from the outside, as a percentage.
 pub const MIN_TEMPO_PERCENT: f32 = 10.0;
