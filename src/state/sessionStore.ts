@@ -15,10 +15,12 @@ import {
   saveSettings,
   setFollow,
   setLibraryFolder,
+  setPlayerHand,
   setTempoPercent,
   setTranspose,
   setVolume,
   stopPlayback,
+  type Hand,
   type Judgement,
   type LibraryEntry,
   type Piece,
@@ -86,6 +88,7 @@ interface SessionState {
   resume: () => Promise<void>;
   stop: () => Promise<void>;
   toggleFollow: (follow: boolean) => Promise<void>;
+  changeHand: (hand: Hand) => Promise<void>;
   changeTempo: (percent: number) => Promise<void>;
   changeTranspose: (semitones: number) => Promise<void>;
   changeVolume: (volume: number) => Promise<void>;
@@ -252,6 +255,22 @@ export const useSession = create<SessionState>((set, get) => ({
       set({ follow });
     } catch (error) {
       log.error(`toggling follow mode failed: ${String(error)}`);
+    }
+  },
+
+  changeHand: async (hand) => {
+    try {
+      await setPlayerHand(hand);
+      set((state) => ({
+        settings: state.settings && { ...state.settings, player_hand: hand },
+      }));
+      // The gates and the app's part are built when a piece loads, so rebuild it.
+      const path = get().piecePath;
+      if (path) {
+        await get().openPiece(path);
+      }
+    } catch (error) {
+      log.error(`setting the practice hand failed: ${String(error)}`);
     }
   },
 

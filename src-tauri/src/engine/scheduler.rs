@@ -1,13 +1,45 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 use crate::audio::{AudioCommand, Gate, PERCUSSION_CHANNEL, ScheduledCommand};
 
 use super::timeline::Timeline;
+use super::voices::{Staff, staff_of};
+
+/// Which hand the player takes in one-hand practice; the app plays the other. `Both` is the
+/// default: the app plays the whole piece as a guide and the player may play along.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Hand {
+    Both,
+    Left,
+    Right,
+}
+
+/// Whether the player is expected to play a non-percussion note.
+fn player_plays(pitch: u8, hand: Hand) -> bool {
+    match hand {
+        Hand::Both => true,
+        Hand::Right => staff_of(pitch) == Staff::Treble,
+        Hand::Left => staff_of(pitch) == Staff::Bass,
+    }
+}
+
+/// Whether the app should sound a non-percussion note. In `Both` the app plays everything;
+/// taking one hand silences that hand so only the player's part is missing.
+fn app_plays(pitch: u8, hand: Hand) -> bool {
+    match hand {
+        Hand::Both => true,
+        Hand::Right => staff_of(pitch) == Staff::Bass,
+        Hand::Left => staff_of(pitch) == Staff::Treble,
+    }
+}
 
 /// Flattens a timeline into one time-sorted command stream: a program change per track, then
-/// the note-ons and note-offs of every note. The playback scheduler applies these in order.
-pub fn schedule(timeline: &Timeline) -> Vec<ScheduledCommand> {
+/// the note-ons and note-offs of every note the app plays. The playback scheduler applies
+/// these in order. Drums are always played by the app.
+pub fn schedule(timeline: &Timeline, hand: Hand) -> Vec<ScheduledCommand> {
     let mut events = Vec::with_capacity(timeline.notes.len() * 2 + timeline.tracks.len());
 
     // Set each track's instrument on the channel its notes use, before the first note.
@@ -28,6 +60,9 @@ pub fn schedule(timeline: &Timeline) -> Vec<ScheduledCommand> {
     }
 
     for note in &timeline.notes {
+        if note.channel != PERCUSSION_CHANNEL && !app_plays(note.pitch, hand) {
+            continue;
+        }
         events.push(ScheduledCommand {
             at_ms: note.start_ms,
             command: AudioCommand::NoteOn {
@@ -49,14 +84,15 @@ pub fn schedule(timeline: &Timeline) -> Vec<ScheduledCommand> {
     events
 }
 
-/// The notes the player must play, in time order, for follow-you mode. The app plays the
-/// percussion itself, so drums never hold the playhead.
-pub fn gates(timeline: &Timeline) -> Arc<Vec<Gate>> {
+/// The notes the player must play, in time order, for follow-you mode: the player's hand in
+/// one-hand practice, otherwise everything but the drums. The app plays the percussion
+/// itself, so drums never hold the playhead.
+pub fn gates(timeline: &Timeline, hand: Hand) -> Arc<Vec<Gate>> {
     Arc::new(
         timeline
             .notes
             .iter()
-            .filter(|note| note.channel != PERCUSSION_CHANNEL)
+            .filter(|note| note.channel != PERCUSSION_CHANNEL && player_plays(note.pitch, hand))
             .map(|note| Gate {
                 pitch: note.pitch,
                 start_ms: note.start_ms,
@@ -67,7 +103,7 @@ pub fn gates(timeline: &Timeline) -> Arc<Vec<Gate>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{gates, schedule};
+    use super::{Hand, gates, schedule};
     use crate::audio::AudioCommand;
     use crate::engine::midi::{Division, MidiFile, NoteEvent, TempoChange, TrackInfo};
     use crate::engine::timeline::Timeline;
@@ -101,7 +137,7 @@ mod tests {
             notes,
         });
 
-        let gates = gates(&timeline);
+        let gates = gates(&timeline, Hand::Both);
 
         assert_eq!(gates.len(), 2);
         assert_eq!(gates[0].pitch, 60);
@@ -114,7 +150,7 @@ mod tests {
     fn sets_each_tracks_instrument_then_plays_its_notes() {
         let timeline = fixture_timeline();
 
-        let events = schedule(&timeline);
+        let events = schedule(&timeline, Hand::Both);
 
         let commands: Vec<AudioCommand> = events.iter().map(|event| event.command).collect();
         assert_eq!(
@@ -152,6 +188,57 @@ mod tests {
                 "expected {expected} ms, got {actual} ms"
             );
         }
+    }
+
+    #[test]
+    fn playing_one_hand_gates_that_hand_and_sounds_the_other() {
+        // One left-hand note (below middle C) and one right-hand note (middle C and up).
+        let notes = vec![note(0, 0, 48, 0, 480), note(0, 0, 72, 480, 960)];
+        let tracks = vec![TrackInfo {
+            index: 0,
+            name: None,
+            program: Some(0),
+            note_count: 2,
+        }];
+        let timeline = Timeline::from_midi(&MidiFile {
+            format: 1,
+            division: Division::Metrical(480),
+            tempo_map: vec![TempoChange {
+                tick: 0,
+                micros_per_quarter: 500_000,
+            }],
+            time_signatures: Vec::new(),
+            key_signatures: Vec::new(),
+            lyrics: Vec::new(),
+            tracks,
+            notes,
+        });
+
+        let played = |hand| {
+            schedule(&timeline, hand)
+                .into_iter()
+                .filter_map(|event| match event.command {
+                    AudioCommand::NoteOn { pitch, .. } => Some(pitch),
+                    _ => None,
+                })
+                .collect::<Vec<u8>>()
+        };
+        let gated = |hand| {
+            gates(&timeline, hand)
+                .iter()
+                .map(|gate| gate.pitch)
+                .collect::<Vec<u8>>()
+        };
+
+        // Taking the left hand: the player plays the bass note, the app sounds the treble note.
+        assert_eq!(gated(Hand::Left), vec![48]);
+        assert_eq!(played(Hand::Left), vec![72]);
+        // Taking the right hand: the player plays the treble note, the app sounds the bass note.
+        assert_eq!(gated(Hand::Right), vec![72]);
+        assert_eq!(played(Hand::Right), vec![48]);
+        // Both: the app plays everything and both notes are gates.
+        assert_eq!(gated(Hand::Both), vec![48, 72]);
+        assert_eq!(played(Hand::Both), vec![48, 72]);
     }
 
     fn fixture_timeline() -> Timeline {

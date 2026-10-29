@@ -9,6 +9,9 @@ export interface AppInfo {
 export type Verdict = "Correct" | "Wrong";
 export type Timing = "Ahead" | "OnTime" | "Behind";
 
+/** Which hand the player takes in one-hand practice; the app plays the other. */
+export type Hand = "Both" | "Left" | "Right";
+
 export interface SoundfontStatus {
   installed: boolean;
   path: string;
@@ -26,6 +29,7 @@ export interface Settings {
   volume: number;
   tempo_percent: number;
   transpose: number;
+  player_hand: Hand;
 }
 
 export interface NoteInfo {
@@ -160,6 +164,10 @@ export function listLibrary(folder: string): Promise<LibraryEntry[]> {
 
 export function setLibraryFolder(folder: string | null): Promise<void> {
   return invoke("set_library_folder", { folder });
+}
+
+export function setPlayerHand(hand: Hand): Promise<void> {
+  return invoke("set_player_hand", { hand });
 }
 
 export function connectMidiInput(name: string): Promise<void> {

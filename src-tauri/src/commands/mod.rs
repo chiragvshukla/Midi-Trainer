@@ -18,6 +18,7 @@ pub mod save_settings;
 pub mod seek;
 pub mod set_follow;
 pub mod set_library_folder;
+pub mod set_player_hand;
 pub mod set_tempo_percent;
 pub mod set_transpose;
 pub mod set_volume;

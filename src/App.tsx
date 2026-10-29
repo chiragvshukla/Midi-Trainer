@@ -36,6 +36,7 @@ function App() {
   const resume = useSession((state) => state.resume);
   const stop = useSession((state) => state.stop);
   const toggleFollow = useSession((state) => state.toggleFollow);
+  const changeHand = useSession((state) => state.changeHand);
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
   const changeVolume = useSession((state) => state.changeVolume);
@@ -141,6 +142,20 @@ function App() {
           />
           Follow me
         </label>
+        <div className="view-toggle" role="group" aria-label="Practice hand">
+          {(["Both", "Left", "Right"] as const).map((hand) => (
+            <button
+              key={hand}
+              type="button"
+              className={
+                (settings?.player_hand ?? "Both") === hand ? "active" : ""
+              }
+              onClick={() => void changeHand(hand)}
+            >
+              {hand}
+            </button>
+          ))}
+        </div>
         <label>
           Tempo
           <input

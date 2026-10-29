@@ -68,6 +68,7 @@ pub fn run() {
             commands::disconnect_midi_input::disconnect_midi_input,
             commands::set_follow::set_follow,
             commands::set_library_folder::set_library_folder,
+            commands::set_player_hand::set_player_hand,
             commands::set_tempo_percent::set_tempo_percent,
             commands::set_transpose::set_transpose,
             commands::seek::seek,

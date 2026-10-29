@@ -8,6 +8,7 @@ use crate::commands::update_settings;
 use crate::engine::matcher::LiveMatcher;
 use crate::engine::notation;
 use crate::engine::{midi, scheduler, timeline::Timeline};
+use crate::settings::Settings;
 
 /// One note of the loaded piece, as the falling-note view draws it.
 #[derive(Serialize)]
@@ -31,6 +32,7 @@ pub struct Piece {
 pub fn play_file(
     path: String,
     app: AppHandle,
+    settings: State<'_, Mutex<Settings>>,
     engine: State<'_, Mutex<AudioEngine>>,
     matcher: State<'_, Mutex<Option<LiveMatcher>>>,
 ) -> Result<Piece, String> {
@@ -38,7 +40,11 @@ pub fn play_file(
     let data = std::fs::read(&path).map_err(|err| err.to_string())?;
     let file = midi::parse(&data).map_err(|err| err.to_string())?;
     let timeline = Timeline::from_midi(&file);
-    let score = Arc::new(scheduler::schedule(&timeline));
+    let hand = settings
+        .lock()
+        .map_err(|_| "settings state is unavailable".to_string())?
+        .player_hand;
+    let score = Arc::new(scheduler::schedule(&timeline, hand));
     {
         let mut matcher = matcher
             .lock()
@@ -49,7 +55,7 @@ pub fn play_file(
         .lock()
         .map_err(|_| "audio state is unavailable".to_string())?;
     engine.set_score(score);
-    engine.set_gates(scheduler::gates(&timeline));
+    engine.set_gates(scheduler::gates(&timeline, hand));
     // Loading must not start playing, and must silence a piece that is still going.
     engine.stop();
     update_settings(&app, |settings| settings.record_recent_file(&path))?;
