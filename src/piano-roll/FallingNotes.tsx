@@ -1,12 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { playbackPosition, type NoteInfo, type Verdict } from "../lib/api";
 import { useSession, verdictKey } from "../state/sessionStore";
 
 /** Pitch classes drawn as black keys (C#, D#, F#, G#, A#). */
 const BLACK_CLASSES = new Set([1, 3, 6, 8, 10]);
 
-/** How much score time is visible above the keyboard, in milliseconds. */
+/** How much score time is visible above the keyboard at zoom 1, in milliseconds. */
 const LOOKAHEAD_MS = 4000;
+
+/** Zoom limits: below 1 fits more time in, above 1 spreads it out. */
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 4;
 
 /** Fraction of the view the on-screen keyboard takes. */
 const KEYBOARD_SHARE = 0.24;
@@ -53,6 +57,8 @@ export function FallingNotes() {
   const piece = useSession((state) => state.piece);
   const verdicts = useSession((state) => state.verdicts);
   const pressed = useSession((state) => state.pressed);
+  // Zoom lives here, so it is remembered across toggles to the sheet view and back.
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -106,7 +112,8 @@ export function FallingNotes() {
       };
 
       const keyboardTop = height * (1 - KEYBOARD_SHARE);
-      const pxPerMs = keyboardTop / LOOKAHEAD_MS || 0.1;
+      const lookahead = LOOKAHEAD_MS / zoom;
+      const pxPerMs = keyboardTop / lookahead || 0.1;
       const sounding = new Set<number>();
 
       // First note that can still be on screen: nothing longer than the longest note.
@@ -125,7 +132,7 @@ export function FallingNotes() {
       const visible: NoteInfo[] = [];
       for (let i = windowStart; i < notes.length; i++) {
         const note = notes[i];
-        if (note.start_ms > positionMs + LOOKAHEAD_MS) {
+        if (note.start_ms > positionMs + lookahead) {
           break;
         }
         if (note.end_ms <= positionMs) {
@@ -216,7 +223,22 @@ export function FallingNotes() {
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [piece, verdicts, pressed]);
+  }, [piece, verdicts, pressed, zoom]);
 
-  return <canvas ref={canvasRef} className="piano-roll" />;
+  return (
+    <>
+      <canvas ref={canvasRef} className="piano-roll" />
+      <label className="roll-zoom">
+        Zoom
+        <input
+          type="range"
+          min={MIN_ZOOM}
+          max={MAX_ZOOM}
+          step={0.25}
+          value={zoom}
+          onChange={(event) => setZoom(Number(event.target.value))}
+        />
+      </label>
+    </>
+  );
 }

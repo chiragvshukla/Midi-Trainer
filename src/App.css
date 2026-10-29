@@ -99,6 +99,21 @@
   display: block;
 }
 
+.roll-zoom {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #aab2c5;
+  background: rgba(18, 20, 26, 0.7);
+}
+
 .gate {
   position: absolute;
   inset: 0;
