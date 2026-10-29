@@ -279,8 +279,10 @@ export function AppearancePanel({
 
           {version ? (
             <p className="app-version">
-              MidiTrainer v{version} · Icon: Assia Benkerroum (Flaticon) ·
-              Sound: microGM by &quot;michael&quot; (WTFPL)
+              Vibe-coded using open-weight models · MidiTrainer v{version} ·
+              Icon: Assia Benkerroum (Flaticon) · Sound: microGM by
+              &quot;michael&quot; (WTFPL), FluidR3 by Frank Wen &amp; Toby
+              Smithe (MIT)
             </p>
           ) : null}
         </div>

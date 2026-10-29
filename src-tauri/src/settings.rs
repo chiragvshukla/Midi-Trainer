@@ -57,7 +57,7 @@ pub struct Settings {
     pub player_volume: f32,
     /// Volume of the wrong-note cue, as a linear gain, 0.0 to 1.0.
     pub cue_volume: f32,
-    /// Master output volume, as a linear gain, 0.0 to 1.0, applied to the whole mix.
+    /// Master output volume, as a linear gain up to `MAX_OUTPUT_VOLUME`, applied to the whole mix.
     pub output_volume: f32,
     /// Playback tempo as a percentage of the original.
     pub tempo_percent: f32,
@@ -87,7 +87,7 @@ impl Default for Settings {
             midi_device: None,
             music_volume: 0.8,
             player_volume: 0.5,
-            cue_volume: 1.0,
+            cue_volume: 0.5,
             output_volume: 1.0,
             tempo_percent: 100.0,
             transpose: 0,

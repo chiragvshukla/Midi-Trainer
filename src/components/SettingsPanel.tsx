@@ -207,15 +207,15 @@ export function SettingsPanel({
             </label>
             <label className="field">
               <span>
-                Wrong-note cue · {Math.round((settings?.cue_volume ?? 1) * 100)}
-                %
+                Wrong-note cue ·{" "}
+                {Math.round((settings?.cue_volume ?? 0.5) * 100)}%
               </span>
               <input
                 type="range"
                 min={0}
                 max={1}
                 step={0.05}
-                value={settings?.cue_volume ?? 1}
+                value={settings?.cue_volume ?? 0.5}
                 onChange={(event) =>
                   void changeCueVolume(Number(event.target.value))
                 }
