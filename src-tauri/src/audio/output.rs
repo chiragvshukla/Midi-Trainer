@@ -393,21 +393,32 @@ impl<S: Synth> Renderer<S> {
             self.apply_control(message);
         }
         while let Some(command) = self.commands.pop() {
-            // A note the player pressed is reported with the position it landed on, so the live
-            // matcher can judge it. The position is the start of this block, which is within one
-            // block of the press.
-            if let AudioCommand::NoteOn {
-                channel: PLAYER_CHANNEL,
-                pitch,
-                ..
-            } = command
-            {
-                // The same press both releases the next gate and is reported for judging.
-                self.playback.player_note(pitch);
-                let _ = self.played.push(PlayedNote {
-                    position_ms: self.playback.position_ms,
+            // Player notes are reported with the position they landed on: note-ons release gates
+            // and are judged; both directions light the on-screen keyboard.
+            match command {
+                AudioCommand::NoteOn {
+                    channel: PLAYER_CHANNEL,
                     pitch,
-                });
+                    ..
+                } => {
+                    self.playback.player_note(pitch);
+                    let _ = self.played.push(PlayedNote {
+                        position_ms: self.playback.position_ms,
+                        pitch,
+                        down: true,
+                    });
+                }
+                AudioCommand::NoteOff {
+                    channel: PLAYER_CHANNEL,
+                    pitch,
+                } => {
+                    let _ = self.played.push(PlayedNote {
+                        position_ms: self.playback.position_ms,
+                        pitch,
+                        down: false,
+                    });
+                }
+                _ => {}
             }
             self.synth.apply(command);
         }
@@ -764,7 +775,8 @@ mod tests {
             renderer.played.pop(),
             Some(PlayedNote {
                 position_ms: 0.0,
-                pitch: 60
+                pitch: 60,
+                down: true
             })
         );
     }

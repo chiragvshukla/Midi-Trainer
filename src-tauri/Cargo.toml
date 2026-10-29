@@ -40,6 +40,8 @@ sha2 = "0.10"
 midir = "0.10"
 # serde_json (MIT/Apache-2.0): reads and writes the settings file in the app data directory.
 serde_json = "1"
+# tauri-plugin-dialog (MIT/Apache-2.0): native open dialog for choosing MIDI files.
+tauri-plugin-dialog = "2"
 log = "0.4"
 env_logger = "0.11"
 

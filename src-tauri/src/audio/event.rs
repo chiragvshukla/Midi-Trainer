@@ -69,11 +69,13 @@ pub struct MidiMessage {
     pub data2: i32,
 }
 
-/// A note the player pressed, with the score position it landed on.
+/// A note the player pressed or released, with the score position it landed on.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlayedNote {
     pub position_ms: f64,
     pub pitch: u8,
+    /// Whether the note was pressed (true) or released (false).
+    pub down: bool,
 }
 
 impl AudioCommand {

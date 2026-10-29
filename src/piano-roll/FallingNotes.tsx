@@ -1,0 +1,195 @@
+import { useEffect, useRef } from "react";
+import { playbackPosition, type Verdict } from "../lib/api";
+import { useSession, verdictKey } from "../state/sessionStore";
+
+/** Pitch classes drawn as black keys (C#, D#, F#, G#, A#). */
+const BLACK_CLASSES = new Set([1, 3, 6, 8, 10]);
+
+/** How much score time is visible above the keyboard, in milliseconds. */
+const LOOKAHEAD_MS = 4000;
+
+/** Fraction of the view the on-screen keyboard takes. */
+const KEYBOARD_SHARE = 0.24;
+
+const COLORS = {
+  note: "#64b5f6",
+  correct: "#43a047",
+  wrong: "#e53935",
+  soundingKey: "#4fc3f7",
+  pressedWhite: "#66bb6a",
+  pressedBlack: "#2e7d32",
+  white: "#fafafa",
+  black: "#222222",
+  playhead: "#ff9800",
+};
+
+/** Geometry of one piano key within the keyboard strip. */
+interface KeyRect {
+  x: number;
+  width: number;
+  black: boolean;
+}
+
+/**
+ * The falling-note view: score notes scroll onto an on-screen keyboard, keys light up while
+ * their notes sound or while the player holds them, and played notes are colored by verdict.
+ * Rendering only — position comes from the engine, verdicts from the session store.
+ */
+export function FallingNotes() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const piece = useSession((state) => state.piece);
+  const verdicts = useSession((state) => state.verdicts);
+  const pressed = useSession((state) => state.pressed);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return;
+    }
+    let frame = 0;
+
+    const draw = (positionMs: number) => {
+      const ratio = window.devicePixelRatio || 1;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (canvas.width !== width * ratio || canvas.height !== height * ratio) {
+        canvas.width = width * ratio;
+        canvas.height = height * ratio;
+      }
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, width, height);
+
+      const notes = piece?.notes ?? [];
+      const low = Math.max(
+        21,
+        notes.length ? Math.min(...notes.map((n) => n.pitch)) - 2 : 48,
+      );
+      const high = Math.min(
+        108,
+        notes.length ? Math.max(...notes.map((n) => n.pitch)) + 2 : 84,
+      );
+
+      const whites: number[] = [];
+      for (let pitch = low; pitch <= high; pitch++) {
+        if (!BLACK_CLASSES.has(pitch % 12)) {
+          whites.push(pitch);
+        }
+      }
+      const whiteIndex = new Map(whites.map((pitch, index) => [pitch, index]));
+      const whiteWidth = width / Math.max(1, whites.length);
+      const keyRect = (pitch: number): KeyRect => {
+        if (!BLACK_CLASSES.has(pitch % 12)) {
+          return {
+            x: (whiteIndex.get(pitch) ?? 0) * whiteWidth,
+            width: whiteWidth,
+            black: false,
+          };
+        }
+        const boundary = ((whiteIndex.get(pitch - 1) ?? -1) + 1) * whiteWidth;
+        return {
+          x: boundary - whiteWidth * 0.35,
+          width: whiteWidth * 0.7,
+          black: true,
+        };
+      };
+
+      const keyboardTop = height * (1 - KEYBOARD_SHARE);
+      const pxPerMs = keyboardTop / LOOKAHEAD_MS || 0.1;
+      const sounding = new Set<number>();
+
+      // Falling notes, closest to the keyboard last.
+      const visible = notes
+        .filter(
+          (note) =>
+            note.end_ms > positionMs &&
+            note.start_ms < positionMs + LOOKAHEAD_MS,
+        )
+        .sort((a, b) => b.start_ms - a.start_ms);
+      for (const note of visible) {
+        if (note.start_ms <= positionMs && positionMs < note.end_ms) {
+          sounding.add(note.pitch);
+        }
+        const rect = keyRect(note.pitch);
+        const bottom = Math.min(
+          keyboardTop,
+          keyboardTop - (note.start_ms - positionMs) * pxPerMs,
+        );
+        const top = Math.max(
+          0,
+          keyboardTop - (note.end_ms - positionMs) * pxPerMs,
+        );
+        const verdict: Verdict | undefined =
+          verdicts[verdictKey(note.pitch, note.start_ms)];
+        context.fillStyle =
+          verdict === "Correct"
+            ? COLORS.correct
+            : verdict === "Wrong"
+              ? COLORS.wrong
+              : COLORS.note;
+        context.fillRect(
+          rect.x + 1,
+          top,
+          rect.width - 2,
+          Math.max(2, bottom - top),
+        );
+      }
+
+      // Keyboard: white keys first, black keys over them.
+      const isPressed = (pitch: number) => pressed.includes(pitch);
+      for (const pitch of whites) {
+        const rect = keyRect(pitch);
+        context.fillStyle = isPressed(pitch)
+          ? COLORS.pressedWhite
+          : sounding.has(pitch)
+            ? COLORS.soundingKey
+            : COLORS.white;
+        context.fillRect(rect.x, keyboardTop, rect.width, height - keyboardTop);
+        context.strokeStyle = "#cccccc";
+        context.strokeRect(
+          rect.x,
+          keyboardTop,
+          rect.width,
+          height - keyboardTop,
+        );
+      }
+      for (let pitch = low; pitch <= high; pitch++) {
+        if (!BLACK_CLASSES.has(pitch % 12)) {
+          continue;
+        }
+        const rect = keyRect(pitch);
+        context.fillStyle = isPressed(pitch)
+          ? COLORS.pressedBlack
+          : sounding.has(pitch)
+            ? COLORS.soundingKey
+            : COLORS.black;
+        context.fillRect(
+          rect.x,
+          keyboardTop,
+          rect.width,
+          (height - keyboardTop) * 0.62,
+        );
+      }
+
+      context.strokeStyle = COLORS.playhead;
+      context.beginPath();
+      context.moveTo(0, keyboardTop);
+      context.lineTo(width, keyboardTop);
+      context.stroke();
+    };
+
+    const loop = () => {
+      frame = requestAnimationFrame(loop);
+      playbackPosition()
+        .then(draw)
+        .catch(() => {});
+    };
+    frame = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frame);
+  }, [piece, verdicts, pressed]);
+
+  return <canvas ref={canvasRef} className="piano-roll" />;
+}

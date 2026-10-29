@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use serde::Serialize;
 use tauri::{AppHandle, State};
 
 use crate::audio::AudioEngine;
@@ -8,16 +9,30 @@ use crate::commands::update_settings;
 use crate::engine::matcher::LiveMatcher;
 use crate::engine::{scheduler, timeline::Timeline};
 
-/// Loads a MIDI or karaoke file and plays it from the beginning.
+/// One note of the loaded piece, as the falling-note view draws it.
+#[derive(Serialize)]
+pub struct NoteInfo {
+    pub pitch: u8,
+    pub start_ms: f64,
+    pub end_ms: f64,
+}
+
+/// The piece the falling-note view renders: its notes and total length.
+#[derive(Serialize)]
+pub struct Piece {
+    pub notes: Vec<NoteInfo>,
+    pub duration_ms: f64,
+}
+
+/// Loads a MIDI or karaoke file, plays it from the beginning, and returns its notes.
 #[tauri::command]
 pub fn play_file(
     path: String,
     app: AppHandle,
     engine: State<'_, Mutex<AudioEngine>>,
     matcher: State<'_, Mutex<Option<LiveMatcher>>>,
-) -> Result<(), String> {
-    let file = Path::new(&path);
-    let timeline = Timeline::load(file).map_err(|err| err.to_string())?;
+) -> Result<Piece, String> {
+    let timeline = Timeline::load(Path::new(&path)).map_err(|err| err.to_string())?;
     let score = Arc::new(scheduler::schedule(&timeline));
     {
         let mut matcher = matcher
@@ -33,5 +48,20 @@ pub fn play_file(
     engine.start();
     update_settings(&app, |settings| settings.record_recent_file(&path))?;
     log::info!("playing {path}");
-    Ok(())
+
+    let notes = timeline
+        .notes
+        .iter()
+        .map(|note| NoteInfo {
+            pitch: note.pitch,
+            start_ms: note.start_ms,
+            end_ms: note.end_ms,
+        })
+        .collect();
+    let duration_ms = timeline
+        .notes
+        .iter()
+        .map(|note| note.end_ms)
+        .fold(0.0, f64::max);
+    Ok(Piece { notes, duration_ms })
 }

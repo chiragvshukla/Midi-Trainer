@@ -24,11 +24,22 @@ const JUDGEMENT_POLL: Duration = Duration::from_millis(33);
 /// Event carrying the judgements of the player's notes to the frontend.
 pub const NOTE_JUDGEMENTS_EVENT: &str = "note-judgements";
 
+/// Event carrying every press and release on the player's keyboards to the frontend.
+pub const PLAYER_NOTES_EVENT: &str = "player-notes";
+
+/// One press or release, as the frontend sees it.
+#[derive(Clone, serde::Serialize)]
+struct PlayerNote {
+    pitch: u8,
+    down: bool,
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(Mutex::new(AudioEngine::new()))
         // Shared flag the frontend flips to cancel an in-flight SoundFont download.
         .manage(Arc::new(AtomicBool::new(false)))
@@ -94,6 +105,16 @@ fn judgement_pump(app: AppHandle) {
             continue;
         }
 
+        // Every press and release lights the on-screen keyboard, matched or not.
+        let notes: Vec<PlayerNote> = played
+            .iter()
+            .map(|note| PlayerNote {
+                pitch: note.pitch,
+                down: note.down,
+            })
+            .collect();
+        let _ = app.emit(PLAYER_NOTES_EVENT, &notes);
+
         let mut judgements = Vec::new();
         let mut wrong = false;
         {
@@ -104,7 +125,7 @@ fn judgement_pump(app: AppHandle) {
             let Some(matcher) = guard.as_mut() else {
                 continue;
             };
-            for note in played {
+            for note in played.iter().filter(|note| note.down) {
                 if let Some(judgement) = matcher.evaluate(note.position_ms, note.pitch) {
                     wrong |= judgement.verdict == Verdict::Wrong;
                     judgements.push(judgement);

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { keyDown, keyUp } from "./api";
 import { log } from "./logger";
+import { useSession } from "../state/sessionStore";
 
 /**
  * Plays notes from the PC keyboard. Every key event is forwarded to the backend, which owns the
@@ -9,11 +10,11 @@ import { log } from "./logger";
  */
 export function usePcKeyboard(): void {
   useEffect(() => {
-    const pressed = new Set<string>();
+    const pressed = new Map<string, number>();
 
-    const send = (action: Promise<void>, code: string) => {
+    const send = (action: Promise<unknown>, context: string) => {
       void action.catch((error) =>
-        log.error(`key input failed for ${code}: ${String(error)}`),
+        log.error(`key input failed for ${context}: ${String(error)}`),
       );
     };
 
@@ -21,18 +22,33 @@ export function usePcKeyboard(): void {
       if (event.repeat || pressed.has(event.code)) {
         return;
       }
-      pressed.add(event.code);
-      send(keyDown(event.code), event.code);
+      pressed.set(event.code, -1);
+      send(
+        keyDown(event.code).then((pitch) => {
+          if (pitch !== null) {
+            pressed.set(event.code, pitch);
+            useSession.getState().pressPitch(pitch, true);
+          }
+        }),
+        event.code,
+      );
     };
 
     const up = (event: KeyboardEvent) => {
+      const pitch = pressed.get(event.code);
       pressed.delete(event.code);
       send(keyUp(event.code), event.code);
+      if (pitch !== undefined && pitch >= 0) {
+        useSession.getState().pressPitch(pitch, false);
+      }
     };
 
     const releaseAll = () => {
-      for (const code of pressed) {
+      for (const [code, pitch] of pressed) {
         send(keyUp(code), code);
+        if (pitch >= 0) {
+          useSession.getState().pressPitch(pitch, false);
+        }
       }
       pressed.clear();
     };

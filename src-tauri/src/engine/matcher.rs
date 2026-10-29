@@ -27,6 +27,8 @@ pub struct NoteJudgement {
     pub offset_ms: i64,
     /// The pitch the piece expected, when one was due.
     pub expected_pitch: Option<u8>,
+    /// Score time of the expected note, so the frontend can find it in the piece.
+    pub expected_start_ms: f64,
 }
 
 /// Matches the player's notes against a piece, one pressed note at a time.
@@ -105,8 +107,8 @@ impl LiveMatcher {
     fn judgement(&mut self, index: usize, position_ms: f64, pitch: u8) -> NoteJudgement {
         let note = &mut self.notes[index];
         note.matched = true;
-        let expected_pitch = note.pitch;
-        let offset_ms = (position_ms - note.start_ms).round() as i64;
+        let (expected_pitch, expected_start_ms) = (note.pitch, note.start_ms);
+        let offset_ms = (position_ms - expected_start_ms).round() as i64;
         let NoteMatch {
             verdict,
             timing,
@@ -118,6 +120,7 @@ impl LiveMatcher {
             timing,
             offset_ms,
             expected_pitch: Some(expected_pitch),
+            expected_start_ms,
         }
     }
 }
