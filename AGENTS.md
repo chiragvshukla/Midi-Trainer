@@ -10,14 +10,9 @@ Licensing is strict: **clean-room**. PianoBooster is GPLv3; this project is MIT.
 
 ## What exists today
 
-This repository is greenfield. The current state:
+Step 2 (scaffold) is done and the app runs (`npm run tauri dev`). Present today: the root meta files (`README.md`, `LICENSE`, `package.json`, `eslint.config.js`, `index.html`), `src/App.tsx` with `src/lib/` (logger, IPC bindings) and `src/state/appStore.ts`, and `src-tauri/src/commands/` (`app_info.rs`, `log_message.rs`).
 
-```
-MidiTrainer/
-└── AGENTS.md          # this file — the only file that exists
-```
-
-Everything in the next section is _planned_, not present. Do not assume any of it exists until it is actually created; check the tree before referencing paths.
+The next section is the full target tree: entries not listed above are still _planned_. Do not assume anything else exists — check the tree before referencing paths, and never overwrite the files listed above.
 
 ## Planned structure
 

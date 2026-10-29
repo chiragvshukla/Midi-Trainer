@@ -24,6 +24,12 @@ log = "0.4"
 env_logger = "0.11"
 
 
+# AGENTS.md bans println!/eprintln! outside tests: they panic in release GUI
+# builds on Windows (no console) and panic = "abort" takes the app down.
+[lints.clippy]
+print_stdout = "deny"
+print_stderr = "deny"
+
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
 codegen-units = 1
