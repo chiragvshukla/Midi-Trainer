@@ -743,6 +743,43 @@
   --roll-track-6: #f57d26;
 }
 
+/* Synthwave84 — by Robb Owen; https://github.com/robb0wen/synthwave-vscode.
+   Dark-only by design (neon on deep purple); it ignores the Light brightness. */
+[data-palette="synthwave84"] {
+  --bg: #241b2f;
+  --surface: #2a2139;
+  --surface-2: #34294f;
+  --surface-3: #463465;
+  --border: #5b3e8a;
+  --border-subtle: #34294f;
+  --text: #f0eff1;
+  --muted: #b6b1d8;
+  --faint: #848bbd;
+  --accent: #ff7edb;
+  --accent-hover: #ff9fe4;
+  --on-accent: #241b2f;
+  --ok: #72f1b8;
+  --warn: #fede5d;
+  --bad: #fe4450;
+  --early: #36f9f6;
+  --lyric-sung: #fede5d;
+  --panel-hi: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(255, 126, 219, 0.06);
+  --roll-bg: #1f172b;
+  --roll-lane: rgba(255, 126, 219, 0.04);
+  --roll-grid: rgba(255, 126, 219, 0.09);
+  --roll-label: #241b2f;
+  --roll-left: #36f9f6;
+  --roll-right: #ff7edb;
+  --roll-playhead: #ff7edb;
+  --roll-track-1: #ff7edb;
+  --roll-track-2: #36f9f6;
+  --roll-track-3: #fede5d;
+  --roll-track-4: #fe4450;
+  --roll-track-5: #72f1b8;
+  --roll-track-6: #b6b1d8;
+}
+
 * {
   box-sizing: border-box;
 }
