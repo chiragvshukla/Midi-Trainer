@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   cancelSoundfontDownload,
   connectMidiInput,
@@ -6,17 +7,20 @@ import {
   downloadSoundfont,
   fetchSettings,
   fetchSoundfontStatus,
+  listLibrary,
   listMidiInputs,
   loadSoundfont,
   play,
   playFile,
   saveSettings,
   setFollow,
+  setLibraryFolder,
   setTempoPercent,
   setTranspose,
   setVolume,
   stopPlayback,
   type Judgement,
+  type LibraryEntry,
   type Piece,
   type Settings,
   type SoundfontStatus,
@@ -56,7 +60,13 @@ interface SessionState {
   settings: Settings | null;
   /** The connected MIDI input devices, as the system names them. */
   devices: string[];
+  /** The folder the user browses as their library, if one was chosen. */
+  libraryFolder: string | null;
+  /** The MIDI files found under the library folder. */
+  library: LibraryEntry[];
   piece: Piece | null;
+  /** Path of the loaded piece, so the library can highlight it. */
+  piecePath: string | null;
   follow: boolean;
   /** Verdict per falling note, keyed by pitch and score time. */
   verdicts: Record<string, Verdict>;
@@ -70,6 +80,8 @@ interface SessionState {
   updateDownload: (progress: DownloadState | null) => void;
   loadDevices: () => Promise<void>;
   connectDevice: (name: string | null) => Promise<void>;
+  loadLibrary: () => Promise<void>;
+  chooseLibraryFolder: () => Promise<void>;
   openPiece: (path: string) => Promise<void>;
   resume: () => Promise<void>;
   stop: () => Promise<void>;
@@ -87,7 +99,10 @@ export const useSession = create<SessionState>((set, get) => ({
   soundfontError: null,
   settings: null,
   devices: [],
+  libraryFolder: null,
+  library: [],
   piece: null,
+  piecePath: null,
   follow: false,
   verdicts: {},
   pressed: [],
@@ -96,6 +111,7 @@ export const useSession = create<SessionState>((set, get) => ({
     await get().initSoundfont();
     if (!get().soundfontError) {
       await get().loadSettings();
+      await get().loadLibrary();
     }
   },
 
@@ -139,6 +155,7 @@ export const useSession = create<SessionState>((set, get) => ({
     try {
       const settings = await fetchSettings();
       set({ settings });
+      set({ libraryFolder: settings.library_folder ?? null });
       // The engine starts fresh every run; put the saved practice setup back.
       await setVolume(settings.volume);
       await setTempoPercent(settings.tempo_percent);
@@ -176,10 +193,38 @@ export const useSession = create<SessionState>((set, get) => ({
     }
   },
 
+  loadLibrary: async () => {
+    const folder = get().libraryFolder;
+    if (!folder) {
+      set({ library: [] });
+      return;
+    }
+    try {
+      set({ library: await listLibrary(folder) });
+    } catch (error) {
+      log.error(`listing the library folder failed: ${String(error)}`);
+      set({ library: [] });
+    }
+  },
+
+  chooseLibraryFolder: async () => {
+    try {
+      const folder = await open({ directory: true });
+      if (typeof folder !== "string") {
+        return;
+      }
+      await setLibraryFolder(folder);
+      set({ libraryFolder: folder });
+      await get().loadLibrary();
+    } catch (error) {
+      log.error(`choosing a library folder failed: ${String(error)}`);
+    }
+  },
+
   openPiece: async (path) => {
     try {
       const piece = await playFile(path);
-      set({ piece, verdicts: {} });
+      set({ piece, piecePath: path, verdicts: {} });
     } catch (error) {
       log.error(`failed to play ${path}: ${String(error)}`);
     }

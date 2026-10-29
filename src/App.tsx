@@ -5,16 +5,17 @@ import { useAppStore } from "./state/appStore";
 import { useSession } from "./state/sessionStore";
 import { usePcKeyboard } from "./lib/usePcKeyboard";
 import { SoundfontGate } from "./components/SoundfontGate";
+import { LibraryView } from "./components/LibraryView";
 import { FallingNotes } from "./piano-roll/FallingNotes";
 import { ScoreView } from "./score/ScoreView";
 import type { DownloadProgress, Judgement, PlayerNote } from "./lib/api";
 import "./App.css";
 
-/** Which of the two note displays is on screen. */
-type View = "keys" | "sheet";
+/** Which of the three screens is on. */
+type View = "library" | "keys" | "sheet";
 
 function App() {
-  const [view, setView] = useState<View>("keys");
+  const [view, setView] = useState<View>("library");
   const appInfo = useAppStore((state) => state.appInfo);
   const loadAppInfo = useAppStore((state) => state.loadAppInfo);
 
@@ -99,6 +100,13 @@ function App() {
           Stop
         </button>
         <div className="view-toggle">
+          <button
+            type="button"
+            className={view === "library" ? "active" : ""}
+            onClick={() => setView("library")}
+          >
+            Library
+          </button>
           <button
             type="button"
             className={view === "keys" ? "active" : ""}
@@ -191,6 +199,9 @@ function App() {
         </label>
       </header>
       <main className="workspace">
+        <div className={view === "library" ? "" : "hidden"}>
+          <LibraryView onOpened={() => setView("keys")} />
+        </div>
         <div className={view === "keys" ? "" : "hidden"}>
           <FallingNotes />
         </div>
