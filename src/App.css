@@ -499,7 +499,7 @@ body {
 
 .sidebar {
   flex: none;
-  width: 216px;
+  width: 236px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -511,7 +511,7 @@ body {
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 4px 8px 14px;
 }
 
@@ -521,14 +521,21 @@ body {
 }
 
 .brand-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.01em;
+  /* Shrinks before the version badge or the collapse tab, so neither is pushed off the rail. */
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .version-badge {
-  font-size: 11px;
-  padding: 2px 8px;
+  flex: none;
+  font-size: 10px;
+  padding: 2px 6px;
   border-radius: 999px;
   background: var(--surface-2);
   color: var(--muted);
@@ -1712,6 +1719,7 @@ input[type="range"]::-moz-range-thumb {
   padding-right: 8px;
 }
 
+.sidebar.collapsed .brand-mark,
 .sidebar.collapsed .brand-name,
 .sidebar.collapsed .version-badge,
 .sidebar.collapsed .nav-label {
@@ -1725,7 +1733,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* The collapse control is a small tab beside the version badge. */
 .sidebar-tab {
-  margin-left: auto;
+  flex: none;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
