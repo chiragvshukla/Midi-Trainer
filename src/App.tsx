@@ -1,10 +1,13 @@
 import { useEffect } from "react";
 import { useAppStore } from "./state/appStore";
+import { usePcKeyboard } from "./lib/usePcKeyboard";
 import "./App.css";
 
 function App() {
   const appInfo = useAppStore((state) => state.appInfo);
   const loadAppInfo = useAppStore((state) => state.loadAppInfo);
+
+  usePcKeyboard();
 
   useEffect(() => {
     void loadAppInfo();

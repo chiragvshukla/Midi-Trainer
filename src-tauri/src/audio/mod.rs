@@ -7,6 +7,10 @@ pub use output::AudioEngine;
 
 use std::fmt;
 
+/// Channel reserved for the player's own input, so it can be told apart from the score's parts
+/// (the matcher filters on it) and stays on the piano program.
+pub const PLAYER_CHANNEL: u8 = 15;
+
 /// Errors from the audio subsystem.
 #[derive(Debug)]
 pub enum AudioError {

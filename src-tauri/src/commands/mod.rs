@@ -1,6 +1,8 @@
 pub mod app_info;
 pub mod cancel_soundfont_download;
 pub mod download_soundfont;
+pub mod key_down;
+pub mod key_up;
 pub mod load_soundfont;
 pub mod log_message;
 pub mod play_file;

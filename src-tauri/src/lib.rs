@@ -1,6 +1,7 @@
 pub mod audio;
 mod commands;
 pub mod engine;
+pub mod midi;
 pub mod soundfont;
 
 use std::sync::Arc;
@@ -27,6 +28,8 @@ pub fn run() {
             commands::soundfont_status::soundfont_status,
             commands::download_soundfont::download_soundfont,
             commands::cancel_soundfont_download::cancel_soundfont_download,
+            commands::key_down::key_down,
+            commands::key_up::key_up,
         ])
         .setup(|_app| {
             info!("MidiTrainer {} starting", env!("CARGO_PKG_VERSION"));
