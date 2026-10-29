@@ -4,21 +4,25 @@ import { create } from "zustand";
 export type Theme = "dark" | "light" | "system";
 
 /**
- * A fixed colour palette, each a well-known publishing with dark and light variants. The palette
- * owns every chrome and note colour, so the whole app stays cohesive instead of mixing a hue
- * into a background that is already tinted.
+ * The fixed colour palettes offered, each a well-known publishing with dark and light variants,
+ * with its display label. A palette owns every chrome and note colour, so the whole app stays
+ * cohesive instead of mixing a hue into a background that is already tinted. This is the single
+ * source of truth: the `Palette` union and the stored-value check both derive from it.
  */
-export type Palette =
-  | "slate"
-  | "catppuccin"
-  | "nord"
-  | "solarized"
-  | "gruvbox"
-  | "tokyo"
-  | "dracula"
-  | "one-dark"
-  | "rose-pine"
-  | "everforest";
+export const PALETTES = [
+  { id: "slate", label: "Slate (neutral)" },
+  { id: "catppuccin", label: "Catppuccin" },
+  { id: "nord", label: "Nord" },
+  { id: "solarized", label: "Solarized" },
+  { id: "gruvbox", label: "Gruvbox" },
+  { id: "tokyo", label: "Tokyo Night" },
+  { id: "dracula", label: "Dracula" },
+  { id: "one-dark", label: "One Dark" },
+  { id: "rose-pine", label: "Rosé Pine" },
+  { id: "everforest", label: "Everforest" },
+] as const;
+
+export type Palette = (typeof PALETTES)[number]["id"];
 
 /** Where note names are drawn: on the keys, on the falling notes, both, or nowhere. */
 export type NoteLabels = "off" | "keys" | "notes" | "both";
@@ -66,18 +70,7 @@ function isTheme(value: unknown): value is Theme {
 }
 
 function isPalette(value: unknown): value is Palette {
-  return (
-    value === "slate" ||
-    value === "catppuccin" ||
-    value === "nord" ||
-    value === "solarized" ||
-    value === "gruvbox" ||
-    value === "tokyo" ||
-    value === "dracula" ||
-    value === "one-dark" ||
-    value === "rose-pine" ||
-    value === "everforest"
-  );
+  return PALETTES.some((palette) => palette.id === value);
 }
 
 function isNoteLabels(value: unknown): value is NoteLabels {
@@ -242,7 +235,6 @@ export function canvasColors() {
     lane: read("--roll-lane"),
     grid: read("--roll-grid"),
     label: read("--roll-label"),
-    note: read("--roll-note"),
     left: read("--roll-left"),
     right: read("--roll-right"),
     correct: read("--roll-correct"),

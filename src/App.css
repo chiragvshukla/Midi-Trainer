@@ -38,7 +38,6 @@
   --roll-lane: rgba(255, 255, 255, 0.035);
   --roll-grid: rgba(255, 255, 255, 0.07);
   --roll-label: #0b0e14;
-  --roll-note: #5b8dee;
   --roll-left: #38b2ac;
   --roll-right: #b07de0;
   --roll-correct: #43a047;
@@ -86,7 +85,6 @@
   --roll-lane: rgba(30, 40, 60, 0.04);
   --roll-grid: rgba(30, 40, 60, 0.09);
   --roll-label: #ffffff;
-  --roll-note: #3b6fd4;
   --roll-left: #0f8f84;
   --roll-right: #8e5bd0;
   --roll-correct: #2e7d32;
@@ -131,7 +129,6 @@
   --roll-lane: rgba(205, 214, 244, 0.04);
   --roll-grid: rgba(205, 214, 244, 0.09);
   --roll-label: #1e1e2e;
-  --roll-note: #cba6f7;
   --roll-left: #94e2d5;
   --roll-right: #f5c2e7;
   --roll-playhead: #cba6f7;
@@ -167,7 +164,6 @@
   --roll-lane: rgba(76, 79, 105, 0.04);
   --roll-grid: rgba(76, 79, 105, 0.09);
   --roll-label: #eff1f5;
-  --roll-note: #8839ef;
   --roll-left: #179299;
   --roll-right: #ea76cb;
   --roll-playhead: #8839ef;
@@ -204,7 +200,6 @@
   --roll-lane: rgba(216, 222, 233, 0.04);
   --roll-grid: rgba(216, 222, 233, 0.08);
   --roll-label: #2e3440;
-  --roll-note: #88c0d0;
   --roll-left: #8fbcbb;
   --roll-right: #b48ead;
   --roll-playhead: #88c0d0;
@@ -240,7 +235,6 @@
   --roll-lane: rgba(46, 52, 64, 0.04);
   --roll-grid: rgba(46, 52, 64, 0.09);
   --roll-label: #e5e9f0;
-  --roll-note: #5e81ac;
   --roll-left: #3f8f8c;
   --roll-right: #8f6fa8;
   --roll-playhead: #5e81ac;
@@ -277,7 +271,6 @@
   --roll-lane: rgba(147, 161, 161, 0.04);
   --roll-grid: rgba(147, 161, 161, 0.09);
   --roll-label: #002b36;
-  --roll-note: #268bd2;
   --roll-left: #2aa198;
   --roll-right: #6c71c4;
   --roll-playhead: #268bd2;
@@ -313,7 +306,6 @@
   --roll-lane: rgba(88, 110, 117, 0.04);
   --roll-grid: rgba(88, 110, 117, 0.09);
   --roll-label: #fdf6e3;
-  --roll-note: #268bd2;
   --roll-left: #1f8a82;
   --roll-right: #6c71c4;
   --roll-playhead: #268bd2;
@@ -350,7 +342,6 @@
   --roll-lane: rgba(235, 219, 178, 0.04);
   --roll-grid: rgba(235, 219, 178, 0.09);
   --roll-label: #282828;
-  --roll-note: #83a598;
   --roll-left: #8ec07c;
   --roll-right: #d3869b;
   --roll-playhead: #fe8019;
@@ -386,7 +377,6 @@
   --roll-lane: rgba(60, 56, 54, 0.04);
   --roll-grid: rgba(60, 56, 54, 0.09);
   --roll-label: #fbf1c7;
-  --roll-note: #076678;
   --roll-left: #427b58;
   --roll-right: #8f3f71;
   --roll-playhead: #af3a03;
@@ -423,7 +413,6 @@
   --roll-lane: rgba(192, 202, 245, 0.035);
   --roll-grid: rgba(192, 202, 245, 0.08);
   --roll-label: #1a1b26;
-  --roll-note: #7aa2f7;
   --roll-left: #7dcfff;
   --roll-right: #bb9af7;
   --roll-playhead: #7aa2f7;
@@ -459,7 +448,6 @@
   --roll-lane: rgba(52, 59, 88, 0.04);
   --roll-grid: rgba(52, 59, 88, 0.09);
   --roll-label: #e1e2e7;
-  --roll-note: #2e7de9;
   --roll-left: #007197;
   --roll-right: #9854f1;
   --roll-playhead: #2e7de9;
@@ -496,7 +484,6 @@
   --roll-lane: rgba(248, 248, 242, 0.04);
   --roll-grid: rgba(248, 248, 242, 0.09);
   --roll-label: #282a36;
-  --roll-note: #bd93f9;
   --roll-left: #8be9fd;
   --roll-right: #ff79c6;
   --roll-playhead: #bd93f9;
@@ -532,7 +519,6 @@
   --roll-lane: rgba(31, 31, 31, 0.04);
   --roll-grid: rgba(31, 31, 31, 0.09);
   --roll-label: #f5f5f5;
-  --roll-note: #644ac9;
   --roll-left: #036a96;
   --roll-right: #a3144d;
   --roll-playhead: #644ac9;
@@ -569,7 +555,6 @@
   --roll-lane: rgba(171, 178, 191, 0.04);
   --roll-grid: rgba(171, 178, 191, 0.09);
   --roll-label: #282c34;
-  --roll-note: #61afef;
   --roll-left: #56b6c2;
   --roll-right: #c678dd;
   --roll-playhead: #61afef;
@@ -605,7 +590,6 @@
   --roll-lane: rgba(56, 58, 66, 0.04);
   --roll-grid: rgba(56, 58, 66, 0.09);
   --roll-label: #fafafa;
-  --roll-note: #4078f2;
   --roll-left: #0184bc;
   --roll-right: #a626a4;
   --roll-playhead: #4078f2;
@@ -642,7 +626,6 @@
   --roll-lane: rgba(224, 222, 244, 0.04);
   --roll-grid: rgba(224, 222, 244, 0.09);
   --roll-label: #191724;
-  --roll-note: #c4a7e7;
   --roll-left: #31748f;
   --roll-right: #eb6f92;
   --roll-playhead: #c4a7e7;
@@ -678,7 +661,6 @@
   --roll-lane: rgba(87, 82, 121, 0.04);
   --roll-grid: rgba(87, 82, 121, 0.09);
   --roll-label: #faf4ed;
-  --roll-note: #907aa9;
   --roll-left: #286983;
   --roll-right: #d7827e;
   --roll-playhead: #907aa9;
@@ -715,7 +697,6 @@
   --roll-lane: rgba(211, 198, 170, 0.04);
   --roll-grid: rgba(211, 198, 170, 0.09);
   --roll-label: #2d353b;
-  --roll-note: #7fbbb3;
   --roll-left: #83c092;
   --roll-right: #d699b6;
   --roll-playhead: #a7c080;
@@ -751,7 +732,6 @@
   --roll-lane: rgba(92, 106, 114, 0.04);
   --roll-grid: rgba(92, 106, 114, 0.09);
   --roll-label: #fdf6e3;
-  --roll-note: #3a94c5;
   --roll-left: #35a77c;
   --roll-right: #df69ba;
   --roll-playhead: #8da101;

@@ -159,14 +159,20 @@ impl Settings {
         let text = serde_json::to_string_pretty(self).map_err(|err| err.to_string())?;
         let temporary = path.with_extension("json.part");
         std::fs::write(&temporary, text).map_err(|err| err.to_string())?;
-        // Windows refuses to rename over an existing file, and freshly written files can be
-        // held briefly by antivirus scans, so the swap is retried a few times.
+        // Rename replaces the destination atomically on every supported platform, so the old
+        // file survives a crash right up to the swap. Windows can still refuse while a scanner
+        // holds the file, so a failure removes it and retries instead of losing the write.
         for attempt in 0..3 {
-            std::fs::remove_file(path).ok();
             match std::fs::rename(&temporary, path) {
                 Ok(()) => return Ok(()),
-                Err(err) if attempt == 2 => return Err(err.to_string()),
-                Err(_) => std::thread::sleep(std::time::Duration::from_millis(10)),
+                Err(err) if attempt == 2 => {
+                    let _ = std::fs::remove_file(&temporary);
+                    return Err(err.to_string());
+                }
+                Err(_) => {
+                    std::fs::remove_file(path).ok();
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
             }
         }
         unreachable!("the loop returns on its last attempt")

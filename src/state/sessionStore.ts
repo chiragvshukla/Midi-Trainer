@@ -66,6 +66,21 @@ function scheduleSave(): void {
   }, SAVE_DEBOUNCE_MS);
 }
 
+/** Optimistically applies a numeric setting, pushes it to the engine, then persists it. */
+function applyNumericSetting(
+  set: (updater: (state: SessionState) => Partial<SessionState>) => void,
+  label: string,
+  patch: Partial<Settings>,
+  apply: () => Promise<void>,
+): Promise<void> {
+  set((state) => ({
+    settings: state.settings ? { ...state.settings, ...patch } : state.settings,
+  }));
+  return apply()
+    .then(scheduleSave)
+    .catch((error) => log.error(`${label}: ${String(error)}`));
+}
+
 /** Key of one falling note in the verdict map: pitch and score time. */
 export function verdictKey(pitch: number, startMs: number): string {
   return `${pitch}:${Math.round(startMs)}`;
@@ -82,7 +97,7 @@ export interface WrongFlash {
 }
 
 /** The bar line nearest `ms` in the engraved measures, so loop points land on a bar. */
-function nearestBarMs(piece: Piece | null, ms: number): number {
+export function nearestBarMs(piece: Piece | null, ms: number): number {
   const measures = piece?.score.measures ?? [];
   let best = ms;
   let bestDistance = Infinity;
@@ -97,7 +112,7 @@ function nearestBarMs(piece: Piece | null, ms: number): number {
 }
 
 /** The start of the bar before the one holding `ms`; the piece's start at the first bar. */
-function previousBarMs(piece: Piece | null, ms: number): number {
+export function previousBarMs(piece: Piece | null, ms: number): number {
   let previous = 0;
   for (const measure of piece?.score.measures ?? []) {
     if (measure.start_ms < ms - 1) {
@@ -110,7 +125,7 @@ function previousBarMs(piece: Piece | null, ms: number): number {
 }
 
 /** The start of the bar after the one holding `ms`; the piece's end at the last bar. */
-function nextBarMs(piece: Piece | null, ms: number): number {
+export function nextBarMs(piece: Piece | null, ms: number): number {
   for (const measure of piece?.score.measures ?? []) {
     if (measure.start_ms > ms + 1) {
       return measure.start_ms;
@@ -390,6 +405,14 @@ export const useSession = create<SessionState>((set, get) => ({
         looping: false,
         playing: false,
       });
+      // play_file records the path in the backend's Recent list and returns it, so the library
+      // shows the file right away without a second settings round-trip.
+      set((state) => ({
+        settings: state.settings && {
+          ...state.settings,
+          recent_files: piece.recent_files,
+        },
+      }));
     } catch (error) {
       log.error(`failed to play ${path}: ${String(error)}`);
     }
@@ -604,77 +627,50 @@ export const useSession = create<SessionState>((set, get) => ({
     }
   },
 
-  changeTempo: async (percent) => {
-    set((state) => ({
-      settings: state.settings && { ...state.settings, tempo_percent: percent },
-    }));
-    try {
-      await setTempoPercent(percent);
-      scheduleSave();
-    } catch (error) {
-      log.error(`setting tempo failed: ${String(error)}`);
-    }
-  },
+  changeTempo: (percent) =>
+    applyNumericSetting(set, "setting tempo", { tempo_percent: percent }, () =>
+      setTempoPercent(percent),
+    ),
 
-  changeTranspose: async (semitones) => {
-    set((state) => ({
-      settings: state.settings && { ...state.settings, transpose: semitones },
-    }));
-    try {
-      await setTranspose(semitones);
-      scheduleSave();
-    } catch (error) {
-      log.error(`setting transpose failed: ${String(error)}`);
-    }
-  },
+  changeTranspose: (semitones) =>
+    applyNumericSetting(
+      set,
+      "setting transpose",
+      { transpose: semitones },
+      () => setTranspose(semitones),
+    ),
 
-  changeMusicVolume: async (volume) => {
-    set((state) => ({
-      settings: state.settings && { ...state.settings, music_volume: volume },
-    }));
-    try {
-      await setMusicVolume(volume);
-      scheduleSave();
-    } catch (error) {
-      log.error(`setting the music volume failed: ${String(error)}`);
-    }
-  },
+  changeMusicVolume: (volume) =>
+    applyNumericSetting(
+      set,
+      "setting the music volume",
+      { music_volume: volume },
+      () => setMusicVolume(volume),
+    ),
 
-  changePlayerVolume: async (volume) => {
-    set((state) => ({
-      settings: state.settings && { ...state.settings, player_volume: volume },
-    }));
-    try {
-      await setPlayerVolume(volume);
-      scheduleSave();
-    } catch (error) {
-      log.error(`setting the player volume failed: ${String(error)}`);
-    }
-  },
+  changePlayerVolume: (volume) =>
+    applyNumericSetting(
+      set,
+      "setting the player volume",
+      { player_volume: volume },
+      () => setPlayerVolume(volume),
+    ),
 
-  changeCueVolume: async (volume) => {
-    set((state) => ({
-      settings: state.settings && { ...state.settings, cue_volume: volume },
-    }));
-    try {
-      await setCueVolume(volume);
-      scheduleSave();
-    } catch (error) {
-      log.error(`setting the cue volume failed: ${String(error)}`);
-    }
-  },
+  changeCueVolume: (volume) =>
+    applyNumericSetting(
+      set,
+      "setting the cue volume",
+      { cue_volume: volume },
+      () => setCueVolume(volume),
+    ),
 
-  changeOutputVolume: async (volume) => {
-    set((state) => ({
-      settings: state.settings && { ...state.settings, output_volume: volume },
-    }));
-    try {
-      await setOutputVolume(volume);
-      scheduleSave();
-    } catch (error) {
-      log.error(`setting the output volume failed: ${String(error)}`);
-    }
-  },
+  changeOutputVolume: (volume) =>
+    applyNumericSetting(
+      set,
+      "setting the output volume",
+      { output_volume: volume },
+      () => setOutputVolume(volume),
+    ),
 
   changeTrackVolume: async (channel, gain) => {
     set((state) => ({

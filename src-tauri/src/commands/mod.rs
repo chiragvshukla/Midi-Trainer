@@ -13,7 +13,6 @@ pub mod log_message;
 pub mod pc_keyboard_layout;
 pub mod play;
 pub mod play_file;
-pub mod play_test_note;
 pub mod playback_position;
 pub mod save_settings;
 pub mod seek;

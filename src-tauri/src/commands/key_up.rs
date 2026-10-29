@@ -14,7 +14,7 @@ pub fn key_up(code: String, engine: State<'_, Mutex<AudioEngine>>) -> Result<(),
     let engine = engine
         .lock()
         .map_err(|_| "audio state is unavailable".to_string())?;
-    engine.send(AudioCommand::NoteOff {
+    engine.input_sink().send(AudioCommand::NoteOff {
         channel: PLAYER_CHANNEL,
         pitch,
     });

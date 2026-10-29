@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useAppStore } from "./state/appStore";
 import { useSession } from "./state/sessionStore";
 import { usePcKeyboard } from "./lib/usePcKeyboard";
+import { usePlaybackPosition } from "./lib/usePlaybackPosition";
 import { useShortcuts } from "./lib/useShortcuts";
 import { SoundfontGate } from "./components/SoundfontGate";
 import { LibraryView } from "./components/LibraryView";
@@ -60,6 +61,7 @@ function App() {
   const changeOutputVolume = useSession((state) => state.changeOutputVolume);
 
   usePcKeyboard();
+  usePlaybackPosition();
   useShortcuts();
 
   useEffect(() => {
@@ -116,7 +118,7 @@ function App() {
       <Sidebar
         section={section}
         onSelect={setSection}
-        onOpenSettings={() => setAppearanceOpen(true)}
+        onOpenAppearance={() => setAppearanceOpen(true)}
       />
       <div className="main">
         <header className="transport">

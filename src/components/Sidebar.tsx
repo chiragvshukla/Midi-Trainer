@@ -17,11 +17,11 @@ const SECTIONS: { id: Section; label: string; icon: string }[] = [
 export function Sidebar({
   section,
   onSelect,
-  onOpenSettings,
+  onOpenAppearance,
 }: {
   section: Section;
   onSelect: (section: Section) => void;
-  onOpenSettings: () => void;
+  onOpenAppearance: () => void;
 }) {
   const collapsed = useAppearance((state) => state.collapsed);
   const toggleSidebar = useAppearance((state) => state.toggleSidebar);
@@ -65,7 +65,7 @@ export function Sidebar({
         className="nav-item sidebar-settings"
         aria-label="App settings"
         title="App settings"
-        onClick={onOpenSettings}
+        onClick={onOpenAppearance}
       >
         <span className="nav-icon" aria-hidden="true">
           ⚙

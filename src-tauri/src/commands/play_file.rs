@@ -33,6 +33,8 @@ pub struct Piece {
     pub tracks: Vec<midi::TrackInfo>,
     /// Karaoke lyric syllables, in time order; empty for files without lyrics.
     pub lyrics: Vec<timeline::LyricAt>,
+    /// The updated recent-files list, so the caller does not need a second settings round-trip.
+    pub recent_files: Vec<String>,
 }
 
 /// Loads a MIDI or karaoke file at the beginning and returns its notes. Playback does not
@@ -59,6 +61,9 @@ pub fn play_file(
     // the timeline and every view built from it, so the file cannot take those channels over.
     midi::reassign_reserved_channels(&mut file);
     let timeline = Timeline::from_midi(&file);
+    // Engrave before any playback state changes, so a file that cannot be laid out is
+    // rejected cleanly instead of after the engine and settings were touched.
+    let engraving = notation::engrave(&file, &timeline).map_err(|err| err.to_string())?;
     let (part, follow, app_play) = {
         let settings = settings
             .lock()
@@ -84,6 +89,10 @@ pub fn play_file(
     update_settings(&app, |settings| settings.record_recent_file(&path))?;
     log::info!("loaded {path}");
 
+    let recent_files = settings
+        .lock()
+        .map(|settings| settings.recent_files.clone())
+        .unwrap_or_default();
     let notes = timeline
         .notes
         .iter()
@@ -99,6 +108,7 @@ pub fn play_file(
         notes,
         tracks: file.tracks.clone(),
         lyrics: timeline.lyrics.clone(),
-        score: notation::engrave(&file, &timeline),
+        score: engraving,
+        recent_files,
     })
 }

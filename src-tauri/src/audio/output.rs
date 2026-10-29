@@ -138,11 +138,6 @@ impl AudioEngine {
         }
     }
 
-    /// Queues a command to play immediately, for live input. Dropped when the queue is full.
-    pub fn send(&self, command: AudioCommand) {
-        self.input_sink().send(command);
-    }
-
     /// Drains the notes the player pressed, with the score positions they landed on.
     pub fn take_played(&self) -> Vec<PlayedNote> {
         let mut played = Vec::new();
@@ -156,7 +151,7 @@ impl AudioEngine {
     /// clearly apart from the piano the player is hearing. The instrument decays, so no
     /// note-off is needed.
     pub fn play_wrong_note(&self) {
-        self.send(AudioCommand::NoteOn {
+        self.input_sink().send(AudioCommand::NoteOn {
             channel: CUE_CHANNEL,
             pitch: CUE_PITCH,
             velocity: CUE_VELOCITY,
@@ -400,7 +395,7 @@ impl ScorePlayback {
     /// Consumes the player's note, releasing the gate it belongs to. Any press once the gate is
     /// near releases it, right or wrong, so a mistake moves the piece on instead of holding it
     /// back; the matcher still judges the note and the keyboard flags it.
-    fn player_note(&mut self, _pitch: u8) {
+    fn player_note(&mut self) {
         if self.follow
             && let Some(gate) = self.gates.get(self.gate)
             && self.position_ms + FOLLOW_LEAD_MS >= gate.start_ms
@@ -446,7 +441,7 @@ impl<S: Synth> Renderer<S> {
                     pitch,
                     ..
                 } => {
-                    self.playback.player_note(pitch);
+                    self.playback.player_note();
                     let _ = self.played.push(PlayedNote {
                         position_ms: self.playback.position_ms,
                         pitch,

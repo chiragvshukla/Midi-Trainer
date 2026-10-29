@@ -14,7 +14,7 @@ pub fn key_down(code: String, engine: State<'_, Mutex<AudioEngine>>) -> Result<O
     let engine = engine
         .lock()
         .map_err(|_| "audio state is unavailable".to_string())?;
-    engine.send(AudioCommand::NoteOn {
+    engine.input_sink().send(AudioCommand::NoteOn {
         channel: PLAYER_CHANNEL,
         pitch,
         velocity: KEY_VELOCITY,

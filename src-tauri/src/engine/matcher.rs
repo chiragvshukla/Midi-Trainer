@@ -81,17 +81,15 @@ impl LiveMatcher {
         )
     }
 
-    /// Judges a note the player pressed at `position_ms`, or `None` when nothing was due there.
-    pub fn evaluate(&mut self, position_ms: f64, pitch: u8) -> Option<NoteJudgement> {
+    /// Judges a note the player pressed at `position_ms`. Any expected note whose window had
+    /// already passed is judged as missed first, so a press never walks the cursor past a note
+    /// without scoring it; those missed judgements come before the press's own. The list is
+    /// empty only when nothing was overdue and no note was within reach of the press.
+    pub fn evaluate(&mut self, position_ms: f64, pitch: u8) -> Vec<NoteJudgement> {
         let window = self.judge.window_ms as f64;
-        // Notes that began before the window can no longer be matched.
-        while self
-            .notes
-            .get(self.cursor)
-            .is_some_and(|note| note.start_ms < position_ms - window)
-        {
-            self.cursor += 1;
-        }
+        // Notes that began before the window can no longer be matched. Judge them exactly like
+        // `expire` instead of skipping them, so a late press cannot swallow an overdue note.
+        let mut judgements = self.flush(|note| note.start_ms < position_ms - window);
 
         // Notes are sorted by start, so the window is a run: the first unplayed note with the
         // right pitch wins, otherwise the earliest unplayed note is what should have been played.
@@ -103,7 +101,8 @@ impl LiveMatcher {
             }
             if !note.matched {
                 if note.pitch == pitch {
-                    return Some(self.judgement(index, position_ms, pitch));
+                    nearest = Some(index);
+                    break;
                 }
                 if nearest.is_none() {
                     nearest = Some(index);
@@ -112,7 +111,10 @@ impl LiveMatcher {
             index += 1;
         }
 
-        nearest.map(|index| self.judgement(index, position_ms, pitch))
+        if let Some(index) = nearest {
+            judgements.push(self.judgement(index, position_ms, pitch));
+        }
+        judgements
     }
 
     /// Marks the note at `index` as played and describes how the attempt landed.
@@ -222,7 +224,10 @@ mod tests {
     fn a_note_played_on_time_is_correct_and_on_the_beat() {
         let mut matcher = matcher(&[(60, 1000.0)]);
 
-        let judgement = matcher.evaluate(1020.0, 60).expect("the note was due");
+        let judgement = matcher
+            .evaluate(1020.0, 60)
+            .pop()
+            .expect("the note was due");
 
         assert_eq!(judgement.verdict, super::Verdict::Correct);
         assert_eq!(judgement.timing, super::Timing::OnTime);
@@ -234,7 +239,7 @@ mod tests {
     fn a_note_played_early_is_reported_as_ahead() {
         let mut matcher = matcher(&[(60, 1000.0)]);
 
-        let judgement = matcher.evaluate(900.0, 60).expect("the note was due");
+        let judgement = matcher.evaluate(900.0, 60).pop().expect("the note was due");
 
         assert_eq!(judgement.verdict, super::Verdict::Correct);
         assert_eq!(judgement.timing, super::Timing::Ahead);
@@ -245,7 +250,7 @@ mod tests {
     fn a_wrong_pitch_reports_what_was_expected() {
         let mut matcher = matcher(&[(62, 1000.0)]);
 
-        let judgement = matcher.evaluate(1000.0, 60).expect("a note was due");
+        let judgement = matcher.evaluate(1000.0, 60).pop().expect("a note was due");
 
         assert_eq!(judgement.verdict, super::Verdict::Wrong);
         assert_eq!(judgement.expected_pitch, Some(62));
@@ -255,15 +260,15 @@ mod tests {
     fn nothing_is_reported_when_no_note_is_due() {
         let mut matcher = matcher(&[(60, 1000.0)]);
 
-        assert_eq!(matcher.evaluate(100.0, 60), None);
+        assert!(matcher.evaluate(100.0, 60).is_empty());
     }
 
     #[test]
     fn a_note_cannot_be_matched_twice() {
         let mut matcher = matcher(&[(60, 1000.0)]);
 
-        assert!(matcher.evaluate(1000.0, 60).is_some());
-        assert_eq!(matcher.evaluate(1010.0, 60), None);
+        assert!(!matcher.evaluate(1000.0, 60).is_empty());
+        assert!(matcher.evaluate(1010.0, 60).is_empty());
     }
 
     #[test]
@@ -271,12 +276,12 @@ mod tests {
         let mut matcher = matcher(&[(60, 1000.0), (64, 1000.0)]);
 
         assert_eq!(
-            matcher.evaluate(1000.0, 64).map(|j| j.verdict),
+            matcher.evaluate(1000.0, 64).pop().map(|j| j.verdict),
             Some(super::Verdict::Correct)
         );
         // The C is still there to be played.
         assert_eq!(
-            matcher.evaluate(1010.0, 60).map(|j| j.verdict),
+            matcher.evaluate(1010.0, 60).pop().map(|j| j.verdict),
             Some(super::Verdict::Correct)
         );
     }
@@ -309,27 +314,45 @@ mod tests {
         // tally starts over.
         matcher.restart(2000.0);
         assert_eq!(
-            matcher.evaluate(2000.0, 64).map(|j| j.verdict),
+            matcher.evaluate(2000.0, 64).pop().map(|j| j.verdict),
             Some(super::Verdict::Correct)
         );
         assert_eq!(matcher.stats().attempts, 1);
 
         // Rewinding to the start makes both matchable again.
         matcher.restart(0.0);
-        assert!(matcher.evaluate(1000.0, 60).is_some());
-        assert!(matcher.evaluate(2000.0, 64).is_some());
+        assert!(!matcher.evaluate(1000.0, 60).is_empty());
+        assert!(!matcher.evaluate(2000.0, 64).is_empty());
         assert_eq!(matcher.stats().attempts, 2);
     }
 
     #[test]
-    fn notes_older_than_the_window_stop_being_matchable() {
+    fn a_note_older_than_the_window_is_missed_and_the_press_scores_the_next() {
         let mut matcher = matcher(&[(60, 0.0), (64, 5000.0)]);
 
-        // Nothing is played at the first note; by the time the player presses, it is gone.
-        assert_eq!(
-            matcher.evaluate(5000.0, 60).map(|j| j.verdict),
-            Some(super::Verdict::Wrong)
-        );
+        // Nothing is played at the first note; the press at 5000 finds the next note, and the
+        // note older than the window is judged missed rather than skipped silently.
+        let judgements = matcher.evaluate(5000.0, 60);
+
+        assert_eq!(judgements.len(), 2);
+        assert!(judgements[0].missed);
+        assert_eq!(judgements[0].expected_pitch, Some(60));
+        assert_eq!(judgements[1].verdict, super::Verdict::Wrong);
+        assert_eq!(judgements[1].expected_pitch, Some(64));
+    }
+
+    #[test]
+    fn a_late_press_scores_the_note_it_skipped_instead_of_swallowing_it() {
+        // The same poll that first made a note overdue used to let a press advance the cursor
+        // past it, so it was counted as neither correct nor missed.
+        let mut matcher = matcher(&[(60, 1000.0)]);
+
+        let judgements = matcher.evaluate(1300.0, 60);
+
+        assert_eq!(judgements.len(), 1);
+        assert!(judgements[0].missed);
+        assert_eq!(judgements[0].expected_pitch, Some(60));
+        assert_eq!(matcher.stats().wrong, 1);
     }
 
     #[test]
@@ -386,7 +409,7 @@ mod tests {
         matcher.restart(1000.0);
         assert_eq!(matcher.stats().wrong, 0);
         assert_eq!(
-            matcher.evaluate(1000.0, 60).map(|j| j.verdict),
+            matcher.evaluate(1000.0, 60).pop().map(|j| j.verdict),
             Some(super::Verdict::Correct)
         );
     }

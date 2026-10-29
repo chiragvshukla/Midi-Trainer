@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { playbackPosition, type NoteInfo, type Verdict } from "../lib/api";
+import { type NoteInfo, type Verdict } from "../lib/api";
 import { pitchName } from "../lib/pitch";
 import { canvasColors, useAppearance } from "../lib/theme";
 import { useSession, verdictKey, WRONG_FLASH_MS } from "../state/sessionStore";
@@ -56,9 +56,6 @@ function longestNoteMs(notes: NoteInfo[]): number {
 export function FallingNotes() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const piece = useSession((state) => state.piece);
-  const verdicts = useSession((state) => state.verdicts);
-  const pressed = useSession((state) => state.pressed);
-  const wrongFlashes = useSession((state) => state.wrongFlashes);
   const settings = useSession((state) => state.settings);
   const version = useAppearance((state) => state.version);
   const noteLabels = useAppearance((state) => state.noteLabels);
@@ -127,6 +124,9 @@ export function FallingNotes() {
     };
 
     const draw = (positionMs: number) => {
+      // Verdicts, held keys and flashes change every poll tick; read them live so those changes
+      // never rebuild this effect and re-run the colour lookup.
+      const { verdicts, pressed, wrongFlashes } = useSession.getState();
       const ratio = window.devicePixelRatio || 1;
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
@@ -353,24 +353,11 @@ export function FallingNotes() {
 
     const loop = () => {
       frame = requestAnimationFrame(loop);
-      playbackPosition()
-        .then(draw)
-        .catch(() => {});
+      draw(useSession.getState().positionMs);
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [
-    piece,
-    verdicts,
-    pressed,
-    wrongFlashes,
-    zoom,
-    soloHand,
-    byHand,
-    version,
-    noteLabels,
-    noteBackdrop,
-  ]);
+  }, [piece, zoom, soloHand, byHand, version, noteLabels, noteBackdrop]);
 
   return (
     <>

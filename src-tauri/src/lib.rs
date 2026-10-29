@@ -58,7 +58,6 @@ pub fn run() {
             commands::load_soundfont::load_soundfont,
             commands::play_file::play_file,
             commands::play::play,
-            commands::play_test_note::play_test_note,
             commands::stop_playback::stop_playback,
             commands::soundfont_status::soundfont_status,
             commands::download_soundfont::download_soundfont,
@@ -144,10 +143,13 @@ fn judgement_pump(app: AppHandle) {
             && let Some(matcher) = guard.as_mut()
         {
             // Presses first, at the position they happened, so a note a press just matched does
-            // not expire underneath it. Only a wrong press sounds the cue, never a missed note.
+            // not expire underneath it. A press's own judgement may sound the cue; a note judged
+            // missed while walking the cursor forward must not, exactly like the expiry below.
             for note in played.iter().filter(|note| note.down) {
-                if let Some(judgement) = matcher.evaluate(note.position_ms, note.pitch) {
-                    wrong |= judgement.verdict == Verdict::Wrong;
+                for judgement in matcher.evaluate(note.position_ms, note.pitch) {
+                    if !judgement.missed {
+                        wrong |= judgement.verdict == Verdict::Wrong;
+                    }
                     judgements.push(judgement);
                 }
             }

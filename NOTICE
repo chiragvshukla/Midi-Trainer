@@ -18,6 +18,10 @@ mirrors the Ubuntu/Debian `fluid-soundfont-gm` package.
 - Copyright (c) 2008 Toby Smithe
 - Licensed under the MIT License.
 
+The MIT terms below are taken from the upstream `COPYING` in that release, matched against
+the pinned SHA-256 in `src-tauri/src/soundfont.rs`; the asset is MIT-compatible and needs no
+code changes.
+
 ```
 Permission is hereby granted, free of charge, to any person obtaining a copy of this
 software and associated documentation files (the "Software"), to deal in the Software

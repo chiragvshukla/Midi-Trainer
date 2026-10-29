@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { playbackPosition, type LyricAt } from "../lib/api";
+import type { LyricAt } from "../lib/api";
 import { useSession } from "../state/sessionStore";
 
 /** A shared empty list, so a missing piece does not make a new array each read. */
@@ -21,7 +20,7 @@ const LINE_BREAK = /[\\/]/;
  * Groups the syllable stream into lines, splitting anywhere a separator appears, including
  * inside a syllable, since real `.kar` files put them in either place.
  */
-function toLines(lyrics: LyricAt[]): Syllable[][] {
+export function toLines(lyrics: LyricAt[]): Syllable[][] {
   const lines: Syllable[][] = [];
   let line: Syllable[] = [];
   for (const lyric of lyrics) {
@@ -42,7 +41,7 @@ function toLines(lyrics: LyricAt[]): Syllable[][] {
 }
 
 /** Index of the line being sung at `now`, or -1 before the first line starts. */
-function lineAt(lines: Syllable[][], now: number): number {
+export function lineAt(lines: Syllable[][], now: number): number {
   let found = -1;
   for (let index = 0; index < lines.length; index += 1) {
     if (lines[index][0].time_ms <= now) {
@@ -60,23 +59,11 @@ function lineAt(lines: Syllable[][], now: number): number {
  */
 export function LyricsBar() {
   const lyrics = useSession((state) => state.piece?.lyrics ?? NO_LYRICS);
-  const [now, setNow] = useState(0);
-
-  useEffect(() => {
-    let frame = 0;
-    const loop = () => {
-      frame = requestAnimationFrame(loop);
-      playbackPosition()
-        .then((position) =>
-          setNow((previous) =>
-            Math.abs(previous - position) < TICK_MS ? previous : position,
-          ),
-        )
-        .catch(() => {});
-    };
-    frame = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frame);
-  }, []);
+  // Re-render only as the playhead crosses a 50 ms tick, so the bar follows the music without
+  // repainting every animation frame.
+  const now = useSession(
+    (state) => Math.floor(state.positionMs / TICK_MS) * TICK_MS,
+  );
 
   if (lyrics.length === 0) {
     return null;

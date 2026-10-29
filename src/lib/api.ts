@@ -140,6 +140,8 @@ export interface Piece {
   tracks: TrackInfo[];
   /** Karaoke lyric syllables, in time order; empty for files without lyrics. */
   lyrics: LyricAt[];
+  /** The updated recent-files list, so opening a piece does not need a second settings call. */
+  recent_files: string[];
 }
 
 export interface Judgement {

@@ -3,7 +3,10 @@ import {
   useRef,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { playbackPosition } from "../lib/api";
+import {
+  pausePositionPoll,
+  resumePositionPoll,
+} from "../lib/usePlaybackPosition";
 import { useSession } from "../state/sessionStore";
 
 /** Shows a millisecond position as minutes:seconds. */
@@ -21,9 +24,10 @@ function ratio(ms: number, duration: number): number {
 
 /**
  * The transport timeline: a playhead the user can click or drag to scrub, plus the loop region
- * and its controls. It owns the per-frame poll that also drives loop wrap — when the playhead
- * reaches the loop end, it seeks back to the start. Rendering plus that one timer; every change
- * goes through the session store, which rewinds the engine's scoring through the same seek.
+ * and its controls. The playhead position and loop wrap come from the shared position poll in
+ * `usePlaybackPosition`; this only marks a drag as scrubbing so the poll leaves the playhead
+ * alone until the seek completes. Every change goes through the session store, which rewinds
+ * the engine's scoring through the same seek.
  */
 export function TransportTimeline() {
   const piece = useSession((state) => state.piece);
@@ -39,49 +43,12 @@ export function TransportTimeline() {
   const clearLoop = useSession((state) => state.clearLoop);
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
-  const wrappingRef = useRef(false);
 
   const duration = piece?.duration_ms ?? 0;
   const start = loopStartMs ?? 0;
   const end = loopEndMs ?? duration;
   const hasRegion =
     loopStartMs !== null && loopEndMs !== null && loopEndMs > loopStartMs;
-
-  useEffect(() => {
-    let frame = 0;
-    let alive = true;
-    const loop = () => {
-      frame = requestAnimationFrame(loop);
-      playbackPosition()
-        .then((position) => {
-          if (!alive || draggingRef.current) {
-            return;
-          }
-          setPositionMs(position);
-          // Wrap the loop by seeking through the store, so the matcher rewinds too. The flag
-          // stops the seek repeating on the frames before the engine reports the new position.
-          if (hasRegion && looping && loopEndMs !== null) {
-            if (position >= loopEndMs) {
-              if (!wrappingRef.current) {
-                wrappingRef.current = true;
-                void seekTo(loopStartMs ?? 0);
-              }
-            } else {
-              // Back inside the region: arm the next wrap. Testing against the start was
-              // unreliable — the engine reports a position just past it after the seek, so the
-              // guard latched and the loop only ever ran once.
-              wrappingRef.current = false;
-            }
-          }
-        })
-        .catch(() => {});
-    };
-    frame = requestAnimationFrame(loop);
-    return () => {
-      alive = false;
-      cancelAnimationFrame(frame);
-    };
-  }, [hasRegion, looping, loopStartMs, loopEndMs, seekTo, setPositionMs]);
 
   if (!piece) {
     return null;
@@ -98,6 +65,7 @@ export function TransportTimeline() {
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     draggingRef.current = true;
+    pausePositionPoll();
     event.currentTarget.setPointerCapture(event.pointerId);
     const ms = positionAt(event.clientX);
     setPositionMs(ms);
@@ -111,14 +79,22 @@ export function TransportTimeline() {
     setPositionMs(positionAt(event.clientX));
   };
 
-  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+  // Ends a drag wherever it ends: a normal release, a cancelled pointer, or a lost capture.
+  // Without this a cancel would leave the shared poll paused, freezing the playhead for good.
+  const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!draggingRef.current) {
       return;
     }
     draggingRef.current = false;
-    event.currentTarget.releasePointerCapture(event.pointerId);
-    void seekTo(positionAt(event.clientX));
+    resumePositionPoll();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    void seekTo(useSession.getState().positionMs);
   };
+
+  // Leaving the view mid-drag must not leave the shared poll paused.
+  useEffect(() => () => resumePositionPoll(), []);
 
   return (
     <div className="timeline">
@@ -134,7 +110,9 @@ export function TransportTimeline() {
         tabIndex={0}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onLostPointerCapture={endDrag}
       >
         {hasRegion && (
           <div

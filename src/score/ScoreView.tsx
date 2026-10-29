@@ -12,7 +12,6 @@ import {
   Voice as VfVoice,
 } from "vexflow";
 import {
-  playbackPosition,
   type Base,
   type Chord,
   type ChordNote,
@@ -80,13 +79,13 @@ const MINOR_KEYS = [
 ];
 
 /** The VexFlow name for a key signature, e.g. 2 fifths -> "D". */
-function keyName(signature: { fifths: number; minor: boolean }): string {
+export function keyName(signature: { fifths: number; minor: boolean }): string {
   const keys = signature.minor ? MINOR_KEYS : MAJOR_KEYS;
   return keys[Math.min(14, Math.max(0, signature.fifths + 7))];
 }
 
 /** VexFlow key for a note's written spelling, e.g. Bb3 -> "bb/3". */
-function keyOf(note: ChordNote): string {
+export function keyOf(note: ChordNote): string {
   const accidental = note.alter > 0 ? "#" : note.alter < 0 ? "b" : "";
   const octave = Math.floor((note.pitch - note.alter) / 12) - 1;
   return `${LETTER_NAMES[note.letter]}${accidental}/${octave}`;
@@ -197,20 +196,17 @@ export function ScoreView() {
     let frame = 0;
     const loop = () => {
       frame = requestAnimationFrame(loop);
-      playbackPosition()
-        .then((positionMs) => {
-          const advanced = lastPositionRef.current !== positionMs;
-          lastPositionRef.current = positionMs;
-          moveCursor(
-            positionMs,
-            rangesRef.current,
-            zoom,
-            sheetRef.current,
-            cursorRef.current,
-            advanced,
-          );
-        })
-        .catch(() => {});
+      const positionMs = useSession.getState().positionMs;
+      const advanced = lastPositionRef.current !== positionMs;
+      lastPositionRef.current = positionMs;
+      moveCursor(
+        positionMs,
+        rangesRef.current,
+        zoom,
+        sheetRef.current,
+        cursorRef.current,
+        advanced,
+      );
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);

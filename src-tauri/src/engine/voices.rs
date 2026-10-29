@@ -2,8 +2,13 @@
 //!
 //! All of this works in ticks, before any milliseconds exist.
 
+use super::EngineError;
 use super::midi::TimeSignature;
 use super::quantizer::{self, Duration, QuantizedNote};
+
+/// The most measures the engraver will lay out. A real piece is far below this; a file whose
+/// ticks describe millions of bars is rejected instead of exhausting memory.
+const MAX_MEASURES: usize = 10_000;
 
 /// Which staff of the grand staff a note is written on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,10 +28,11 @@ pub fn staff_of(pitch: u8) -> Staff {
     }
 }
 
-/// The length of a full measure, in ticks.
+/// The length of a full measure, in ticks. Never zero: a denominator coarser than the file's
+/// resolution would otherwise make a zero-length measure and divide by zero downstream.
 pub fn measure_ticks(signature: TimeSignature, ticks_per_quarter: u64) -> u64 {
     let beat_ticks = 4 * ticks_per_quarter / u64::from(signature.denominator.max(1));
-    u64::from(signature.numerator.max(1)) * beat_ticks
+    (u64::from(signature.numerator.max(1)) * beat_ticks).max(1)
 }
 
 /// The beat a signature is felt in: three eighths (a dotted quarter) in compound meters
@@ -99,16 +105,18 @@ pub fn pickup_offset(
 }
 
 /// Lays out measure boundaries from tick 0 (or from the pickup offset) to the end of the
-/// music. A time signature change takes effect at the next boundary after its tick.
+/// music. A time signature change takes effect at the next boundary after its tick. Rejects a
+/// piece that would need more measures than [`MAX_MEASURES`], so an absurd tick length cannot
+/// exhaust memory.
 pub fn measure_spans(
     signatures: &[TimeSignature],
     ticks_per_quarter: u64,
     last_tick: u64,
     pickup_offset: u64,
-) -> Vec<MeasureSpan> {
+) -> Result<Vec<MeasureSpan>, EngineError> {
     let mut spans = Vec::new();
     if last_tick == 0 {
-        return spans;
+        return Ok(spans);
     }
     if pickup_offset > 0 {
         spans.push(MeasureSpan {
@@ -120,6 +128,9 @@ pub fn measure_spans(
     }
     let mut tick = pickup_offset;
     loop {
+        if spans.len() >= MAX_MEASURES {
+            return Err(EngineError::TooLong);
+        }
         let signature = signature_at(signatures, tick);
         let length = measure_ticks(signature, ticks_per_quarter).max(1);
         let end = tick + length;
@@ -135,7 +146,7 @@ pub fn measure_spans(
         }
         tick = end;
     }
-    spans
+    Ok(spans)
 }
 
 /// One drawable chunk of a note: a segment of it carrying a single notatable duration.
@@ -197,13 +208,19 @@ pub fn pieces_of(
 }
 
 /// Cuts a note into the measures it sounds in, as (measure index, start, end) ticks.
+/// Spans are sorted and non-overlapping, so a binary search finds the first one that can
+/// contain the note; only the few it actually touches are then walked.
 fn segments_of(note: &QuantizedNote, spans: &[MeasureSpan]) -> Vec<(usize, u64, u64)> {
     let mut segments = Vec::new();
-    for (index, span) in spans.iter().enumerate() {
+    let first = spans.partition_point(|span| span.end_tick <= note.start_tick);
+    for (offset, span) in spans[first..].iter().enumerate() {
+        if span.start_tick >= note.end_tick {
+            break;
+        }
         let start = note.start_tick.max(span.start_tick);
         let end = note.end_tick.min(span.end_tick);
         if start < end {
-            segments.push((index, start, end));
+            segments.push((first + offset, start, end));
         }
     }
     segments
@@ -381,7 +398,8 @@ pub fn fill_short_gaps(
 mod tests {
     use super::{
         Cell, MeasureSpan, QuantizedNote, Staff, TimeSignature, cells_of, fill_short_gaps,
-        measure_spans, measure_ticks, pickup_offset, pieces_of, signature_at, staff_of, two_voices,
+        measure_spans, measure_ticks, pickup_offset, pieces_of, segments_of, signature_at,
+        staff_of, two_voices,
     };
     use crate::engine::quantizer::{Base, Duration};
 
@@ -458,6 +476,30 @@ mod tests {
     }
 
     #[test]
+    fn a_measure_is_never_shorter_than_one_tick() {
+        // One tick per quarter with a 4/8 signature: the naive length is zero ticks, which
+        // would divide by zero in the pickup offset. It clamps to one tick instead.
+        let signature = TimeSignature {
+            tick: 0,
+            numerator: 4,
+            denominator: 8,
+        };
+
+        assert_eq!(measure_ticks(signature, 1), 1);
+        let notes = vec![note(0, 60, 0, 5)];
+        assert_eq!(pickup_offset(&notes, signature, 1), 0);
+    }
+
+    #[test]
+    fn an_absurd_tick_length_is_rejected_before_it_is_laid_out() {
+        // One tick per quarter makes a measure four ticks; a full four-byte delta is then far
+        // more bars than the cap, so layout fails instead of allocating millions of spans.
+        let error = measure_spans(&[four_four()], 1, u64::from(u32::MAX), 0).unwrap_err();
+
+        assert!(matches!(error, super::EngineError::TooLong));
+    }
+
+    #[test]
     fn a_missing_signature_defaults_to_four_four() {
         assert_eq!(signature_at(&[], 0), four_four());
     }
@@ -472,7 +514,7 @@ mod tests {
                 denominator: 4,
             },
         ];
-        let spans = measure_spans(&signatures, TPQ, 4800, 0);
+        let spans = measure_spans(&signatures, TPQ, 4800, 0).unwrap();
 
         // 4/4 for the first bar, then 3/4 from the second boundary on.
         assert_eq!(spans[0].end_tick, 1920);
@@ -528,7 +570,7 @@ mod tests {
     fn the_pickup_measure_comes_before_the_first_downbeat() {
         let notes = vec![note(0, 60, 0, 480), note(1, 62, 480, 4320)];
         let pickup = pickup_offset(&notes, four_four(), TPQ);
-        let spans = measure_spans(&[four_four()], TPQ, 4320, pickup);
+        let spans = measure_spans(&[four_four()], TPQ, 4320, pickup).unwrap();
 
         assert_eq!(spans.len(), 3);
         assert!(spans[0].pickup);
@@ -542,7 +584,7 @@ mod tests {
     #[test]
     fn notes_crossing_a_barline_are_cut_and_tied() {
         let notes = vec![note(0, 60, 0, 2400)];
-        let spans = measure_spans(&[four_four()], TPQ, 2400, 0);
+        let spans = measure_spans(&[four_four()], TPQ, 2400, 0).unwrap();
         let pieces = pieces_of(&notes, &spans, TPQ, 40);
 
         assert_eq!(pieces.len(), 2);
@@ -671,5 +713,26 @@ mod tests {
         assert_eq!(staff_of(59), Staff::Bass);
         assert_eq!(staff_of(60), Staff::Treble);
         assert_eq!(staff_of(72), Staff::Treble);
+    }
+
+    #[test]
+    fn a_note_is_cut_into_only_the_measures_it_touches() {
+        // Three 4/4 bars at 480 tpq: boundaries at 0, 1920, 3840, 5760.
+        let spans = measure_spans(&[four_four()], TPQ, 5760, 0).unwrap();
+
+        // A note crossing the barline is split, and a note wholly inside one bar is one piece.
+        assert_eq!(
+            segments_of(&note(0, 60, 3600, 4000), &spans),
+            vec![(1, 3600, 3840), (2, 3840, 4000)]
+        );
+        assert_eq!(
+            segments_of(&note(1, 62, 3900, 4000), &spans),
+            vec![(2, 3900, 4000)]
+        );
+        // A note starting exactly on a boundary belongs to the bar after it.
+        assert_eq!(
+            segments_of(&note(2, 64, 3840, 4000), &spans),
+            vec![(2, 3840, 4000)]
+        );
     }
 }

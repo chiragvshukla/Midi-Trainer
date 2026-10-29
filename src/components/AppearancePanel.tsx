@@ -1,20 +1,6 @@
-import { useAppearance, canvasColors } from "../lib/theme";
+import { useAppearance, canvasColors, PALETTES } from "../lib/theme";
 import type { NoteLabels, Palette, Theme } from "../lib/theme";
 import { useAppStore } from "../state/appStore";
-
-/** The fixed colour palettes offered, in the order shown. */
-const PALETTES: { id: Palette; label: string }[] = [
-  { id: "slate", label: "Slate (neutral)" },
-  { id: "catppuccin", label: "Catppuccin" },
-  { id: "nord", label: "Nord" },
-  { id: "solarized", label: "Solarized" },
-  { id: "gruvbox", label: "Gruvbox" },
-  { id: "tokyo", label: "Tokyo Night" },
-  { id: "dracula", label: "Dracula" },
-  { id: "one-dark", label: "One Dark" },
-  { id: "rose-pine", label: "Rosé Pine" },
-  { id: "everforest", label: "Everforest" },
-];
 
 /**
  * The global (app-wide) settings: appearance and accessibility. These are preferences that hold

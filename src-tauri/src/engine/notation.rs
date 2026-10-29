@@ -5,6 +5,7 @@
 
 use serde::Serialize;
 
+use super::EngineError;
 use super::midi::MidiFile;
 use super::quantizer::{self, Duration, QuantizedNote};
 use super::timeline::Timeline;
@@ -92,8 +93,9 @@ pub struct ChordNote {
 }
 
 /// Engraves a parsed file into the notation model. The drums are left out: the app plays
-/// them itself, so they are not part of the written music.
-pub fn engrave(file: &MidiFile, timeline: &Timeline) -> Score {
+/// them itself, so they are not part of the written music. Fails with [`EngineError::TooLong`]
+/// when the file describes more measures than can be laid out.
+pub fn engrave(file: &MidiFile, timeline: &Timeline) -> Result<Score, EngineError> {
     let quantization = quantizer::quantize(file);
     let ticks_per_quarter = quantizer::ticks_per_quarter(file);
     let notes: Vec<QuantizedNote> = quantization
@@ -103,22 +105,27 @@ pub fn engrave(file: &MidiFile, timeline: &Timeline) -> Score {
         .cloned()
         .collect();
     if notes.is_empty() {
-        return Score {
+        return Ok(Score {
             measures: Vec::new(),
             key_signature: None,
-        };
+        });
     }
 
     let last_tick = notes.iter().map(|note| note.end_tick).max().unwrap_or(0);
     let first = voices::signature_at(&file.time_signatures, 0);
     let pickup = voices::pickup_offset(&notes, first, ticks_per_quarter);
-    let spans = voices::measure_spans(&file.time_signatures, ticks_per_quarter, last_tick, pickup);
+    let spans = voices::measure_spans(&file.time_signatures, ticks_per_quarter, last_tick, pickup)?;
     let pieces = voices::pieces_of(
         &notes,
         &spans,
         ticks_per_quarter,
         quantization.min_duration_ticks,
     );
+    // Bucket the pieces by measure once, so each measure does not rescan the whole list.
+    let mut pieces_by_measure: Vec<Vec<Piece>> = vec![Vec::new(); spans.len()];
+    for piece in pieces {
+        pieces_by_measure[piece.measure].push(piece);
+    }
 
     let opens_with_pickup = spans.first().is_some_and(|span| span.pickup);
     let measures = spans
@@ -132,15 +139,10 @@ pub fn engrave(file: &MidiFile, timeline: &Timeline) -> Score {
             } else {
                 index + 1
             };
-            let in_measure: Vec<Piece> = pieces
-                .iter()
-                .copied()
-                .filter(|piece| piece.measure == index)
-                .collect();
             build_measure(
                 number,
                 span,
-                &in_measure,
+                &pieces_by_measure[index],
                 file,
                 timeline,
                 ticks_per_quarter,
@@ -152,10 +154,10 @@ pub fn engrave(file: &MidiFile, timeline: &Timeline) -> Score {
         fifths: key.fifths,
         minor: key.minor,
     });
-    Score {
+    Ok(Score {
         measures,
         key_signature,
-    }
+    })
 }
 
 fn build_measure(
@@ -385,7 +387,7 @@ mod tests {
     fn engrave_of(notes: &[(u8, u64, u64)]) -> Score {
         let file = file_of(notes);
         let timeline = Timeline::from_midi(&file);
-        engrave(&file, &timeline)
+        engrave(&file, &timeline).unwrap()
     }
 
     fn chord(events: &[Event]) -> Vec<&Chord> {
@@ -417,7 +419,7 @@ mod tests {
             minor: false,
         }];
         let timeline = Timeline::from_midi(&file);
-        let score = engrave(&file, &timeline);
+        let score = engrave(&file, &timeline).unwrap();
 
         assert_eq!(
             score.key_signature,
@@ -438,7 +440,7 @@ mod tests {
         let path = std::path::Path::new(FIXTURE_DIR).join("two-track-scale.mid");
         let file = crate::engine::midi::parse(&std::fs::read(&path).unwrap()).unwrap();
         let timeline = Timeline::from_midi(&file);
-        let score = engrave(&file, &timeline);
+        let score = engrave(&file, &timeline).unwrap();
 
         assert_eq!(score.measures.len(), 1);
         let measure = &score.measures[0];
@@ -549,7 +551,7 @@ mod tests {
         // A held note and a moving line on separate instrument tracks: two voices.
         let file = file_with(&[(60, 0, 1920)], &[(0, 64, 480, 960), (0, 67, 960, 1440)]);
         let timeline = Timeline::from_midi(&file);
-        let score = engrave(&file, &timeline);
+        let score = engrave(&file, &timeline).unwrap();
 
         let measure = &score.measures[0];
         assert_eq!(measure.treble.len(), 2);
@@ -594,7 +596,7 @@ mod tests {
     fn the_drums_are_not_engraved() {
         let file = file_with(&[(60, 0, 480)], &[(9, 38, 0, 480)]);
         let timeline = Timeline::from_midi(&file);
-        let score = engrave(&file, &timeline);
+        let score = engrave(&file, &timeline).unwrap();
 
         let pitches: Vec<u8> = chord(&score.measures[0].treble[0].events)
             .iter()
@@ -727,6 +729,6 @@ mod tests {
             minor: false,
         }];
         let timeline = Timeline::from_midi(&file);
-        engrave(&file, &timeline)
+        engrave(&file, &timeline).unwrap()
     }
 }

@@ -16,6 +16,8 @@ pub enum EngineError {
     Io(std::io::Error),
     /// The data is not a valid Standard MIDI File.
     InvalidMidi(midly::Error),
+    /// The file describes a piece too long to lay out, rejected before it exhausts memory.
+    TooLong,
 }
 
 impl fmt::Display for EngineError {
@@ -23,6 +25,7 @@ impl fmt::Display for EngineError {
         match self {
             EngineError::Io(err) => write!(f, "failed to read MIDI file: {err}"),
             EngineError::InvalidMidi(err) => write!(f, "invalid MIDI data: {err}"),
+            EngineError::TooLong => write!(f, "the piece is too long to lay out"),
         }
     }
 }
@@ -32,6 +35,7 @@ impl std::error::Error for EngineError {
         match self {
             EngineError::Io(err) => Some(err),
             EngineError::InvalidMidi(err) => Some(err),
+            EngineError::TooLong => None,
         }
     }
 }
@@ -65,5 +69,13 @@ mod tests {
         let error = EngineError::from(midly::Smf::parse(b"not midi").unwrap_err());
         assert!(error.to_string().starts_with("invalid MIDI data: "));
         assert!(error.source().is_some());
+    }
+
+    #[test]
+    fn describes_a_piece_too_long_to_lay_out() {
+        assert_eq!(
+            EngineError::TooLong.to_string(),
+            "the piece is too long to lay out"
+        );
     }
 }
