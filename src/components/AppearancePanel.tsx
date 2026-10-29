@@ -36,6 +36,8 @@ export function AppearancePanel({
   const setSafeColors = useAppearance((state) => state.setSafeColors);
   const noteLabels = useAppearance((state) => state.noteLabels);
   const setNoteLabels = useAppearance((state) => state.setNoteLabels);
+  const noteBackdrop = useAppearance((state) => state.noteBackdrop);
+  const setNoteBackdrop = useAppearance((state) => state.setNoteBackdrop);
 
   if (!open) {
     return null;
@@ -108,6 +110,14 @@ export function AppearancePanel({
                 <option value="both">On both</option>
               </select>
             </div>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={noteBackdrop}
+                onChange={(event) => setNoteBackdrop(event.target.checked)}
+              />
+              Falling-note backdrop
+            </label>
             <div className="field">
               <span>Note colours per track</span>
               <div className="color-grid">

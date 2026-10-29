@@ -37,6 +37,8 @@ interface Appearance {
   safeColors: boolean;
   /** Where note names are drawn. */
   noteLabels: NoteLabels;
+  /** Whether the falling-note view draws the lane and bar-line backdrop. */
+  noteBackdrop: boolean;
 }
 
 const DEFAULTS: Appearance = {
@@ -47,6 +49,7 @@ const DEFAULTS: Appearance = {
   reducedMotion: false,
   safeColors: false,
   noteLabels: "off",
+  noteBackdrop: true,
 };
 
 function isTheme(value: unknown): value is Theme {
@@ -97,6 +100,7 @@ function read(): Appearance {
         reducedMotion: saved.reducedMotion === true,
         safeColors: saved.safeColors === true,
         noteLabels: isNoteLabels(saved.noteLabels) ? saved.noteLabels : "off",
+        noteBackdrop: saved.noteBackdrop !== false,
       };
     }
     return {
@@ -152,6 +156,7 @@ interface AppearanceState extends Appearance {
   setReducedMotion: (on: boolean) => void;
   setSafeColors: (on: boolean) => void;
   setNoteLabels: (labels: NoteLabels) => void;
+  setNoteBackdrop: (on: boolean) => void;
   toggleSidebar: () => void;
   toggleTheme: () => void;
 }
@@ -197,6 +202,7 @@ export const useAppearance = create<AppearanceState>((set) => ({
   setSafeColors: (on) => set((state) => advance(state, { safeColors: on })),
   setNoteLabels: (labels) =>
     set((state) => advance(state, { noteLabels: labels })),
+  setNoteBackdrop: (on) => set((state) => advance(state, { noteBackdrop: on })),
   toggleTheme: () =>
     set((state) =>
       advance(state, {

@@ -56,6 +56,7 @@ export function FallingNotes() {
   const settings = useSession((state) => state.settings);
   const version = useAppearance((state) => state.version);
   const noteLabels = useAppearance((state) => state.noteLabels);
+  const noteBackdrop = useAppearance((state) => state.noteBackdrop);
   // Zoom lives here, so it is remembered across toggles to the sheet view and back.
   const [zoom, setZoom] = useState(1);
 
@@ -159,31 +160,33 @@ export function FallingNotes() {
       const pxPerMs = keyboardTop / lookahead || 0.1;
       const sounding = new Set<number>();
 
-      // Background: a warm wash, alternating lane stripes per white key and faint bar lines,
-      // so the falling notes read against a grid instead of a flat fill.
+      // Background: a warm wash. When the backdrop is on, alternate lane stripes per white key
+      // and faint bar lines give the falling notes a grid to read against.
       context.fillStyle = COLORS.bg;
       context.fillRect(0, 0, width, height);
-      context.fillStyle = COLORS.lane;
-      for (let index = 0; index < whites.length; index += 2) {
-        context.fillRect(index * whiteWidth, 0, whiteWidth, keyboardTop);
-      }
-      context.strokeStyle = COLORS.grid;
-      context.lineWidth = 1;
-      for (const measure of measures) {
-        if (measure.start_ms < positionMs) {
-          continue;
+      if (noteBackdrop) {
+        context.fillStyle = COLORS.lane;
+        for (let index = 0; index < whites.length; index += 2) {
+          context.fillRect(index * whiteWidth, 0, whiteWidth, keyboardTop);
         }
-        const y = keyboardTop - (measure.start_ms - positionMs) * pxPerMs;
-        if (y < 0) {
-          break;
+        context.strokeStyle = COLORS.grid;
+        context.lineWidth = 1;
+        for (const measure of measures) {
+          if (measure.start_ms < positionMs) {
+            continue;
+          }
+          const y = keyboardTop - (measure.start_ms - positionMs) * pxPerMs;
+          if (y < 0) {
+            break;
+          }
+          if (y > keyboardTop) {
+            continue;
+          }
+          context.beginPath();
+          context.moveTo(0, y);
+          context.lineTo(width, y);
+          context.stroke();
         }
-        if (y > keyboardTop) {
-          continue;
-        }
-        context.beginPath();
-        context.moveTo(0, y);
-        context.lineTo(width, y);
-        context.stroke();
       }
 
       // First note that can still be on screen: nothing longer than the longest note.
@@ -289,21 +292,20 @@ export function FallingNotes() {
         );
       }
 
-      // Note names on the C keys, when the labels are on for the keyboard.
-      if (labelKeys) {
+      // Note names on every white key, when the labels are on for the keyboard. Skip when the
+      // keys are too narrow for the text to fit.
+      if (labelKeys && whiteWidth >= 14) {
         context.fillStyle = COLORS.black;
         context.font = LABEL_FONT;
         context.textAlign = "center";
         context.textBaseline = "bottom";
         for (const pitch of whites) {
-          if (pitch % 12 === 0) {
-            const rect = keyRect(pitch);
-            context.fillText(
-              pitchName(pitch),
-              rect.x + rect.width / 2,
-              height - 4,
-            );
-          }
+          const rect = keyRect(pitch);
+          context.fillText(
+            pitchName(pitch),
+            rect.x + rect.width / 2,
+            height - 4,
+          );
         }
       }
 
@@ -322,7 +324,17 @@ export function FallingNotes() {
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [piece, verdicts, pressed, zoom, soloHand, byHand, version, noteLabels]);
+  }, [
+    piece,
+    verdicts,
+    pressed,
+    zoom,
+    soloHand,
+    byHand,
+    version,
+    noteLabels,
+    noteBackdrop,
+  ]);
 
   return (
     <>
