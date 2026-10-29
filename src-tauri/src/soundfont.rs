@@ -1,11 +1,13 @@
 //! The SoundFont the app plays through.
 //!
-//! A small baseline font (`resources/FluidR3_GS.sf2`, MIT) ships with the app, so it plays
-//! offline with no setup. The full 142 MB FluidR3 General MIDI bank can be downloaded on request
-//! into the app-data directory, verified against a pinned SHA-256 so a corrupted or substituted
-//! download is discarded; the user may also point at any `.sf2` of their own.
+//! A small baseline font (`resources/microGM.sf2`, WTFPL / public-domain-equivalent) ships with
+//! the app, so it plays offline with no setup. A larger FluidR3 General MIDI bank can be
+//! downloaded on request into the app-data directory, verified against a pinned SHA-256 so a
+//! corrupted or substituted download is discarded; the user may also point at any `.sf2` of
+//! their own.
 //!
-//! Attribution: Fluid (R3) SoundFont, Copyright (c) 2000-2002, 2008 Frank Wen. See `NOTICE`.
+//! Attribution: microGM by "michael"; Fluid (R3) SoundFont, Copyright (c) 2000-2002, 2008
+//! Frank Wen. See `NOTICE`.
 
 use std::fs::{self, File};
 use std::io::{BufWriter, Read, Write};
@@ -15,21 +17,21 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-/// The pinned release asset: the FluidR3 GM SoundFont as published by the Ubuntu package.
+/// The pinned release asset: the FluidR3 GM2 bank as mirrored on the Internet Archive.
 const SOUNDFONT_URL: &str =
-    "https://github.com/pianobooster/fluid-soundfont/releases/download/v3.1/FluidR3_GM.sf2";
+    "https://archive.org/download/free-soundfonts-sf2-2019-04/FluidR3_GM2-2.SF2";
 
 /// SHA-256 of the pinned asset. A download that does not match is rejected.
-const SOUNDFONT_SHA256: &str = "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0";
+const SOUNDFONT_SHA256: &str = "2ae766ab5c5deb6f7fffacd6316ec9f3699998cce821df3163e7b10a78a64066";
 
 /// File name the SoundFont is stored under in the app-data directory.
-const SOUNDFONT_FILE: &str = "FluidR3_GM.sf2";
+const SOUNDFONT_FILE: &str = "FluidR3_GM2-2.SF2";
 
 /// The baseline font committed with the app, relative to its resources.
-pub const BUNDLED_RELATIVE: &str = "resources/FluidR3_GS.sf2";
+pub const BUNDLED_RELATIVE: &str = "resources/microGM.sf2";
 
 /// The baseline font's file name, tried when a bundler flattens the resources directory.
-pub const BUNDLED_FILE: &str = "FluidR3_GS.sf2";
+pub const BUNDLED_FILE: &str = "microGM.sf2";
 
 /// Bytes read per pass while downloading.
 const CHUNK: usize = 64 * 1024;

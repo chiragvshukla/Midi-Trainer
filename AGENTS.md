@@ -76,7 +76,7 @@ All features that need to be built, in order. Do not build later-phase features 
 - Live tempo scaling (percent) and transpose ±12 semitones, changeable during playback.
 - Playing-accuracy measurement with timing markers (ahead of / behind the beat).
 - Distinct sounds for correct vs. wrong notes played.
-- SoundFont synth: a small bundled baseline (MIT) plays out of the box; the full GM bank is an optional download, and the user may choose their own `.sf2`.
+- SoundFont synth: a small bundled baseline (microGM, WTFPL / permissive) plays out of the box; a larger FluidR3 bank is an optional download, and the user may choose their own `.sf2`.
 - Settings persistence: recent files, MIDI device choice, volume, tempo, transpose.
 
 ### Phase 2 — sheet-music view and feature parity

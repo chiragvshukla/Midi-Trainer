@@ -1,27 +1,52 @@
 ﻿# Third-party notices
 
 MidiTrainer is MIT licensed (see `LICENSE`). It bundles one third-party asset — a small
-MIT-licensed SoundFont, credited below — and can optionally download a larger one at the
-user's request into the per-user app-data directory.
+soundfont, credited below — and can optionally download a larger one at the user's request
+into the per-user app-data directory.
 
 ## VexFlow (npm dependency)
 
 Used for the sheet-music view. Copyright (c) 2010-2023 VexFlow contributors, licensed
 under the MIT License. Bundled from npm as `vexflow`.
 
-## Fluid (R3) SoundFont — `FluidR3_GS.sf2` (bundled) and `FluidR3_GM.sf2` (optional)
+## microGM — `microGM.sf2` (bundled)
 
-The app ships the small FluidR3 GS bank (`src-tauri/resources/FluidR3_GS.sf2`) and plays
-through it by default, so it works with no network access. The full 142 MB FluidR3 GM bank can
-be downloaded on request, from the `pianobooster/fluid-soundfont` release v3.1, which mirrors
-the Ubuntu/Debian `fluid-soundfont-gm` package; it is checked against a pinned SHA-256.
+The app ships this small complete General MIDI bank (`src-tauri/resources/microGM.sf2`) and
+plays through it by default, so it works with no network access.
+
+- Author: "michael" — <https://musical-artifacts.com/artifacts/2529>
+- Source: the author's Google Drive mirror of `microgm-opt.sf2`.
+- Released under the WTFPL (Do What The Fuck You Want To Public License), Version 2,
+  December 2004. Credited here even though the licence imposes no conditions.
+
+```
+        DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+                    Version 2, December 2004
+
+ Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
+
+ Everyone is permitted to copy and distribute verbatim or modified
+ copies of this license document, and changing it is allowed as long
+ as the name is changed.
+
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+  0. You just DO WHAT THE FUCK YOU WANT TO.
+```
+
+## Fluid (R3) SoundFont — `FluidR3_GM2-2.SF2` (optional download)
+
+The full FluidR3 General MIDI bank can be downloaded on request from the Internet Archive
+(`free-soundfonts-sf2-2019-04`, mirroring the Ubuntu/Debian `fluid-soundfont-gm` lineage);
+it is checked against a pinned SHA-256.
 
 - Copyright (c) 2000-2002, 2008 Frank Wen <getfrank@gmail.com>
 - Copyright (c) 2008 Toby Smithe
 - Licensed under the MIT License.
 
-The MIT terms below are taken from the upstream `COPYING` in that release; both banks are
-MIT-compatible and need no code changes.
+The MIT terms below are taken from the upstream `COPYING` of that release; the bank is
+MIT-compatible and needs no code changes.
 
 ```
 Permission is hereby granted, free of charge, to any person obtaining a copy of this

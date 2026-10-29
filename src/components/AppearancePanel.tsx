@@ -268,7 +268,8 @@ export function AppearancePanel({
 
           {version ? (
             <p className="app-version">
-              MidiTrainer v{version} · Icon: Assia Benkerroum (Flaticon)
+              MidiTrainer v{version} · Icon: Assia Benkerroum (Flaticon) ·
+              Sound: microGM by &quot;michael&quot; (WTFPL)
             </p>
           ) : null}
         </div>
