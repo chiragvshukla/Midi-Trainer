@@ -1,5 +1,6 @@
 pub mod matcher;
 pub mod midi;
+pub mod quantizer;
 pub mod scheduler;
 pub mod scoring;
 pub mod timeline;

@@ -62,9 +62,17 @@ impl Settings {
         let text = serde_json::to_string_pretty(self).map_err(|err| err.to_string())?;
         let temporary = path.with_extension("json.part");
         std::fs::write(&temporary, text).map_err(|err| err.to_string())?;
-        // Windows refuses to rename over an existing file, so move the old one out of the way.
-        std::fs::remove_file(path).ok();
-        std::fs::rename(&temporary, path).map_err(|err| err.to_string())
+        // Windows refuses to rename over an existing file, and freshly written files can be
+        // held briefly by antivirus scans, so the swap is retried a few times.
+        for attempt in 0..3 {
+            std::fs::remove_file(path).ok();
+            match std::fs::rename(&temporary, path) {
+                Ok(()) => return Ok(()),
+                Err(err) if attempt == 2 => return Err(err.to_string()),
+                Err(_) => std::thread::sleep(std::time::Duration::from_millis(10)),
+            }
+        }
+        unreachable!("the loop returns on its last attempt")
     }
 
     /// Adds a file to the recent list, moving an existing entry to the front.
@@ -89,7 +97,9 @@ mod tests {
 
     #[test]
     fn settings_round_trip_through_a_file() {
-        let dir = std::env::temp_dir().join("midi-trainer-settings-test");
+        // A directory of its own: the corrupt-file test below runs in parallel and must
+        // not have this directory deleted out from under it.
+        let dir = std::env::temp_dir().join("mt-settings-round-trip-test");
         let path = dir.join("settings.json");
         let mut settings = Settings::default();
         settings.record_recent_file("C:/music/sonata.mid");
@@ -108,7 +118,7 @@ mod tests {
 
     #[test]
     fn a_corrupt_file_loads_as_defaults() {
-        let dir = std::env::temp_dir().join("midi-trainer-settings-test");
+        let dir = std::env::temp_dir().join("mt-settings-corrupt-test");
         std::fs::create_dir_all(&dir).expect("the directory should create");
         let path = dir.join("corrupt.json");
         std::fs::write(&path, "{not json").expect("the file should write");
