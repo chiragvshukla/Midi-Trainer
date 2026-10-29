@@ -25,7 +25,8 @@ pub struct Piece {
     pub score: notation::Score,
 }
 
-/// Loads a MIDI or karaoke file, plays it from the beginning, and returns its notes.
+/// Loads a MIDI or karaoke file at the beginning and returns its notes. Playback does not
+/// start: like a stopped piece, the playhead sits at tick zero until the user presses play.
 #[tauri::command]
 pub fn play_file(
     path: String,
@@ -49,9 +50,10 @@ pub fn play_file(
         .map_err(|_| "audio state is unavailable".to_string())?;
     engine.set_score(score);
     engine.set_gates(scheduler::gates(&timeline));
-    engine.start();
+    // Loading must not start playing, and must silence a piece that is still going.
+    engine.stop();
     update_settings(&app, |settings| settings.record_recent_file(&path))?;
-    log::info!("playing {path}");
+    log::info!("loaded {path}");
 
     let notes = timeline
         .notes
