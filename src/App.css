@@ -3,26 +3,35 @@
    tokens at runtime (see lib/theme.ts), since a canvas cannot read CSS variables itself. */
 :root {
   color-scheme: dark;
-  --bg: #12141a;
-  --surface: #1b1e27;
-  --surface-2: #2a2e3a;
-  --surface-3: #3a4052;
-  --border: #2a2e3a;
-  --border-subtle: #242836;
-  --text: #e8eaf0;
-  --muted: #aab2c5;
-  --faint: #8b93a8;
-  --accent: #4f7cff;
-  --accent-hover: #6b90ff;
-  --ok: #43a047;
-  --warn: #ff9800;
-  --bad: #e53935;
-  --early: #64b5f6;
-  --lyric-sung: #ffca28;
-  --radius: 10px;
-  --radius-sm: 7px;
-  --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --bg: #17110b;
+  --surface: #211912;
+  --surface-2: #2e2218;
+  --surface-3: #40301f;
+  --border: #55402a;
+  --border-subtle: #362818;
+  --text: #f4e8d4;
+  --muted: #c8ad8c;
+  --faint: #9c8465;
+  --accent: #ff7a1a;
+  --accent-hover: #ff9a4d;
+  --ok: #46b98a;
+  --warn: #ffb454;
+  --bad: #e5524f;
+  --early: #37c6b6;
+  --lyric-sung: #ffd27a;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Retro-futuristic voice: a geometric display face for chrome, mono for readouts. */
+  --font-display:
+    "Bahnschrift", "Franklin Gothic Medium", "Segoe UI", system-ui, sans-serif;
+  --font-mono:
+    ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  /* Chrome accents: glow around lit controls, top-edge sheen on panels, backdrop grid. */
+  --glow: rgba(255, 122, 26, 0.45);
+  --panel-hi: rgba(255, 226, 184, 0.07);
+  --grid-line: rgba(255, 200, 140, 0.05);
 
   /* Falling-note canvas colours, mirrored at runtime by lib/theme.ts. */
   --roll-note: #64b5f6;
@@ -47,23 +56,26 @@
 
 [data-theme="light"] {
   color-scheme: light;
-  --bg: #f4f5f8;
-  --surface: #ffffff;
-  --surface-2: #eceef3;
-  --surface-3: #dde1e8;
-  --border: #d6dae1;
-  --border-subtle: #e6e9ee;
-  --text: #1b1e27;
-  --muted: #5c6470;
-  --faint: #838b98;
-  --accent: #2f5fe0;
-  --accent-hover: #4f7cff;
-  --ok: #2e7d32;
-  --warn: #ef6c00;
-  --bad: #c62828;
-  --early: #1976d2;
-  --lyric-sung: #b26a00;
-  --shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  --bg: #f6efe3;
+  --surface: #fbf5ea;
+  --surface-2: #f0e2cd;
+  --surface-3: #e6d2b6;
+  --border: #d8c2a2;
+  --border-subtle: #e9dac2;
+  --text: #3b2a18;
+  --muted: #6d5433;
+  --faint: #8d7553;
+  --accent: #d9601a;
+  --accent-hover: #ef7a34;
+  --ok: #1f7a58;
+  --warn: #c97a00;
+  --bad: #c0392b;
+  --early: #1f9d92;
+  --lyric-sung: #a35a00;
+  --shadow: 0 14px 30px rgba(90, 60, 20, 0.2);
+  --glow: rgba(217, 96, 26, 0.32);
+  --panel-hi: rgba(255, 255, 255, 0.6);
+  --grid-line: rgba(120, 80, 30, 0.07);
 
   --roll-note: #3f7fd0;
   --roll-left: #00897b;
@@ -975,4 +987,216 @@ body {
 .library-empty {
   padding: 12px 10px;
   color: var(--faint);
+}
+
+/* --- Retro-futuristic chrome (warm atomic-age hi-fi) ---
+   The palette and voice live in the tokens above; this layer adds the chrome:
+   geometric uppercase type, lit accents, beveled panels and beefy controls.
+   Last in the file on purpose, so it overrides the base component shapes. */
+
+/* Display voice: geometric capitals with wide tracking. */
+.brand-name,
+.nav-item,
+.btn,
+.icon-button,
+.menu-button,
+.library-tools button,
+.view-toggle button,
+.drawer-head h2,
+.info-card h2,
+.settings-group h3,
+.library-section {
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Readouts use a mono face so digits do not jitter. */
+.timeline-clock,
+.timeline-loop-label,
+.practice-stats,
+.info-row dd,
+.version-badge {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* A faint grid on the flat views. */
+.library,
+.gate {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Panels get a top-edge sheen; the sidebar and transport look like a control deck. */
+.transport,
+.sidebar {
+  background-image: linear-gradient(180deg, var(--panel-hi), transparent 40%);
+}
+
+.sidebar {
+  border-right: 1px solid var(--accent);
+  box-shadow: inset 0 1px 0 var(--panel-hi);
+}
+
+.brand-mark {
+  color: var(--accent);
+  text-shadow: 0 0 12px var(--glow);
+}
+
+.version-badge {
+  border: 1px solid var(--border);
+}
+
+.nav-item.active {
+  background: linear-gradient(90deg, var(--surface-3), var(--surface-2));
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    inset 0 1px 0 var(--panel-hi);
+}
+
+/* Chunky, beveled controls with a lit hover. */
+.btn,
+.icon-button,
+.menu-button,
+.library-tools button {
+  background-image: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  box-shadow: inset 0 1px 0 var(--panel-hi);
+  transition:
+    box-shadow 120ms ease,
+    color 120ms ease;
+}
+
+.btn:hover,
+.icon-button:hover,
+.menu-button:hover,
+.library-tools button:hover {
+  box-shadow:
+    inset 0 1px 0 var(--panel-hi),
+    0 0 12px var(--glow);
+}
+
+.btn.primary {
+  background-image: linear-gradient(180deg, var(--accent-hover), var(--accent));
+  color: #1b0f04;
+  font-weight: 700;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 0 14px var(--glow);
+}
+
+.btn.primary:hover {
+  background-image: linear-gradient(180deg, #ffb066, var(--accent-hover));
+}
+
+.view-toggle {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.view-toggle button.active {
+  background-image: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  color: var(--text);
+  box-shadow:
+    inset 0 1px 0 var(--panel-hi),
+    0 0 8px var(--glow);
+}
+
+/* Sliders as lit faders on an inset rail. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(var(--surface-3), var(--surface-2));
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  border: 1px solid var(--accent-hover);
+  background: radial-gradient(circle at 35% 30%, #fff6e8, var(--accent));
+  box-shadow: 0 0 8px var(--glow);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--accent-hover);
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--glow);
+}
+
+.check input[type="checkbox"],
+.track-toggle input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+/* Timeline as a lit rail. */
+.timeline-track {
+  height: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.timeline-region {
+  background: var(--glow);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.timeline-playhead {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--glow);
+}
+
+/* Drawer, menus and cards get the same beveled edge. */
+.drawer {
+  border-left: 1px solid var(--accent);
+  box-shadow:
+    var(--shadow),
+    inset 0 1px 0 var(--panel-hi);
+}
+
+.menu-items,
+.info-card {
+  box-shadow:
+    var(--shadow),
+    inset 0 1px 0 var(--panel-hi);
+}
+
+.drawer-scrim {
+  background: rgba(20, 12, 4, 0.6);
+}
+
+.roll-zoom {
+  border: 1px solid var(--border);
+  background: rgba(30, 20, 10, 0.72);
+}
+
+.lyrics {
+  font-family: var(--font-display);
+  letter-spacing: 0.14em;
 }
