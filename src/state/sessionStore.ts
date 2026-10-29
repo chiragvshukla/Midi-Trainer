@@ -163,6 +163,7 @@ interface SessionState {
   setPositionMs: (positionMs: number) => void;
   startOver: () => Promise<void>;
   previousBar: () => Promise<void>;
+  resetStats: () => Promise<void>;
   setLoopStart: () => void;
   setLoopEnd: () => void;
   toggleLoop: () => void;
@@ -433,6 +434,12 @@ export const useSession = create<SessionState>((set, get) => ({
 
   previousBar: async () => {
     await get().seekTo(previousBarMs(get().piece, get().positionMs));
+  },
+
+  resetStats: async () => {
+    // A seek rewinds the engine's matcher and clears the readout, so resetting is a seek to
+    // where the playhead already is.
+    await get().seekTo(get().positionMs);
   },
 
   setLoopStart: () => {

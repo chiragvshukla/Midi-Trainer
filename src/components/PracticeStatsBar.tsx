@@ -17,6 +17,7 @@ export function PracticeStatsBar() {
   const stats = useSession((state) => state.stats);
   const lastTiming = useSession((state) => state.lastTiming);
   const lastOffsetMs = useSession((state) => state.lastOffsetMs);
+  const resetStats = useSession((state) => state.resetStats);
 
   if (!stats || stats.attempts === 0) {
     return null;
@@ -45,6 +46,13 @@ export function PracticeStatsBar() {
           {TIMING_MARK[lastTiming]} {last}
         </span>
       ) : null}
+      <button
+        type="button"
+        className="stats-reset"
+        onClick={() => void resetStats()}
+      >
+        Reset
+      </button>
     </footer>
   );
 }
