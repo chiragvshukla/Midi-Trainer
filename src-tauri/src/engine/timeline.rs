@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use serde::Serialize;
+
 use super::EngineError;
 use super::midi::{self, Division, MidiFile, TempoChange, TrackInfo};
 /// A note placed on the real-time timeline.
@@ -14,7 +16,7 @@ pub struct Note {
 }
 
 /// A lyric syllable placed on the real-time timeline.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LyricAt {
     pub time_ms: f64,
     pub text: String,

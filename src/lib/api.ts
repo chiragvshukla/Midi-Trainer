@@ -101,12 +101,20 @@ export interface TrackInfo {
   note_count: number;
 }
 
+/** One karaoke lyric syllable, placed on the timeline. */
+export interface LyricAt {
+  time_ms: number;
+  text: string;
+}
+
 export interface Piece {
   notes: NoteInfo[];
   duration_ms: number;
   score: Score;
   /** Every track in the file; `notes` is filtered down to the selected ones. */
   tracks: TrackInfo[];
+  /** Karaoke lyric syllables, in time order; empty for files without lyrics. */
+  lyrics: LyricAt[];
 }
 
 export interface Judgement {

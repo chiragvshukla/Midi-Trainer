@@ -73,6 +73,24 @@
   color: #ff9800;
 }
 
+.lyrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 16px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #6b7280;
+  background: #161922;
+  border-top: 1px solid #2a2e3a;
+}
+
+.lyrics .sung {
+  color: #ffca28;
+}
+
 .piano-roll {
   position: absolute;
   inset: 0;

@@ -6,6 +6,7 @@ import { useSession } from "./state/sessionStore";
 import { usePcKeyboard } from "./lib/usePcKeyboard";
 import { SoundfontGate } from "./components/SoundfontGate";
 import { LibraryView } from "./components/LibraryView";
+import { LyricsBar } from "./components/LyricsBar";
 import { MainMenu, type Section } from "./components/MainMenu";
 import { PracticeStatsBar } from "./components/PracticeStatsBar";
 import { TrackMenu } from "./components/TrackMenu";
@@ -243,6 +244,7 @@ function App() {
           <ScoreView />
         </div>
       </main>
+      {section === "synth" && <LyricsBar />}
       <PracticeStatsBar />
     </div>
   );

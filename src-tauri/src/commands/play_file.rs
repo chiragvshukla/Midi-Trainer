@@ -7,7 +7,10 @@ use crate::audio::AudioEngine;
 use crate::commands::update_settings;
 use crate::engine::matcher::LiveMatcher;
 use crate::engine::notation;
-use crate::engine::{midi, scheduler, timeline::Timeline};
+use crate::engine::{
+    midi, scheduler,
+    timeline::{self, Timeline},
+};
 use crate::settings::Settings;
 
 /// One note of the loaded piece, as the falling-note view draws it.
@@ -27,6 +30,8 @@ pub struct Piece {
     /// Every track in the file, so the picker can offer all of them; `notes` is already filtered
     /// down to the ones selected.
     pub tracks: Vec<midi::TrackInfo>,
+    /// Karaoke lyric syllables, in time order; empty for files without lyrics.
+    pub lyrics: Vec<timeline::LyricAt>,
 }
 
 /// Loads a MIDI or karaoke file at the beginning and returns its notes. Playback does not
@@ -84,6 +89,7 @@ pub fn play_file(
         duration_ms: timeline.duration_ms,
         notes,
         tracks: file.tracks.clone(),
+        lyrics: timeline.lyrics.clone(),
         score: notation::engrave(&file, &timeline),
     })
 }
