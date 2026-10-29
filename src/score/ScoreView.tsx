@@ -17,14 +17,12 @@ import {
   type Chord,
   type Duration,
   type Score,
+  type Verdict,
   type Voice,
   type VoiceEvent,
 } from "../lib/api";
 import { useSession, verdictKey } from "../state/sessionStore";
-import { scoreColors, useAppearance } from "../lib/theme";
-
-/** The theme-derived colours the sheet draws with. */
-type ScoreColors = ReturnType<typeof scoreColors>;
+import { useAppearance } from "../lib/theme";
 
 const PITCH_NAMES = [
   "c",
@@ -130,20 +128,27 @@ interface MeasureRange {
  * staff systems that fit the window, each starting with clef, key and time signature. A
  * cursor sweeps the score from the playback position, and notes are colored by their
  * playback verdicts. Scroll position and zoom live in the DOM, so they survive toggling
- * between the two views. The whole sheet is redrawn when verdicts change; for very long
- * pieces this redraw is the cost center to optimize first.
+ * between the two views. A judged note repaints only its own notehead; the whole sheet is
+ * rebuilt only when its layout changes.
  */
 export function ScoreView() {
   const hostRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const rangesRef = useRef<MeasureRange[]>([]);
+  // Each notehead's rendered note, by verdict key, so a verdict can repaint it without a redraw.
+  const noteIndexRef = useRef<Map<string, StaveNote[]>>(new Map());
+  // The verdicts already painted, so a change only touches the notes that changed.
+  const appliedRef = useRef<Record<string, Verdict>>({});
   // The position of the last frame, so a paused sheet is not yanked back to the cursor and the
   // user can scroll freely; following only resumes once playback moves the cursor again.
   const lastPositionRef = useRef<number | null>(null);
   const piece = useSession((state) => state.piece);
   const verdicts = useSession((state) => state.verdicts);
   const version = useAppearance((state) => state.version);
+  // The latest verdicts, so the layout effect can reapply them after a rebuild.
+  const verdictsRef = useRef(verdicts);
+  verdictsRef.current = verdicts;
   const [zoom, setZoom] = useState(1);
   const [width, setWidth] = useState(0);
   const score = piece?.score;
@@ -167,11 +172,31 @@ export function ScoreView() {
     }
     host.replaceChildren();
     rangesRef.current = [];
+    noteIndexRef.current = new Map();
+    appliedRef.current = {};
     if (!score || score.measures.length === 0) {
       return;
     }
-    render(score, piece.duration_ms, verdicts, zoom, width, host, rangesRef);
-  }, [score, verdicts, zoom, width, version]);
+    render(
+      score,
+      piece.duration_ms,
+      zoom,
+      width,
+      host,
+      rangesRef,
+      noteIndexRef.current,
+    );
+    // A fresh sheet carries no verdict marks yet; reapply the ones already known.
+    applyVerdicts(
+      noteIndexRef.current,
+      verdictsRef.current,
+      appliedRef.current,
+    );
+  }, [score, zoom, width, version]);
+
+  useEffect(() => {
+    applyVerdicts(noteIndexRef.current, verdicts, appliedRef.current);
+  }, [verdicts]);
 
   useEffect(() => {
     let frame = 0;
@@ -227,14 +252,13 @@ export function ScoreView() {
 function render(
   score: Score,
   durationMs: number,
-  verdicts: Record<string, string>,
   zoom: number,
   viewWidth: number,
   host: HTMLDivElement,
   rangesRef: React.RefObject<MeasureRange[]>,
+  noteIndex: Map<string, StaveNote[]>,
 ): void {
   const measures = score.measures;
-  const colors = scoreColors();
   // Layout is in SVG units; the context is scaled by zoom, so a CSS pixel of view width
   // is 1/zoom SVG units.
   const available = Math.max(MEASURE_WIDTH, viewWidth / zoom - 2 * MARGIN);
@@ -309,22 +333,20 @@ function render(
       measure.number,
       treble,
       context,
-      verdicts,
       voiceNotes,
       "treble",
       index,
-      colors,
+      noteIndex,
     );
     drawStaff(
       measure.bass,
       measure.number,
       bass,
       context,
-      verdicts,
       voiceNotes,
       "bass",
       index,
-      colors,
+      noteIndex,
     );
   });
 
@@ -337,14 +359,21 @@ function drawStaff(
   measureNumber: number,
   stave: Stave,
   context: ReturnType<Renderer["getContext"]>,
-  verdicts: Record<string, string>,
   voiceNotes: Map<string, DrawnEvent[]>,
   staff: string,
   measureIndex: number,
-  colors: ScoreColors,
+  noteIndex: Map<string, StaveNote[]>,
 ): void {
   voices.forEach((voice, voiceIndex) => {
-    const drawn = voice.events.map((event) => drawnOf(event, verdicts, colors));
+    const drawn = voice.events.map(drawnOf);
+    for (const { note, chord } of drawn) {
+      for (const chordNote of chord?.notes ?? []) {
+        const key = verdictKey(chordNote.pitch, chordNote.onset_ms);
+        const notes = noteIndex.get(key) ?? [];
+        notes.push(note);
+        noteIndex.set(key, notes);
+      }
+    }
 
     // Consecutive triplet events of one base value share a tuplet bracket.
     const tuplets: Tuplet[] = [];
@@ -385,11 +414,7 @@ function drawStaff(
   }
 }
 
-function drawnOf(
-  event: VoiceEvent,
-  verdicts: Record<string, string>,
-  colors: ScoreColors,
-): DrawnEvent {
+function drawnOf(event: VoiceEvent): DrawnEvent {
   const rest = event.type === "Rest";
   const duration = event.duration;
   const chord = rest ? null : event;
@@ -399,7 +424,6 @@ function drawnOf(
     return { note, duration, chord: null };
   }
 
-  colorChord(note, chord, verdicts, colors);
   chord.notes.forEach((chordNote, pitchIndex) => {
     if (PITCH_NAMES[chordNote.pitch % 12].includes("#")) {
       note.addModifier(new Accidental("#"), pitchIndex);
@@ -411,21 +435,49 @@ function drawnOf(
   return { note, duration, chord };
 }
 
-/** Colors a chord's notehead by the verdict of its first matching played note. */
-function colorChord(
-  note: StaveNote,
-  chord: Chord,
-  verdicts: Record<string, string>,
-  colors: ScoreColors,
+/** Marks a note's rendered SVG by verdict, or clears the mark. The colour itself is CSS. */
+function setNoteVerdict(
+  notes: StaveNote[] | undefined,
+  verdict: Verdict | undefined,
 ): void {
-  for (const chordNote of chord.notes) {
-    const verdict = verdicts[verdictKey(chordNote.pitch, chordNote.onset_ms)];
-    if (verdict === "Correct" || verdict === "Wrong") {
-      const color = verdict === "Correct" ? colors.correct : colors.wrong;
-      note.setStyle({ fillStyle: color, strokeStyle: color });
-      return;
+  const mark =
+    verdict === "Correct" ? "correct" : verdict === "Wrong" ? "wrong" : null;
+  for (const note of notes ?? []) {
+    const element = note.getSVGElement();
+    if (!element) {
+      continue;
+    }
+    if (mark) {
+      element.setAttribute("data-verdict", mark);
+    } else {
+      element.removeAttribute("data-verdict");
     }
   }
+}
+
+/**
+ * Paints only the notes whose verdict changed, so a judged note marks the sheet without
+ * rebuilding it. The sheet is rebuilt only when its layout changes; this runs on every verdict.
+ */
+function applyVerdicts(
+  noteIndex: Map<string, StaveNote[]>,
+  verdicts: Record<string, Verdict>,
+  applied: Record<string, Verdict>,
+): void {
+  for (const key in verdicts) {
+    if (applied[key] !== verdicts[key]) {
+      setNoteVerdict(noteIndex.get(key), verdicts[key]);
+    }
+  }
+  for (const key in applied) {
+    if (!(key in verdicts)) {
+      setNoteVerdict(noteIndex.get(key), undefined);
+    }
+  }
+  for (const key in applied) {
+    delete applied[key];
+  }
+  Object.assign(applied, verdicts);
 }
 
 /** Draws ties between consecutive chords of a voice, one per shared tied pitch. */

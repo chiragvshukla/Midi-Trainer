@@ -1190,6 +1190,18 @@ body {
   background: #f4f2ec;
 }
 
+/* A judged note is marked by an attribute, so a verdict repaints one notehead, not the sheet.
+   The fill/stroke inherit down to the notehead and stem unless they set their own. */
+.sheet [data-verdict="correct"] {
+  fill: var(--roll-correct);
+  stroke: var(--roll-correct);
+}
+
+.sheet [data-verdict="wrong"] {
+  fill: var(--roll-wrong);
+  stroke: var(--roll-wrong);
+}
+
 .sheet-tools {
   display: flex;
   align-items: center;
