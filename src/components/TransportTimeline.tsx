@@ -1,7 +1,6 @@
 import {
   useEffect,
   useRef,
-  useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { playbackPosition } from "../lib/api";
@@ -31,12 +30,13 @@ export function TransportTimeline() {
   const loopStartMs = useSession((state) => state.loopStartMs);
   const loopEndMs = useSession((state) => state.loopEndMs);
   const looping = useSession((state) => state.looping);
+  const positionMs = useSession((state) => state.positionMs);
+  const setPositionMs = useSession((state) => state.setPositionMs);
   const seekTo = useSession((state) => state.seekTo);
   const setLoopStart = useSession((state) => state.setLoopStart);
   const setLoopEnd = useSession((state) => state.setLoopEnd);
   const toggleLoop = useSession((state) => state.toggleLoop);
   const clearLoop = useSession((state) => state.clearLoop);
-  const [positionMs, setPositionMs] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const wrappingRef = useRef(false);
@@ -78,7 +78,7 @@ export function TransportTimeline() {
       alive = false;
       cancelAnimationFrame(frame);
     };
-  }, [hasRegion, looping, loopStartMs, loopEndMs, seekTo]);
+  }, [hasRegion, looping, loopStartMs, loopEndMs, seekTo, setPositionMs]);
 
   if (!piece) {
     return null;

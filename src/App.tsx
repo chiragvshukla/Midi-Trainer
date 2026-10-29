@@ -47,6 +47,10 @@ function App() {
   const piece = useSession((state) => state.piece);
   const startOver = useSession((state) => state.startOver);
   const previousBar = useSession((state) => state.previousBar);
+  const settings = useSession((state) => state.settings);
+  const changeMusicVolume = useSession((state) => state.changeMusicVolume);
+  const changePlayerVolume = useSession((state) => state.changePlayerVolume);
+  const changeOutputVolume = useSession((state) => state.changeOutputVolume);
   const theme = useTheme((state) => state.theme);
   const toggleTheme = useTheme((state) => state.toggleTheme);
 
@@ -110,85 +114,138 @@ function App() {
       />
       <div className="main">
         <header className="transport">
-          <button
-            type="button"
-            className="btn primary"
-            onClick={() => void resume()}
-          >
-            ▶ Play
-          </button>
-          <button type="button" className="btn" onClick={() => void stop()}>
-            ■ Stop
-          </button>
-          <button
-            type="button"
-            className="btn"
-            title="Back to the start"
-            disabled={!piece}
-            onClick={() => void startOver()}
-          >
-            ⏮ Start
-          </button>
-          <button
-            type="button"
-            className="btn"
-            title="Previous bar"
-            disabled={!piece}
-            onClick={() => void previousBar()}
-          >
-            ◀ Bar
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => void chooseFile()}
-          >
-            Open…
-          </button>
-          {section === "practice" && (
-            <>
-              <div className="view-toggle" role="tablist">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={view === "keys"}
-                  className={view === "keys" ? "active" : ""}
-                  onClick={() => setView("keys")}
-                >
-                  Keys
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={view === "sheet"}
-                  className={view === "sheet" ? "active" : ""}
-                  onClick={() => setView("sheet")}
-                >
-                  Sheet
-                </button>
-              </div>
-              <TrackMenu />
-            </>
-          )}
-          <span className="transport-spacer" />
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Toggle light or dark theme"
-            title="Toggle light or dark theme"
-            onClick={toggleTheme}
-          >
-            {theme === "dark" ? "☀" : "🌙"}
-          </button>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Settings"
-            aria-expanded={settingsOpen}
-            onClick={() => setSettingsOpen(true)}
-          >
-            ⚙
-          </button>
+          <div className="transport-bar">
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => void resume()}
+            >
+              ▶ Play
+            </button>
+            <button type="button" className="btn" onClick={() => void stop()}>
+              ■ Stop
+            </button>
+            <button
+              type="button"
+              className="btn"
+              title="Back to the start"
+              disabled={!piece}
+              onClick={() => void startOver()}
+            >
+              ⏮ Start
+            </button>
+            <button
+              type="button"
+              className="btn"
+              title="Previous bar"
+              disabled={!piece}
+              onClick={() => void previousBar()}
+            >
+              ◀ Bar
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void chooseFile()}
+            >
+              Open…
+            </button>
+            {section === "practice" && (
+              <>
+                <div className="view-toggle" role="tablist">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={view === "keys"}
+                    className={view === "keys" ? "active" : ""}
+                    onClick={() => setView("keys")}
+                  >
+                    Keys
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={view === "sheet"}
+                    className={view === "sheet" ? "active" : ""}
+                    onClick={() => setView("sheet")}
+                  >
+                    Sheet
+                  </button>
+                </div>
+                <TrackMenu />
+              </>
+            )}
+            <span className="transport-spacer" />
+            <div className="volumes">
+              <label
+                className="volume"
+                title={`Music ${Math.round((settings?.music_volume ?? 1) * 100)}%`}
+              >
+                <span>Music</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={settings?.music_volume ?? 1}
+                  onChange={(event) =>
+                    void changeMusicVolume(Number(event.target.value))
+                  }
+                />
+              </label>
+              <label
+                className="volume"
+                title={`My notes ${Math.round((settings?.player_volume ?? 1) * 100)}%`}
+              >
+                <span>Notes</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={settings?.player_volume ?? 1}
+                  onChange={(event) =>
+                    void changePlayerVolume(Number(event.target.value))
+                  }
+                />
+              </label>
+              <label
+                className="volume"
+                title={`Output ${Math.round((settings?.output_volume ?? 1) * 100)}%`}
+              >
+                <span>Output</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={settings?.output_volume ?? 1}
+                  onChange={(event) =>
+                    void changeOutputVolume(Number(event.target.value))
+                  }
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Toggle light or dark theme"
+              title="Toggle light or dark theme"
+              onClick={toggleTheme}
+            >
+              {theme === "dark" ? "☀" : "🌙"}
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Settings"
+              aria-expanded={settingsOpen}
+              onClick={() => setSettingsOpen(true)}
+            >
+              ⚙
+            </button>
+          </div>
+          {section === "practice" && <TransportTimeline />}
         </header>
         <main className="content">
           <div className={section === "library" ? "pane" : "pane hidden"}>
@@ -218,7 +275,6 @@ function App() {
         </main>
         {section === "practice" && (
           <>
-            <TransportTimeline />
             <LyricsBar />
             <PracticeStatsBar />
           </>

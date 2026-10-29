@@ -12,7 +12,6 @@ import {
   loadSoundfont,
   play,
   playFile,
-  playbackPosition,
   saveSettings,
   seek,
   setSkill,
@@ -99,15 +98,6 @@ function previousBarMs(piece: Piece | null, ms: number): number {
   return previous;
 }
 
-/** The engine's current playhead, or 0 when no piece is loaded. */
-async function currentPositionMs(): Promise<number> {
-  try {
-    return await playbackPosition();
-  } catch {
-    return 0;
-  }
-}
-
 interface SessionState {
   soundfont: SoundfontStatus | null;
   download: DownloadState | null;
@@ -136,6 +126,8 @@ interface SessionState {
   lastOffsetMs: number | null;
   /** Pitches currently held down on any keyboard. */
   pressed: number[];
+  /** The playhead in milliseconds: updated by seeks and by the transport's position poll. */
+  positionMs: number;
   /** Loop region start in milliseconds, snapped to a bar; null until set. */
   loopStartMs: number | null;
   /** Loop region end in milliseconds, snapped to a bar; null until set. */
@@ -158,10 +150,11 @@ interface SessionState {
   resume: () => Promise<void>;
   stop: () => Promise<void>;
   seekTo: (positionMs: number) => Promise<void>;
+  setPositionMs: (positionMs: number) => void;
   startOver: () => Promise<void>;
   previousBar: () => Promise<void>;
-  setLoopStart: () => Promise<void>;
-  setLoopEnd: () => Promise<void>;
+  setLoopStart: () => void;
+  setLoopEnd: () => void;
   toggleLoop: () => void;
   clearLoop: () => void;
   changeSkill: (skill: Skill) => Promise<void>;
@@ -196,6 +189,7 @@ export const useSession = create<SessionState>((set, get) => ({
   lastTiming: null,
   lastOffsetMs: null,
   pressed: [],
+  positionMs: 0,
   loopStartMs: null,
   loopEndMs: null,
   looping: false,
@@ -358,6 +352,7 @@ export const useSession = create<SessionState>((set, get) => ({
         stats: null,
         lastTiming: null,
         lastOffsetMs: null,
+        positionMs: 0,
         loopStartMs: null,
         loopEndMs: null,
         looping: false,
@@ -407,8 +402,12 @@ export const useSession = create<SessionState>((set, get) => ({
     if (!get().piece) {
       return;
     }
+    const target = Math.max(0, Math.round(positionMs));
+    // Set it here and now, so a repeat press steps from the new point instead of reading the
+    // engine's position before it has processed the previous seek.
+    set({ positionMs: target });
     try {
-      await seek(Math.max(0, Math.round(positionMs)));
+      await seek(target);
       // The engine rewinds its scoring with the playhead; the readout mirrors that reset.
       set({ verdicts: {}, stats: null, lastTiming: null, lastOffsetMs: null });
     } catch (error) {
@@ -416,23 +415,22 @@ export const useSession = create<SessionState>((set, get) => ({
     }
   },
 
+  setPositionMs: (positionMs) => set({ positionMs }),
+
   startOver: async () => {
     await get().seekTo(0);
   },
 
   previousBar: async () => {
-    const position = await currentPositionMs();
-    await get().seekTo(previousBarMs(get().piece, position));
+    await get().seekTo(previousBarMs(get().piece, get().positionMs));
   },
 
-  setLoopStart: async () => {
-    const position = await currentPositionMs();
-    set({ loopStartMs: nearestBarMs(get().piece, position) });
+  setLoopStart: () => {
+    set({ loopStartMs: nearestBarMs(get().piece, get().positionMs) });
   },
 
-  setLoopEnd: async () => {
-    const position = await currentPositionMs();
-    set({ loopEndMs: nearestBarMs(get().piece, position) });
+  setLoopEnd: () => {
+    set({ loopEndMs: nearestBarMs(get().piece, get().positionMs) });
   },
 
   toggleLoop: () => set((state) => ({ looping: !state.looping })),

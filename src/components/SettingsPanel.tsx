@@ -1,4 +1,5 @@
 import { useSession } from "../state/sessionStore";
+import { InfoHint } from "./InfoHint";
 import { trackName } from "./TrackMenu";
 import type { Hand, Skill } from "../lib/api";
 
@@ -24,9 +25,6 @@ export function SettingsPanel({
   const changePlayAlong = useSession((state) => state.changePlayAlong);
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
-  const changeMusicVolume = useSession((state) => state.changeMusicVolume);
-  const changePlayerVolume = useSession((state) => state.changePlayerVolume);
-  const changeOutputVolume = useSession((state) => state.changeOutputVolume);
 
   if (!open) {
     return null;
@@ -127,29 +125,35 @@ export function SettingsPanel({
               </select>
             </label>
             {singleTrack && (
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={handPractice}
-                  onChange={(event) =>
-                    void changeHandSplit(event.target.checked)
-                  }
-                />
-                Practice by hand
-              </label>
-            )}
-            {handValue !== "Both" &&
-              (settings?.skill ?? "Strict") === "Follow" && (
+              <div className="check-row">
                 <label className="check">
                   <input
                     type="checkbox"
-                    checked={settings?.play_along ?? false}
+                    checked={handPractice}
                     onChange={(event) =>
-                      void changePlayAlong(event.target.checked)
+                      void changeHandSplit(event.target.checked)
                     }
                   />
-                  App plays the other hand
+                  Practice by hand
                 </label>
+                <InfoHint text="Splits the selected track into left and right hands at middle C (C4): the left hand is every note below C4, the right hand C4 and above." />
+              </div>
+            )}
+            {handValue !== "Both" &&
+              (settings?.skill ?? "Strict") === "Follow" && (
+                <div className="check-row">
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={settings?.play_along ?? false}
+                      onChange={(event) =>
+                        void changePlayAlong(event.target.checked)
+                      }
+                    />
+                    Play the other hand
+                  </label>
+                  <InfoHint text="In Follow mode the other hand plays along with you, so you hear the full piece while you play your part." />
+                </div>
               )}
           </section>
 
@@ -178,49 +182,6 @@ export function SettingsPanel({
                 value={settings?.transpose ?? 0}
                 onChange={(event) =>
                   void changeTranspose(Number(event.target.value))
-                }
-              />
-            </label>
-          </section>
-
-          <section className="settings-group">
-            <h3>Volume</h3>
-            <label className="field">
-              <span>Music</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings?.music_volume ?? 1}
-                onChange={(event) =>
-                  void changeMusicVolume(Number(event.target.value))
-                }
-              />
-            </label>
-            <label className="field">
-              <span>My notes</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings?.player_volume ?? 1}
-                onChange={(event) =>
-                  void changePlayerVolume(Number(event.target.value))
-                }
-              />
-            </label>
-            <label className="field">
-              <span>Output</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings?.output_volume ?? 1}
-                onChange={(event) =>
-                  void changeOutputVolume(Number(event.target.value))
                 }
               />
             </label>
