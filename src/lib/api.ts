@@ -35,6 +35,7 @@ export interface Settings {
   transpose: number;
   player_hand: Hand;
   player_track: number | null;
+  hand_split: boolean;
   skill: Skill;
 }
 
@@ -209,6 +210,10 @@ export function setLibraryFolders(folders: string[]): Promise<void> {
 
 export function setPlayerPart(hand: Hand, track: number | null): Promise<void> {
   return invoke("set_player_part", { hand, track });
+}
+
+export function setHandSplit(on: boolean): Promise<void> {
+  return invoke("set_hand_split", { on });
 }
 
 export function connectMidiInput(name: string): Promise<void> {

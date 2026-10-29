@@ -15,6 +15,7 @@ import {
   saveSettings,
   setSkill,
   setLibraryFolders,
+  setHandSplit,
   setMusicVolume,
   setPlayerPart,
   setPlayerVolume,
@@ -111,6 +112,7 @@ interface SessionState {
   stop: () => Promise<void>;
   changeSkill: (skill: Skill) => Promise<void>;
   changePart: (hand: Hand, track: number | null) => Promise<void>;
+  changeHandSplit: (on: boolean) => Promise<void>;
   changeTempo: (percent: number) => Promise<void>;
   changeTranspose: (semitones: number) => Promise<void>;
   changeMusicVolume: (volume: number) => Promise<void>;
@@ -273,8 +275,20 @@ export const useSession = create<SessionState>((set, get) => ({
 
   openPiece: async (path) => {
     try {
-      // Reopening the same piece keeps the track selection; a new one starts with every track.
-      const tracks = path === get().piecePath ? get().selectedTracks : null;
+      // A new piece starts clean: every track, and the player back to both hands, so the
+      // previous piece's part cannot carry over to a file with different tracks.
+      const isNew = path !== get().piecePath;
+      const tracks = isNew ? null : get().selectedTracks;
+      if (isNew) {
+        await setPlayerPart("Both", null);
+        set((state) => ({
+          settings: state.settings && {
+            ...state.settings,
+            player_hand: "Both",
+            player_track: null,
+          },
+        }));
+      }
       const piece = await playFile(path, tracks);
       set({
         piece,
@@ -354,6 +368,23 @@ export const useSession = create<SessionState>((set, get) => ({
       }
     } catch (error) {
       log.error(`setting the player's part failed: ${String(error)}`);
+    }
+  },
+
+  changeHandSplit: async (on) => {
+    set((state) => ({
+      settings: state.settings && { ...state.settings, hand_split: on },
+    }));
+    try {
+      await setHandSplit(on);
+      // Reload only if a hand is selected: turning off drops it back to both, turning on
+      // restores it. Both change the part the engine expects.
+      const hand = get().settings?.player_hand ?? "Both";
+      if (hand !== "Both") {
+        await get().changePart(on ? hand : "Both", null);
+      }
+    } catch (error) {
+      log.error(`setting hand practice failed: ${String(error)}`);
     }
   },
 

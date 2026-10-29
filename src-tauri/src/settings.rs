@@ -64,6 +64,8 @@ pub struct Settings {
     /// A track the player takes over for play-along, overriding the hand split. `None` uses
     /// `player_hand`.
     pub player_track: Option<u16>,
+    /// Whether a one-track piece offers hand practice, split at middle C.
+    pub hand_split: bool,
     /// How strictly the player's notes are judged.
     pub skill: Skill,
 }
@@ -80,16 +82,21 @@ impl Default for Settings {
             transpose: 0,
             player_hand: Hand::Both,
             player_track: None,
+            hand_split: false,
             skill: Skill::Strict,
         }
     }
 }
 
 impl Settings {
-    /// The part the player takes: a chosen track, or the hand split.
+    /// The part the player takes: a chosen track, or the hand split. Without hand practice, the
+    /// player plays everything.
     pub fn part(&self) -> Part {
-        self.player_track
-            .map_or(Part::Hands(self.player_hand), Part::Track)
+        match self.player_track {
+            Some(track) => Part::Track(track),
+            None if self.hand_split => Part::Hands(self.player_hand),
+            None => Part::Hands(Hand::Both),
+        }
     }
 
     /// Whether the accompaniment waits for the player at each note.
@@ -177,6 +184,7 @@ mod tests {
         settings.library_folders = vec!["C:/music".to_string(), "D:/midi".to_string()];
         settings.player_hand = super::Hand::Left;
         settings.player_track = Some(2);
+        settings.hand_split = true;
         settings.skill = super::Skill::Follow;
         settings.save(&path).expect("the file should write");
         // A second save replaces the first file, it does not fail on it.
@@ -215,6 +223,25 @@ mod tests {
         std::fs::write(&path, r#"{"library_folders":["A","B"]}"#).unwrap();
         assert_eq!(Settings::load(&path).library_folders, vec!["A", "B"]);
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_part_needs_hand_practice_and_prefers_a_track() {
+        use crate::engine::scheduler::{Hand, Part};
+
+        let mut settings = Settings {
+            player_hand: Hand::Left,
+            ..Settings::default()
+        };
+        // Without hand practice, the player plays everything, whatever hand was last chosen.
+        assert_eq!(settings.part(), Part::Hands(Hand::Both));
+
+        settings.hand_split = true;
+        assert_eq!(settings.part(), Part::Hands(Hand::Left));
+
+        // A chosen track overrides the hand split.
+        settings.player_track = Some(3);
+        assert_eq!(settings.part(), Part::Track(3));
     }
 
     #[test]

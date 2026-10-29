@@ -48,6 +48,7 @@ function App() {
   const stop = useSession((state) => state.stop);
   const changeSkill = useSession((state) => state.changeSkill);
   const changePart = useSession((state) => state.changePart);
+  const changeHandSplit = useSession((state) => state.changeHandSplit);
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
   const changeMusicVolume = useSession((state) => state.changeMusicVolume);
@@ -99,6 +100,15 @@ function App() {
       void openPiece(path);
     }
   };
+
+  // Hand practice only makes sense when there is a single playing part to split.
+  const playingTracks = (piece?.tracks ?? []).filter(
+    (track) => track.channel !== 9,
+  );
+  const singleTrack = playingTracks.length === 1;
+  const handPractice = settings?.hand_split ?? false;
+  const handValue =
+    singleTrack && handPractice ? (settings?.player_hand ?? "Both") : "Both";
 
   const ready =
     soundfont !== null && soundfont.installed && soundfontError === null;
@@ -170,7 +180,7 @@ function App() {
             value={
               settings?.player_track != null
                 ? `track:${settings.player_track}`
-                : `hand:${settings?.player_hand ?? "Both"}`
+                : `hand:${handValue}`
             }
             onChange={(event) => {
               const value = event.target.value;
@@ -185,17 +195,29 @@ function App() {
             }}
           >
             <option value="hand:Both">Both hands</option>
-            <option value="hand:Left">Left hand</option>
-            <option value="hand:Right">Right hand</option>
-            {(piece?.tracks ?? [])
-              .filter((track) => track.channel !== 9)
-              .map((track) => (
-                <option key={track.index} value={`track:${track.index}`}>
-                  {trackName(track)}
-                </option>
-              ))}
+            {singleTrack && handPractice && (
+              <>
+                <option value="hand:Left">Left hand</option>
+                <option value="hand:Right">Right hand</option>
+              </>
+            )}
+            {playingTracks.map((track) => (
+              <option key={track.index} value={`track:${track.index}`}>
+                {trackName(track)}
+              </option>
+            ))}
           </select>
         </label>
+        {singleTrack && (
+          <label>
+            <input
+              type="checkbox"
+              checked={handPractice}
+              onChange={(event) => void changeHandSplit(event.target.checked)}
+            />
+            Practice by hand
+          </label>
+        )}
         <label>
           Tempo
           <input
