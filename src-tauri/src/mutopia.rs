@@ -118,11 +118,19 @@ pub fn list_piano(start_at: usize, query: &str) -> Result<MutopiaPage, MutopiaEr
 }
 
 /// Downloads the MIDI at `url` into `dest`, returning the saved file's path.
-pub fn download_midi(url: &str, dest: &Path) -> Result<PathBuf, MutopiaError> {
+///
+/// `name` is the readable base name to save under (the piece's title), so the library shows
+/// the piece rather than the URL's slug; it is sanitized here. When absent or unusable, the
+/// linked file's own name is used.
+pub fn download_midi(url: &str, dest: &Path, name: Option<&str>) -> Result<PathBuf, MutopiaError> {
     let url = url.trim();
-    let name = midi_file_name(url).ok_or(MutopiaError::BadUrl)?;
+    let linked_name = midi_file_name(url).ok_or(MutopiaError::BadUrl)?;
+    let file_name = match name.and_then(safe_base_name) {
+        Some(base) => format!("{base}.mid"),
+        None => linked_name,
+    };
     std::fs::create_dir_all(dest)?;
-    let destination = dest.join(&name);
+    let destination = dest.join(&file_name);
     // A `.part` file means an interrupted download never looks complete.
     let temporary = destination.with_extension("part");
 
@@ -326,6 +334,31 @@ fn midi_file_name(url: &str) -> Option<String> {
     Some(name.to_string())
 }
 
+/// A readable base name as a file name a filesystem will accept: illegal characters become
+/// dashes, whitespace collapses, the length is capped, and windows-hostile leading or trailing
+/// dots and spaces are trimmed. `None` when nothing usable is left.
+fn safe_base_name(name: &str) -> Option<String> {
+    let cleaned: String = name
+        .chars()
+        .map(|ch| {
+            if ch.is_control() || matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')
+            {
+                '-'
+            } else {
+                ch
+            }
+        })
+        .collect();
+    let collapsed = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+    let capped: String = collapsed.chars().take(120).collect();
+    let trimmed = capped.trim_matches(|ch: char| ch == '.' || ch == ' ');
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
 /// Percent-encodes a search term for the CGI's query string.
 fn percent_encode(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
@@ -344,6 +377,7 @@ fn percent_encode(text: &str) -> String {
 mod tests {
     use super::{
         decode_entities, id_from_href, midi_file_name, parse_page, percent_encode, resolve_license,
+        safe_base_name,
     };
 
     /// A saved copy of a real listing page: five pieces, two of them multi-file ZIPs, ending
@@ -472,5 +506,32 @@ mod tests {
         assert_eq!(percent_encode("chopin nocturne"), "chopin%20nocturne");
         assert_eq!(percent_encode("Bach's"), "Bach%27s");
         assert_eq!(percent_encode("a-b_c.d~e"), "a-b_c.d~e");
+    }
+
+    #[test]
+    fn makes_a_saving_name_a_filesystem_accepts() {
+        assert_eq!(
+            safe_base_name("Vocalise № 1 - F. Abt").as_deref(),
+            Some("Vocalise № 1 - F. Abt")
+        );
+        // Illegal characters become dashes; runs of whitespace collapse; a trailing dot is
+        // dropped (Windows ignores it).
+        assert_eq!(
+            safe_base_name("English Suite II:  Bourree   II").as_deref(),
+            Some("English Suite II- Bourree II")
+        );
+        assert_eq!(safe_base_name("A/B\\C:D").as_deref(), Some("A-B-C-D"));
+        assert_eq!(safe_base_name("  Trailing.  ").as_deref(), Some("Trailing"));
+        assert_eq!(safe_base_name("..").as_deref(), None);
+        assert_eq!(safe_base_name("   ").as_deref(), None);
+        assert_eq!(safe_base_name("").as_deref(), None);
+
+        // No separator survives, so a name can never climb out of the destination folder.
+        let escaped = safe_base_name("../../etc/passwd").unwrap();
+        assert!(!escaped.contains('/') && !escaped.contains('\\'));
+
+        // A very long title is capped.
+        let long = safe_base_name(&"x".repeat(200)).unwrap();
+        assert_eq!(long.chars().count(), 120);
     }
 }

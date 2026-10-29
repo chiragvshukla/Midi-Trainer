@@ -222,9 +222,13 @@ export function fetchMutopiaPage(
   return invoke<MutopiaPage>("list_mutopia", { startAt, query });
 }
 
-/** Downloads a Mutopia MIDI into `dest`, returning the saved file's path. */
-export function downloadMutopia(url: string, dest: string): Promise<string> {
-  return invoke<string>("download_mutopia", { url, dest });
+/** Downloads a Mutopia MIDI into `dest` under `name`, returning the saved file's path. */
+export function downloadMutopia(
+  url: string,
+  dest: string,
+  name: string,
+): Promise<string> {
+  return invoke<string>("download_mutopia", { url, dest, name });
 }
 
 export function fetchSoundfontStatus(): Promise<SoundfontStatus> {

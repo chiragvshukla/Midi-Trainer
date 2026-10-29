@@ -14,6 +14,15 @@ const PAGE_SIZE = 10;
 type RowState = "busy" | "saved" | "error";
 
 /**
+ * The base name a piece is saved under, so the library shows the piece rather than the URL's
+ * slug. A composer is appended to tell same-titled pieces apart; its life dates are dropped.
+ */
+function fileBaseName(piece: MutopiaPiece): string {
+  const composer = piece.composer.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  return composer ? `${piece.title} - ${composer}` : piece.title;
+}
+
+/**
  * The Download tab: browse the Mutopia Project's public-domain and Creative Commons piano
  * catalogue and save any piece's MIDI into a library folder. The listing and the downloads
  * come from the engine; this component only renders them and reports progress. The catalogue
@@ -98,7 +107,11 @@ export function DownloadPanel({
     setDownloadError(null);
     setRows((current) => ({ ...current, [piece.id]: "busy" }));
     try {
-      const path = await downloadMutopia(piece.midi_url, destination);
+      const path = await downloadMutopia(
+        piece.midi_url,
+        destination,
+        fileBaseName(piece),
+      );
       setSaved((current) => ({ ...current, [piece.id]: path }));
       setRows((current) => ({ ...current, [piece.id]: "saved" }));
       await loadLibrary();
