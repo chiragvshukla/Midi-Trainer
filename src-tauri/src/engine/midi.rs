@@ -29,6 +29,15 @@ pub struct TimeSignature {
     pub denominator: u8,
 }
 
+/// A key signature change: the number of sharps (negative for flats) and whether the key is
+/// minor, as MIDI meta events encode them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeySignature {
+    pub tick: u64,
+    pub fifths: i8,
+    pub minor: bool,
+}
+
 /// A karaoke lyric syllable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LyricEvent {
@@ -65,6 +74,7 @@ pub struct MidiFile {
     /// Always starts at tick 0, with exactly one entry per tick.
     pub tempo_map: Vec<TempoChange>,
     pub time_signatures: Vec<TimeSignature>,
+    pub key_signatures: Vec<KeySignature>,
     pub lyrics: Vec<LyricEvent>,
     pub tracks: Vec<TrackInfo>,
     /// Sorted by start tick, then pitch, then track.
@@ -85,6 +95,7 @@ pub fn parse(bytes: &[u8]) -> Result<MidiFile, EngineError> {
 
     let mut tempo_map = Vec::new();
     let mut time_signatures = Vec::new();
+    let mut key_signatures = Vec::new();
     let mut lyrics = Vec::new();
     let mut tracks = Vec::new();
     let mut notes = Vec::new();
@@ -153,6 +164,11 @@ pub fn parse(bytes: &[u8]) -> Result<MidiFile, EngineError> {
                             numerator: *numerator,
                             denominator: 2u8.saturating_pow(u32::from(*denominator)),
                         }),
+                    MetaMessage::KeySignature(fifths, minor) => key_signatures.push(KeySignature {
+                        tick,
+                        fifths: *fifths,
+                        minor: *minor,
+                    }),
                     MetaMessage::TrackName(bytes) => name = Some(text_of(bytes)),
                     MetaMessage::Lyric(bytes) => lyrics.push(LyricEvent {
                         tick,
@@ -192,6 +208,7 @@ pub fn parse(bytes: &[u8]) -> Result<MidiFile, EngineError> {
         division: division_of(smf.header.timing),
         tempo_map: tidy_tempo_map(tempo_map),
         time_signatures,
+        key_signatures,
         lyrics,
         tracks,
         notes,
@@ -272,9 +289,32 @@ fn tidy_tempo_map(changes: Vec<TempoChange>) -> Vec<TempoChange> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Division, EngineError, LyricEvent, NoteEvent, TempoChange, TimeSignature, parse};
+    use super::{
+        Division, EngineError, KeySignature, LyricEvent, NoteEvent, TempoChange, TimeSignature,
+        parse,
+    };
 
     const FIXTURE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../test_data");
+
+    #[test]
+    fn parses_a_key_signature() {
+        // Format 0, one track, 480 tpq; a key signature of two sharps (D major) at tick 0.
+        let bytes = [
+            b'M', b'T', b'h', b'd', 0, 0, 0, 6, 0, 0, 0, 1, 1, 0xE0, b'M', b'T', b'r', b'k', 0, 0,
+            0, 10, 0, 0xFF, 0x59, 0x02, 2, 0, 0, 0xFF, 0x2F, 0x00,
+        ];
+
+        let file = parse(&bytes).unwrap();
+
+        assert_eq!(
+            file.key_signatures,
+            vec![KeySignature {
+                tick: 0,
+                fifths: 2,
+                minor: false,
+            }]
+        );
+    }
 
     #[test]
     fn parses_the_two_track_fixture() {

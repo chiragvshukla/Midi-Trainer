@@ -46,6 +46,12 @@ export interface TimeSignature {
   denominator: number;
 }
 
+/** A key signature: number of sharps (negative for flats) and whether the key is minor. */
+export interface KeySignature {
+  fifths: number;
+  minor: boolean;
+}
+
 export interface ChordNote {
   pitch: number;
   /** The original note's onset, to match playback verdicts. */
@@ -77,6 +83,8 @@ export interface Measure {
 
 export interface Score {
   measures: Measure[];
+  /** The piece's key, when the file declares one. */
+  key_signature: KeySignature | null;
 }
 
 export interface Piece {

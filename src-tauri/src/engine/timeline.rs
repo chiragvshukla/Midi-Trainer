@@ -307,6 +307,7 @@ mod tests {
             division,
             tempo_map,
             time_signatures: Vec::new(),
+            key_signatures: Vec::new(),
             lyrics: Vec::new(),
             tracks: Vec::new(),
             notes,

@@ -15,6 +15,16 @@ use crate::audio::PERCUSSION_CHANNEL;
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Score {
     pub measures: Vec<Measure>,
+    /// The piece's key, when the file declares one. Display only: the renderer draws the
+    /// sharps or flats but does not suppress in-key accidentals.
+    pub key_signature: Option<KeySignature>,
+}
+
+/// A key signature: the number of sharps (negative for flats) and whether the key is minor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct KeySignature {
+    pub fifths: i8,
+    pub minor: bool,
 }
 
 /// One measure of music: its timing on the playback timeline, its signature, and the
@@ -79,6 +89,7 @@ pub fn engrave(file: &MidiFile, timeline: &Timeline) -> Score {
     if notes.is_empty() {
         return Score {
             measures: Vec::new(),
+            key_signature: None,
         };
     }
 
@@ -121,7 +132,14 @@ pub fn engrave(file: &MidiFile, timeline: &Timeline) -> Score {
             )
         })
         .collect();
-    Score { measures }
+    let key_signature = file.key_signatures.first().map(|key| KeySignature {
+        fifths: key.fifths,
+        minor: key.minor,
+    });
+    Score {
+        measures,
+        key_signature,
+    }
 }
 
 fn build_measure(
@@ -293,6 +311,7 @@ mod tests {
             division: Division::Metrical(480),
             tempo_map: Vec::new(),
             time_signatures: Vec::new(),
+            key_signatures: Vec::new(),
             lyrics: Vec::new(),
             tracks: Vec::new(),
             notes: events,
@@ -323,6 +342,31 @@ mod tests {
             };
             4
         ]
+    }
+
+    #[test]
+    fn carries_the_files_key_signature_into_the_score() {
+        let mut file = file_of(&[(60, 0, 480)]);
+        file.key_signatures = vec![crate::engine::midi::KeySignature {
+            tick: 0,
+            fifths: 2,
+            minor: false,
+        }];
+        let timeline = Timeline::from_midi(&file);
+        let score = engrave(&file, &timeline);
+
+        assert_eq!(
+            score.key_signature,
+            Some(super::KeySignature {
+                fifths: 2,
+                minor: false
+            })
+        );
+    }
+
+    #[test]
+    fn a_piece_without_a_key_signature_has_none() {
+        assert_eq!(engrave_of(&[(60, 0, 480)]).key_signature, None);
     }
 
     #[test]
