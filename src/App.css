@@ -251,9 +251,8 @@
 
 .library-entry {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   border: none;
   background: transparent;
@@ -272,6 +271,13 @@
   background: #2a2e3a;
 }
 
+.library-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .library-name {
   font-size: 13px;
 }
@@ -281,7 +287,40 @@
   color: #8b93a8;
 }
 
+.note-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: #8b93a8;
+}
+
+.library-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #aab2c5;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 8px 10px 4px;
+  cursor: pointer;
+}
+
+.library-caret {
+  font-size: 10px;
+}
+
+.library-recent {
+  margin-bottom: 6px;
+  border-bottom: 1px solid #1b1e27;
+  padding-bottom: 6px;
+}
+
 .library-empty {
-  padding: 24px;
+  padding: 12px 10px;
   color: #8b93a8;
 }

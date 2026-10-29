@@ -135,23 +135,6 @@ function App() {
             ))}
           </select>
         )}
-        {settings && settings.recent_files.length > 0 && (
-          <select
-            defaultValue=""
-            onChange={(event) => {
-              if (event.target.value) void openPiece(event.target.value);
-              // Allow picking the same file again next time.
-              event.currentTarget.value = "";
-            }}
-          >
-            <option value="">Recent…</option>
-            {settings.recent_files.map((path) => (
-              <option key={path} value={path}>
-                {path}
-              </option>
-            ))}
-          </select>
-        )}
         <label>
           <input
             type="checkbox"
