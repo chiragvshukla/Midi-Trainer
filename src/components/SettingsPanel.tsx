@@ -49,6 +49,10 @@ export function SettingsPanel({
   const setAccent = useAppearance((state) => state.setAccent);
   const setTrackColor = useAppearance((state) => state.setTrackColor);
   const resetTrackColors = useAppearance((state) => state.resetTrackColors);
+  const reducedMotion = useAppearance((state) => state.reducedMotion);
+  const safeColors = useAppearance((state) => state.safeColors);
+  const setReducedMotion = useAppearance((state) => state.setReducedMotion);
+  const setSafeColors = useAppearance((state) => state.setSafeColors);
 
   if (!open) {
     return null;
@@ -141,6 +145,7 @@ export function SettingsPanel({
                     <input
                       type="color"
                       value={color || trackFallbacks[index]}
+                      disabled={safeColors}
                       onChange={(event) =>
                         setTrackColor(index, event.target.value)
                       }
@@ -148,10 +153,35 @@ export function SettingsPanel({
                   </label>
                 ))}
               </div>
-              <button type="button" className="btn" onClick={resetTrackColors}>
+              <button
+                type="button"
+                className="btn"
+                disabled={safeColors}
+                onClick={resetTrackColors}
+              >
                 Reset colours
               </button>
             </div>
+          </section>
+
+          <section className="settings-group">
+            <h3>Accessibility</h3>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={reducedMotion}
+                onChange={(event) => setReducedMotion(event.target.checked)}
+              />
+              Reduce motion
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={safeColors}
+                onChange={(event) => setSafeColors(event.target.checked)}
+              />
+              Colour-blind-safe note colours
+            </label>
           </section>
 
           <section className="settings-group">

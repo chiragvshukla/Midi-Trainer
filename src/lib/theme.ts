@@ -27,6 +27,10 @@ interface Appearance {
   trackColors: string[];
   /** Whether the left navigation rail is collapsed to icons. */
   collapsed: boolean;
+  /** Disable transitions and animations. */
+  reducedMotion: boolean;
+  /** Use the colour-blind-safe note palette instead of per-theme track colours. */
+  safeColors: boolean;
 }
 
 const DEFAULTS: Appearance = {
@@ -35,6 +39,8 @@ const DEFAULTS: Appearance = {
   accent: "orange",
   trackColors: Array<string>(TRACK_COLOR_COUNT).fill(""),
   collapsed: false,
+  reducedMotion: false,
+  safeColors: false,
 };
 
 function isTheme(value: unknown): value is Theme {
@@ -75,6 +81,8 @@ function read(): Appearance {
             : "",
         ),
         collapsed: saved.collapsed === true,
+        reducedMotion: saved.reducedMotion === true,
+        safeColors: saved.safeColors === true,
       };
     }
     return {
@@ -92,9 +100,21 @@ function apply(state: Appearance): void {
   root.dataset.theme = resolvedTheme(state.theme);
   root.dataset.look = state.look;
   root.dataset.accent = state.accent;
+  if (state.reducedMotion) {
+    root.dataset.motion = "reduced";
+  } else {
+    delete root.dataset.motion;
+  }
+  if (state.safeColors) {
+    root.dataset.cvd = "on";
+  } else {
+    delete root.dataset.cvd;
+  }
+  // A manual per-track colour wins over the theme, but the colour-blind-safe palette takes
+  // over entirely while it is on, so the overrides are held back rather than cleared.
   state.trackColors.forEach((color, index) => {
     const name = `--roll-track-${index + 1}`;
-    if (color) {
+    if (color && !state.safeColors) {
       root.style.setProperty(name, color);
     } else {
       root.style.removeProperty(name);
@@ -117,6 +137,8 @@ interface AppearanceState extends Appearance {
   setAccent: (accent: Accent) => void;
   setTrackColor: (index: number, color: string) => void;
   resetTrackColors: () => void;
+  setReducedMotion: (on: boolean) => void;
+  setSafeColors: (on: boolean) => void;
   toggleSidebar: () => void;
   toggleTheme: () => void;
 }
@@ -158,6 +180,9 @@ export const useAppearance = create<AppearanceState>((set) => ({
     ),
   toggleSidebar: () =>
     set((state) => advance(state, { collapsed: !state.collapsed })),
+  setReducedMotion: (on) =>
+    set((state) => advance(state, { reducedMotion: on })),
+  setSafeColors: (on) => set((state) => advance(state, { safeColors: on })),
   toggleTheme: () =>
     set((state) =>
       advance(state, {

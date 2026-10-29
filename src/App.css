@@ -1387,3 +1387,30 @@ input[type="range"]::-moz-range-thumb {
 .sidebar-toggle:hover {
   color: var(--text);
 }
+
+/* --- Accessibility --- */
+
+/* Reduced motion, whether chosen in settings or asked for by the OS. */
+[data-motion="reduced"] * {
+  transition-duration: 0.001ms !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* A colour-blind-safe (Okabe-Ito) note palette; overrides both themes. */
+[data-cvd="on"] {
+  --roll-track-1: #0072b2;
+  --roll-track-2: #e69f00;
+  --roll-track-3: #009e73;
+  --roll-track-4: #cc79a7;
+  --roll-track-5: #56b4e9;
+  --roll-track-6: #d55e00;
+}
