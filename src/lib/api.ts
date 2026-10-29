@@ -21,6 +21,7 @@ export interface DownloadProgress {
 
 export interface Settings {
   recent_files: string[];
+  library_folder: string | null;
   midi_device: string | null;
   volume: number;
   tempo_percent: number;
@@ -107,6 +108,12 @@ export interface PlayerNote {
   down: boolean;
 }
 
+/** One MIDI file the library can open. */
+export interface LibraryEntry {
+  name: string;
+  relative_path: string;
+}
+
 export function fetchAppInfo(): Promise<AppInfo> {
   return invoke<AppInfo>("app_info");
 }
@@ -145,6 +152,14 @@ export function saveSettings(): Promise<void> {
 
 export function listMidiInputs(): Promise<string[]> {
   return invoke<string[]>("list_midi_inputs");
+}
+
+export function listLibrary(folder: string): Promise<LibraryEntry[]> {
+  return invoke<LibraryEntry[]>("list_library", { folder });
+}
+
+export function setLibraryFolder(folder: string | null): Promise<void> {
+  return invoke("set_library_folder", { folder });
 }
 
 export function connectMidiInput(name: string): Promise<void> {

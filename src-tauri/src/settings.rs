@@ -13,6 +13,8 @@ const MAX_RECENT_FILES: usize = 10;
 pub struct Settings {
     /// Most recently played files, newest first.
     pub recent_files: Vec<String>,
+    /// The folder the user browses as their MIDI library, if one was chosen.
+    pub library_folder: Option<String>,
     /// The hardware MIDI input to reconnect to, if one was chosen.
     pub midi_device: Option<String>,
     /// Output volume as a linear gain, 0.0 to 1.0.
@@ -27,6 +29,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             recent_files: Vec::new(),
+            library_folder: None,
             midi_device: None,
             volume: 1.0,
             tempo_percent: 100.0,
@@ -107,6 +110,7 @@ mod tests {
         settings.tempo_percent = 80.0;
         settings.transpose = -2;
         settings.midi_device = Some("Piano".to_string());
+        settings.library_folder = Some("C:/music".to_string());
         settings.save(&path).expect("the file should write");
         // A second save replaces the first file, it does not fail on it.
         settings.recent_files.clear();
