@@ -1,34 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { playbackPosition, type NoteInfo, type Verdict } from "../lib/api";
+import { pitchName } from "../lib/pitch";
 import { canvasColors, useAppearance } from "../lib/theme";
 import { useSession, verdictKey } from "../state/sessionStore";
 
 /** Pitch classes drawn as black keys (C#, D#, F#, G#, A#). */
 const BLACK_CLASSES = new Set([1, 3, 6, 8, 10]);
 
-/** Names by pitch class, for the optional note-name labels. */
-const PITCH_NAMES = [
-  "C",
-  "C#",
-  "D",
-  "D#",
-  "E",
-  "F",
-  "F#",
-  "G",
-  "G#",
-  "A",
-  "A#",
-  "B",
-];
-
 /** The font the note-name labels are drawn in. */
 const LABEL_FONT = '10px "Cascadia Mono", Consolas, monospace';
-
-/** A MIDI pitch as a name and octave, e.g. 60 -> C4. */
-function pitchName(pitch: number): string {
-  return `${PITCH_NAMES[pitch % 12]}${Math.floor(pitch / 12) - 1}`;
-}
 
 /** How much score time is visible above the keyboard at zoom 1, in milliseconds. */
 const LOOKAHEAD_MS = 4000;

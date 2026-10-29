@@ -25,6 +25,12 @@ export interface DownloadProgress {
   total: number;
 }
 
+/** One key on the PC-keyboard fallback: the browser key code and the MIDI pitch it plays. */
+export interface PcKey {
+  code: string;
+  pitch: number;
+}
+
 export interface Settings {
   recent_files: string[];
   library_folders: string[];
@@ -278,4 +284,8 @@ export function keyDown(code: string): Promise<number | null> {
 
 export function keyUp(code: string): Promise<void> {
   return invoke("key_up", { code });
+}
+
+export function pcKeyboardLayout(): Promise<PcKey[]> {
+  return invoke<PcKey[]>("pc_keyboard_layout");
 }

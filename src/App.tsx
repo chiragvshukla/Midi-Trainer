@@ -4,12 +4,14 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useAppStore } from "./state/appStore";
 import { useSession } from "./state/sessionStore";
 import { usePcKeyboard } from "./lib/usePcKeyboard";
+import { useShortcuts } from "./lib/useShortcuts";
 import { useAppearance } from "./lib/theme";
 import { SoundfontGate } from "./components/SoundfontGate";
 import { LibraryView } from "./components/LibraryView";
 import { LyricsBar } from "./components/LyricsBar";
 import { PracticeStatsBar } from "./components/PracticeStatsBar";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { ShortcutsHelp } from "./components/ShortcutsHelp";
 import { Sidebar, type Section } from "./components/Sidebar";
 import { TrackMenu } from "./components/TrackMenu";
 import { TransportTimeline } from "./components/TransportTimeline";
@@ -30,6 +32,7 @@ function App() {
   const [section, setSection] = useState<Section>("library");
   const [view, setView] = useState<PieceView>("keys");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const appInfo = useAppStore((state) => state.appInfo);
   const loadAppInfo = useAppStore((state) => state.loadAppInfo);
 
@@ -55,6 +58,7 @@ function App() {
   const toggleTheme = useAppearance((state) => state.toggleTheme);
 
   usePcKeyboard();
+  useShortcuts();
 
   useEffect(() => {
     void loadAppInfo();
@@ -238,6 +242,16 @@ function App() {
             <button
               type="button"
               className="icon-button"
+              aria-label="Keyboard shortcuts"
+              aria-expanded={helpOpen}
+              title="Keyboard shortcuts"
+              onClick={() => setHelpOpen(true)}
+            >
+              ?
+            </button>
+            <button
+              type="button"
+              className="icon-button"
               aria-label="Settings"
               aria-expanded={settingsOpen}
               onClick={() => setSettingsOpen(true)}
@@ -284,6 +298,7 @@ function App() {
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
+      <ShortcutsHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

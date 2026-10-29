@@ -82,6 +82,7 @@ pub fn run() {
             commands::set_transpose::set_transpose,
             commands::seek::seek,
             commands::playback_position::playback_position,
+            commands::pc_keyboard_layout::pc_keyboard_layout,
             commands::get_settings::get_settings,
             commands::save_settings::save_settings,
         ])

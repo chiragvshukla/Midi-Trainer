@@ -144,6 +144,8 @@ interface SessionState {
   loopEndMs: number | null;
   /** Whether playback loops the region instead of running to the end. */
   looping: boolean;
+  /** Whether the transport is playing, for the play/stop toggle. */
+  playing: boolean;
   /** First-run setup: SoundFont first (the engine needs it), then the saved settings. */
   startup: () => Promise<void>;
   initSoundfont: () => Promise<void>;
@@ -163,6 +165,7 @@ interface SessionState {
   setPositionMs: (positionMs: number) => void;
   startOver: () => Promise<void>;
   previousBar: () => Promise<void>;
+  nextBar: () => Promise<void>;
   resetStats: () => Promise<void>;
   setLoopStart: () => void;
   setLoopEnd: () => void;
@@ -204,6 +207,7 @@ export const useSession = create<SessionState>((set, get) => ({
   loopStartMs: null,
   loopEndMs: null,
   looping: false,
+  playing: false,
 
   startup: async () => {
     await get().initSoundfont();
@@ -367,6 +371,7 @@ export const useSession = create<SessionState>((set, get) => ({
         loopStartMs: null,
         loopEndMs: null,
         looping: false,
+        playing: false,
       });
     } catch (error) {
       log.error(`failed to play ${path}: ${String(error)}`);
@@ -396,6 +401,7 @@ export const useSession = create<SessionState>((set, get) => ({
   resume: async () => {
     try {
       await play();
+      set({ playing: true });
     } catch (error) {
       log.error(`starting playback failed: ${String(error)}`);
     }
@@ -404,6 +410,7 @@ export const useSession = create<SessionState>((set, get) => ({
   stop: async () => {
     try {
       await stopPlayback();
+      set({ playing: false });
     } catch (error) {
       log.error(`stopping playback failed: ${String(error)}`);
     }
@@ -434,6 +441,10 @@ export const useSession = create<SessionState>((set, get) => ({
 
   previousBar: async () => {
     await get().seekTo(previousBarMs(get().piece, get().positionMs));
+  },
+
+  nextBar: async () => {
+    await get().seekTo(nextBarMs(get().piece, get().positionMs));
   },
 
   resetStats: async () => {
