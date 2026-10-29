@@ -27,7 +27,7 @@ export const PALETTES = [
   { id: "one-dark", label: "One Dark" },
   { id: "rose-pine", label: "Rosé Pine" },
   { id: "everforest", label: "Everforest" },
-  { id: "synthwave84", label: "Synthwave84 (dark)" },
+  { id: "synthwave84", label: "Synthwave84 (Dark Mode Only)" },
 ] as const;
 
 export type Palette = (typeof PALETTES)[number]["id"];

@@ -91,7 +91,7 @@ export function AppearancePanel({
                 value={look}
                 onChange={(event) => setLook(event.target.value as Look)}
               >
-                <option value="matte">Minimal matte</option>
+                <option value="matte">Minimal</option>
                 <option value="win95">Win95</option>
                 <option value="atomic">Atomic</option>
               </select>
