@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   cancelSoundfontDownload,
   connectMidiInput,
+  deleteLibraryEntry,
   disconnectMidiInput,
   downloadSoundfont,
   fetchSettings,
@@ -85,6 +86,11 @@ function applyNumericSetting(
 /** Key of one falling note in the verdict map: pitch and score time. */
 export function verdictKey(pitch: number, startMs: number): string {
   return `${pitch}:${Math.round(startMs)}`;
+}
+
+/** A path in one canonical form for comparing: forward slashes, lowercased. */
+export function normalizePath(path: string): string {
+  return path.replace(/\\/g, "/").toLowerCase();
 }
 
 /** How long a wrong played key stays red on the on-screen keyboard. Short, so fast passages
@@ -194,6 +200,15 @@ interface SessionState {
   loadLibrary: () => Promise<void>;
   addLibraryFolder: () => Promise<void>;
   removeLibraryFolder: (folder: string) => Promise<void>;
+  /**
+   * Removes a file from the library. With `deleteStorage` the file is deleted too; `remember`
+   * stores that choice so later removals skip the prompt.
+   */
+  removeFromLibrary: (
+    path: string,
+    deleteStorage: boolean,
+    remember: boolean,
+  ) => Promise<void>;
   openPiece: (path: string) => Promise<void>;
   toggleTrack: (index: number) => Promise<void>;
   resume: () => Promise<void>;
@@ -419,6 +434,43 @@ export const useSession = create<SessionState>((set, get) => ({
     } catch (error) {
       log.error(`removing a library folder failed: ${String(error)}`);
     }
+  },
+
+  removeFromLibrary: async (path, deleteStorage, remember) => {
+    await deleteLibraryEntry(
+      path,
+      deleteStorage,
+      remember ? deleteStorage : null,
+    );
+    const key = normalizePath(path);
+    // An open file that was deleted must be let go of, or the engine holds a piece that is gone.
+    const current = get().piecePath;
+    if (deleteStorage && current && normalizePath(current) === key) {
+      await get().stop();
+      set({ piece: null, piecePath: null });
+    }
+    set((state) => {
+      if (!state.settings) {
+        return {};
+      }
+      const settings = state.settings;
+      return {
+        settings: {
+          ...settings,
+          recent_files: settings.recent_files.filter(
+            (entry) => normalizePath(entry) !== key,
+          ),
+          hidden_files: settings.hidden_files.some(
+            (entry) => normalizePath(entry) === key,
+          )
+            ? settings.hidden_files
+            : [...settings.hidden_files, key],
+          delete_from_storage: remember
+            ? deleteStorage
+            : settings.delete_from_storage,
+        },
+      };
+    });
   },
 
   openPiece: async (path) => {

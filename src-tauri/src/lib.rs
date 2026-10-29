@@ -70,6 +70,7 @@ pub fn run() {
             commands::list_midi_inputs::list_midi_inputs,
             commands::list_mutopia::list_mutopia,
             commands::list_library::list_library,
+            commands::delete_library_entry::delete_library_entry,
             commands::connect_midi_input::connect_midi_input,
             commands::disconnect_midi_input::disconnect_midi_input,
             commands::set_skill::set_skill,

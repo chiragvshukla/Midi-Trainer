@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LibraryEntry } from "../lib/api";
-import { useSession } from "../state/sessionStore";
+import { log } from "../lib/logger";
+import { normalizePath, useSession } from "../state/sessionStore";
 import { NoteIcon } from "./NoteIcon";
 
 /** A file's name without a MIDI extension, for display. */
@@ -63,11 +64,13 @@ function entryDetail(item: LibraryEntry): string {
 
 /** A shared empty list, so a missing settings object does not make a new array each read. */
 const NO_RECENT: string[] = [];
+const NO_HIDDEN: string[] = [];
 
 /**
  * The library browser: recent files, then one collapsible section per chosen folder, with a
  * filter across all of them. Opening an entry loads the piece paused and hands control back to
- * the app to show the piece views. Rendering only: the listings come from the session store.
+ * the app to show the piece views. Removing an entry hides it from the library and can delete
+ * the file itself. Rendering only: the listings come from the session store.
  */
 export function LibraryView({ onOpened }: { onOpened: () => void }) {
   const libraries = useSession((state) => state.libraries);
@@ -75,15 +78,31 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
   const recent = useSession(
     (state) => state.settings?.recent_files ?? NO_RECENT,
   );
+  const hiddenFiles = useSession(
+    (state) => state.settings?.hidden_files ?? NO_HIDDEN,
+  );
+  const storageChoice = useSession(
+    (state) => state.settings?.delete_from_storage ?? null,
+  );
   const loadLibrary = useSession((state) => state.loadLibrary);
   const addLibraryFolder = useSession((state) => state.addLibraryFolder);
   const removeLibraryFolder = useSession((state) => state.removeLibraryFolder);
+  const removeFromLibrary = useSession((state) => state.removeFromLibrary);
   const openPiece = useSession((state) => state.openPiece);
   const piecePath = useSession((state) => state.piecePath);
   const [filter, setFilter] = useState("");
   const [recentOpen, setRecentOpen] = useState(true);
   const [closedFolders, setClosedFolders] = useState<Set<string>>(new Set());
+  const [pending, setPending] = useState<{ path: string; name: string } | null>(
+    null,
+  );
+  const [remember, setRemember] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const hidden = useMemo(
+    () => new Set(hiddenFiles.map(normalizePath)),
+    [hiddenFiles],
+  );
   const needle = filter.trim().toLowerCase();
 
   const fullPath = (folder: string, entry: LibraryEntry): string =>
@@ -92,6 +111,44 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
   const open = (path: string): void => {
     void openPiece(path).then(onOpened);
   };
+
+  const applyDelete = async (
+    path: string,
+    deleteStorage: boolean,
+    rememberChoice: boolean,
+  ): Promise<void> => {
+    setDeleteError(null);
+    setPending(null);
+    try {
+      await removeFromLibrary(path, deleteStorage, rememberChoice);
+    } catch (error) {
+      log.error(`deleting ${path} failed: ${String(error)}`);
+      setDeleteError(String(error));
+    }
+  };
+
+  // A remembered choice means no prompt: apply it straight away.
+  const requestDelete = (path: string, name: string): void => {
+    if (storageChoice === null) {
+      setRemember(false);
+      setPending({ path, name });
+    } else {
+      void applyDelete(path, storageChoice, false);
+    }
+  };
+
+  useEffect(() => {
+    if (!pending) {
+      return;
+    }
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setPending(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pending]);
 
   const toggleFolder = (folder: string): void =>
     setClosedFolders((current) => {
@@ -110,32 +167,45 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
     folder: string | null,
     detail?: string,
   ) => (
-    <button
+    <div
       key={path}
-      type="button"
       className={path === piecePath ? "library-entry active" : "library-entry"}
-      onClick={() => open(path)}
     >
-      <NoteIcon />
-      <span className="library-meta">
-        <span className="library-name">{name}</span>
-        {folder ? <span className="library-dir">{folder}</span> : null}
-        {detail ? <span className="library-detail">{detail}</span> : null}
-      </span>
-    </button>
+      <button type="button" className="library-open" onClick={() => open(path)}>
+        <NoteIcon />
+        <span className="library-meta">
+          <span className="library-name">{name}</span>
+          {folder ? <span className="library-dir">{folder}</span> : null}
+          {detail ? <span className="library-detail">{detail}</span> : null}
+        </span>
+      </button>
+      <button
+        type="button"
+        className="library-remove"
+        aria-label={`Delete ${name} from the library`}
+        title="Delete from library"
+        onClick={() => requestDelete(path, name)}
+      >
+        🗑
+      </button>
+    </div>
   );
 
-  // While filtering, a folder shows only matching files and disappears when none match.
+  // While filtering, a folder shows only matching files and disappears when none match. A file
+  // removed from the library is never listed again.
   const groups = libraries
     .map((group) => ({
       folder: group.folder,
-      entries: needle
-        ? group.entries.filter((item) =>
-            item.relative_path.toLowerCase().includes(needle),
-          )
-        : group.entries,
+      entries: group.entries.filter((item) => {
+        if (hidden.has(normalizePath(fullPath(group.folder, item)))) {
+          return false;
+        }
+        return !needle || item.relative_path.toLowerCase().includes(needle);
+      }),
     }))
     .filter((group) => !needle || group.entries.length > 0);
+
+  const recentShown = recent.filter((path) => !hidden.has(normalizePath(path)));
 
   return (
     <div className="library">
@@ -163,6 +233,7 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
             : `${libraryFolders.length} folder${libraryFolders.length === 1 ? "" : "s"}`}
         </span>
       </div>
+      {deleteError ? <p className="gate-error">{deleteError}</p> : null}
       <div className="library-list">
         <section className="library-recent">
           <button
@@ -175,10 +246,10 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
             Recent
           </button>
           {recentOpen &&
-            (recent.length === 0 ? (
+            (recentShown.length === 0 ? (
               <p className="library-empty">No recent files yet.</p>
             ) : (
-              recent.map((path) => entry(path, baseName(path), null))
+              recentShown.map((path) => entry(path, baseName(path), null))
             ))}
         </section>
         {libraryFolders.length === 0 ? (
@@ -234,6 +305,70 @@ export function LibraryView({ onOpened }: { onOpened: () => void }) {
           })
         )}
       </div>
+
+      {pending ? (
+        <>
+          <div className="drawer-scrim" onClick={() => setPending(null)} />
+          <div
+            className="modal delete-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Delete ${pending.name} from the library`}
+          >
+            <header className="drawer-head">
+              <h2>Delete “{pending.name}”?</h2>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Cancel"
+                onClick={() => setPending(null)}
+              >
+                ✕
+              </button>
+            </header>
+            <div className="drawer-body">
+              <p className="field-note">
+                It is removed from your library. The file on disk is only
+                deleted if you choose so.
+              </p>
+              <p className="field-path">{pending.path}</p>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(event) => setRemember(event.target.checked)}
+                />
+                Never ask again
+              </label>
+              <div className="delete-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setPending(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() =>
+                    void applyDelete(pending.path, false, remember)
+                  }
+                >
+                  Keep file
+                </button>
+                <button
+                  type="button"
+                  className="btn danger"
+                  onClick={() => void applyDelete(pending.path, true, remember)}
+                >
+                  Delete file
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -81,7 +81,7 @@ fn scan(root: &Path, dir: &Path, depth: usize, entries: &mut Vec<LibraryEntry>) 
 }
 
 /// Whether the file's extension marks it as a MIDI or karaoke file.
-fn is_midi(path: &Path) -> bool {
+pub(crate) fn is_midi(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
         .is_some_and(|extension| {

@@ -20,6 +20,11 @@ pub enum Skill {
 /// How many recent files are kept.
 const MAX_RECENT_FILES: usize = 10;
 
+/// A path in one canonical form for comparing across platforms: forward slashes, lowercased.
+pub fn normalize_path(path: &str) -> String {
+    path.replace('\\', "/").to_lowercase()
+}
+
 /// Reads `library_folders` from the new array, or the old singular string or null, so a
 /// settings file written before folders became a list still loads.
 fn folders_from_json<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
@@ -77,6 +82,10 @@ pub struct Settings {
     pub skill: Skill,
     /// A `.sf2` the user chose, or the downloaded full bank; `None` uses the bundled baseline.
     pub soundfont_path: Option<String>,
+    /// Files the user removed from the library, as normalized paths; each file stays on disk.
+    pub hidden_files: Vec<String>,
+    /// Whether removing a library entry also deletes the file from disk. `None` asks each time.
+    pub delete_from_storage: Option<bool>,
 }
 
 impl Default for Settings {
@@ -97,6 +106,8 @@ impl Default for Settings {
             play_along: false,
             skill: Skill::Strict,
             soundfont_path: None,
+            hidden_files: Vec::new(),
+            delete_from_storage: None,
         }
     }
 }
@@ -186,6 +197,24 @@ impl Settings {
         self.recent_files.retain(|entry| entry != path);
         self.recent_files.insert(0, path.to_string());
         self.recent_files.truncate(MAX_RECENT_FILES);
+    }
+
+    /// Hides a file from the library: records it and drops it from the recent list.
+    pub fn hide_file(&mut self, path: &str) {
+        let key = normalize_path(path);
+        self.recent_files
+            .retain(|entry| normalize_path(entry) != key);
+        if !self.is_hidden(path) {
+            self.hidden_files.push(key);
+        }
+    }
+
+    /// Whether a file has been removed from the library.
+    pub fn is_hidden(&self, path: &str) -> bool {
+        let key = normalize_path(path);
+        self.hidden_files
+            .iter()
+            .any(|entry| normalize_path(entry) == key)
     }
 }
 
@@ -334,5 +363,20 @@ mod tests {
         settings.record_recent_file("a.mid");
 
         assert_eq!(settings.recent_files, vec!["a.mid", "b.mid"]);
+    }
+
+    #[test]
+    fn hiding_a_file_records_it_and_drops_it_from_recent() {
+        let mut settings = Settings::default();
+        settings.record_recent_file("C:/Music/Sonata.mid");
+        settings.hide_file("C:/Music/Sonata.mid");
+
+        assert!(settings.recent_files.is_empty());
+        assert!(settings.is_hidden("C:/Music/Sonata.mid"));
+        // Matching ignores separators and case, and hiding twice does not duplicate.
+        assert!(settings.is_hidden("c:\\music\\sonata.mid"));
+        settings.hide_file("C:\\MUSIC\\Sonata.mid");
+        assert_eq!(settings.hidden_files.len(), 1);
+        assert!(!settings.is_hidden("C:/Music/Other.mid"));
     }
 }

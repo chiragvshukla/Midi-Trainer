@@ -74,6 +74,10 @@ export interface Settings {
   hand_split: boolean;
   play_along: boolean;
   skill: Skill;
+  /** Paths removed from the library; each file stays on disk. */
+  hidden_files: string[];
+  /** Whether deleting from the library also deletes the file. `null` asks each time. */
+  delete_from_storage: boolean | null;
 }
 
 export interface NoteInfo {
@@ -281,6 +285,18 @@ export function listLibrary(folder: string): Promise<LibraryEntry[]> {
 
 export function setLibraryFolders(folders: string[]): Promise<void> {
   return invoke("set_library_folders", { folders });
+}
+
+/**
+ * Removes a file from the library. `remember`, when given, records the storage choice so the
+ * prompt is skipped from then on.
+ */
+export function deleteLibraryEntry(
+  path: string,
+  deleteStorage: boolean,
+  remember: boolean | null,
+): Promise<void> {
+  return invoke("delete_library_entry", { path, deleteStorage, remember });
 }
 
 export function setPlayerPart(hand: Hand, track: number | null): Promise<void> {

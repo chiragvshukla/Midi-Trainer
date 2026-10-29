@@ -1055,6 +1055,28 @@ body {
   overflow: hidden;
 }
 
+/* The delete-from-library confirmation: a touch wider for its three buttons. */
+.delete-dialog {
+  width: 420px;
+}
+
+.delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.btn.danger {
+  border-color: var(--bad);
+  color: var(--bad);
+  background: transparent;
+}
+
+.btn.danger:hover {
+  background: color-mix(in srgb, var(--bad) 16%, transparent);
+}
+
 /* The app version, moved out of the sidebar into the app-settings window. */
 .app-version {
   margin: 16px 0 4px;
@@ -1651,15 +1673,8 @@ body {
 .library-entry {
   display: flex;
   align-items: center;
-  gap: 10px;
   width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  padding: 8px 12px;
   border-radius: var(--radius-sm);
-  cursor: pointer;
 }
 
 .library-entry:hover {
@@ -1668,6 +1683,22 @@ body {
 
 .library-entry.active {
   background: var(--surface-2);
+}
+
+/* The clickable part of an entry; the delete button sits beside it. */
+.library-open {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
 
 .library-meta {

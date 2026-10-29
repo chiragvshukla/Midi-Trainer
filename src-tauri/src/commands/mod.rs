@@ -1,6 +1,7 @@
 pub mod app_info;
 pub mod cancel_soundfont_download;
 pub mod connect_midi_input;
+pub mod delete_library_entry;
 pub mod disconnect_midi_input;
 pub mod download_mutopia;
 pub mod download_soundfont;
