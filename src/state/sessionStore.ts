@@ -98,6 +98,16 @@ function previousBarMs(piece: Piece | null, ms: number): number {
   return previous;
 }
 
+/** The start of the bar after the one holding `ms`; the piece's end at the last bar. */
+function nextBarMs(piece: Piece | null, ms: number): number {
+  for (const measure of piece?.score.measures ?? []) {
+    if (measure.start_ms > ms + 1) {
+      return measure.start_ms;
+    }
+  }
+  return Math.max(ms, piece?.duration_ms ?? ms);
+}
+
 interface SessionState {
   soundfont: SoundfontStatus | null;
   download: DownloadState | null;
@@ -426,11 +436,37 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   setLoopStart: () => {
-    set({ loopStartMs: nearestBarMs(get().piece, get().positionMs) });
+    const piece = get().piece;
+    const start = nearestBarMs(piece, get().positionMs);
+    const end = get().loopEndMs;
+    // Keep the region valid: if the new start is at or past the end, either swap them or push
+    // the end to the next bar, so two presses always make a loop instead of an empty one.
+    if (end === null) {
+      set({ loopStartMs: start });
+    } else if (start > end) {
+      set({ loopStartMs: end, loopEndMs: start });
+    } else {
+      set({
+        loopStartMs: start,
+        loopEndMs: start === end ? nextBarMs(piece, start) : end,
+      });
+    }
   },
 
   setLoopEnd: () => {
-    set({ loopEndMs: nearestBarMs(get().piece, get().positionMs) });
+    const piece = get().piece;
+    const end = nearestBarMs(piece, get().positionMs);
+    const start = get().loopStartMs;
+    if (start === null) {
+      set({ loopEndMs: end });
+    } else if (end < start) {
+      set({ loopStartMs: end, loopEndMs: start });
+    } else {
+      set({
+        loopEndMs: end === start ? nextBarMs(piece, start) : end,
+        loopStartMs: start,
+      });
+    }
   },
 
   toggleLoop: () => set((state) => ({ looping: !state.looping })),

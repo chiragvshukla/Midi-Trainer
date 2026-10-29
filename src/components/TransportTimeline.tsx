@@ -149,6 +149,9 @@ export function TransportTimeline() {
       </div>
       <span className="timeline-clock">{clock(duration)}</span>
       <div className="timeline-loop">
+        <span className="timeline-loop-label">
+          {hasRegion ? `Loop ${clock(start)}–${clock(end)}` : "No loop"}
+        </span>
         <button
           type="button"
           className="btn"

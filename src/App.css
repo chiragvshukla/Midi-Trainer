@@ -484,6 +484,14 @@ body {
   gap: 6px;
 }
 
+.timeline-loop-label {
+  align-self: center;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 104px;
+}
+
 .timeline-loop .btn {
   padding: 5px 10px;
   font-size: 12px;
