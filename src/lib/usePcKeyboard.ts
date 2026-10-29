@@ -6,10 +6,15 @@ import { useSession } from "../state/sessionStore";
 /**
  * Plays notes from the PC keyboard. Every key event is forwarded to the backend, which owns the
  * key-to-pitch mapping and ignores keys that play no note. Pressed keys are tracked so a window
- * blur (which loses the keyup) releases them instead of leaving notes stuck on.
+ * blur (which loses the keyup) releases them instead of leaving notes stuck on. Disabled on
+ * screens where the keyboard is not an instrument (e.g. Download); turning it off releases any
+ * held keys.
  */
-export function usePcKeyboard(): void {
+export function usePcKeyboard(enabled: boolean): void {
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
     const pressed = new Map<string, number>();
 
     const send = (action: Promise<unknown>, context: string) => {
@@ -59,9 +64,11 @@ export function usePcKeyboard(): void {
     window.addEventListener("keyup", up);
     window.addEventListener("blur", releaseAll);
     return () => {
+      // Release anything held so switching away does not leave a note stuck on.
+      releaseAll();
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", releaseAll);
     };
-  }, []);
+  }, [enabled]);
 }

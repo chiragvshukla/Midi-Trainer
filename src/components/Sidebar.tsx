@@ -6,7 +6,7 @@ export type Section = "library" | "practice" | "download";
 /** The top-level navigation entries, in order. */
 const SECTIONS: { id: Section; label: string; icon: string }[] = [
   { id: "library", label: "Library", icon: "♪" },
-  { id: "practice", label: "Practice", icon: "🎹" },
+  { id: "practice", label: "Practice", icon: "♫" },
   { id: "download", label: "Download", icon: "⇩" },
 ];
 

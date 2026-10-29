@@ -64,7 +64,7 @@ function App() {
   const changePlayerVolume = useSession((state) => state.changePlayerVolume);
   const changeOutputVolume = useSession((state) => state.changeOutputVolume);
 
-  usePcKeyboard();
+  usePcKeyboard(section !== "download");
   usePlaybackPosition();
   useShortcuts();
 
