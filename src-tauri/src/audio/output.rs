@@ -389,11 +389,12 @@ impl ScorePlayback {
         }
     }
 
-    /// Consumes the player's note, releasing the gate it belongs to.
-    fn player_note(&mut self, pitch: u8) {
+    /// Consumes the player's note, releasing the gate it belongs to. Any press once the gate is
+    /// near releases it, right or wrong, so a mistake moves the piece on instead of holding it
+    /// back; the matcher still judges the note and the keyboard flags it.
+    fn player_note(&mut self, _pitch: u8) {
         if self.follow
             && let Some(gate) = self.gates.get(self.gate)
-            && gate.pitch == pitch
             && self.position_ms + FOLLOW_LEAD_MS >= gate.start_ms
         {
             self.gate += 1;
@@ -929,7 +930,7 @@ mod tests {
     }
 
     #[test]
-    fn a_wrong_note_leaves_the_playhead_waiting() {
+    fn a_wrong_note_releases_the_gate_and_keeps_moving() {
         let mut renderer = renderer(1000, vec![scheduled(500.0, note_on(60))]);
         renderer.push_control(PlaybackControl::SetGates(Arc::new(vec![gate(60, 500.0)])));
         renderer.push_control(PlaybackControl::SetFollow(true));
@@ -943,12 +944,13 @@ mod tests {
             .expect("the command queue should fit");
         renderer.render(200);
 
-        // The player's wrong note sounds, but the accompaniment stays clamped.
+        // The wrong note sounds and releases the gate, so the accompaniment moves on instead of
+        // waiting for the right note.
         assert_eq!(
             renderer.synth.events.last(),
             Some(&(1000, player_note_on(62)))
         );
-        assert_eq!(renderer.published_ms(), 750);
+        assert_eq!(renderer.published_ms(), 950);
     }
 
     #[test]
