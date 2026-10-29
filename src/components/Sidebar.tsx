@@ -1,12 +1,14 @@
+import type { ReactNode } from "react";
 import { useAppearance } from "../lib/theme";
+import { PianoIcon } from "./PianoIcon";
 
 /** Which top-level screen is shown: the file Library, Practice, or the Download tab. */
 export type Section = "library" | "practice" | "download";
 
 /** The top-level navigation entries, in order. */
-const SECTIONS: { id: Section; label: string; icon: string }[] = [
+const SECTIONS: { id: Section; label: string; icon: ReactNode }[] = [
   { id: "library", label: "Library", icon: "♪" },
-  { id: "practice", label: "Practice", icon: "♫" },
+  { id: "practice", label: "Practice", icon: <PianoIcon /> },
   { id: "download", label: "Download", icon: "⇩" },
 ];
 
