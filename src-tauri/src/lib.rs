@@ -1,4 +1,5 @@
 mod commands;
+pub mod engine;
 
 use log::info;
 

@@ -20,6 +20,9 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
+# midly (MIT): parses Standard MIDI Files, including tempo, time signature and lyric meta
+# events. Hand-rolling an SMF parser is several hundred lines of untrusted-input code.
+midly = "0.5"
 log = "0.4"
 env_logger = "0.11"
 
