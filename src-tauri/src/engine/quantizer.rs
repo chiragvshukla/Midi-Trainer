@@ -48,7 +48,7 @@ pub struct Quantization {
 
 /// Snaps a parsed file's notes onto the rhythmic grid.
 pub fn quantize(file: &MidiFile) -> Quantization {
-    let ticks_per_quarter = ticks_per_quarter_of(file);
+    let ticks_per_quarter = ticks_per_quarter(file);
     let grid = (ticks_per_quarter / SNAP_SUBDIVISIONS_PER_QUARTER).max(1);
     let min_duration_ticks = derived_min_duration(file, ticks_per_quarter);
 
@@ -279,7 +279,8 @@ fn trim_same_pitch_overlaps(notes: &mut [QuantizedNote]) {
     }
 }
 
-fn ticks_per_quarter_of(file: &MidiFile) -> u64 {
+/// Ticks per quarter note; SMPTE-timed files are treated as 480, a standard value.
+pub fn ticks_per_quarter(file: &MidiFile) -> u64 {
     match file.division {
         Division::Metrical(tpq) if tpq > 0 => u64::from(tpq),
         _ => DEFAULT_TICKS_PER_QUARTER,

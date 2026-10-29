@@ -1,9 +1,11 @@
 pub mod matcher;
 pub mod midi;
+pub mod notation;
 pub mod quantizer;
 pub mod scheduler;
 pub mod scoring;
 pub mod timeline;
+pub mod voices;
 
 use std::fmt;
 
