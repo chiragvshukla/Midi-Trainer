@@ -48,6 +48,9 @@ export function canvasColors() {
   const style = getComputedStyle(document.documentElement);
   const read = (name: string) => style.getPropertyValue(name).trim();
   return {
+    bg: read("--roll-bg"),
+    lane: read("--roll-lane"),
+    grid: read("--roll-grid"),
     note: read("--roll-note"),
     left: read("--roll-left"),
     right: read("--roll-right"),

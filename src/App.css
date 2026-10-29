@@ -34,6 +34,9 @@
   --grid-line: rgba(255, 200, 140, 0.05);
 
   /* Falling-note canvas colours, mirrored at runtime by lib/theme.ts. */
+  --roll-bg: #120d08;
+  --roll-lane: rgba(255, 210, 150, 0.045);
+  --roll-grid: rgba(255, 210, 150, 0.09);
   --roll-note: #64b5f6;
   --roll-left: #26a69a;
   --roll-right: #ab47bc;
@@ -77,6 +80,9 @@
   --panel-hi: rgba(255, 255, 255, 0.6);
   --grid-line: rgba(120, 80, 30, 0.07);
 
+  --roll-bg: #efe6d5;
+  --roll-lane: rgba(90, 60, 25, 0.05);
+  --roll-grid: rgba(90, 60, 25, 0.12);
   --roll-note: #3f7fd0;
   --roll-left: #00897b;
   --roll-right: #8e24aa;

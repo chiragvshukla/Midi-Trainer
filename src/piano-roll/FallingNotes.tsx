@@ -84,6 +84,7 @@ export function FallingNotes() {
     // The engine delivers the notes sorted by start time, so each frame scans one window
     // instead of filtering and sorting the whole piece.
     const all = piece?.notes ?? [];
+    const measures = piece?.score.measures ?? [];
     const notes = soloHand
       ? all.filter((note) =>
           soloHand === "Left" ? note.pitch < MIDDLE_C : note.pitch >= MIDDLE_C,
@@ -150,6 +151,33 @@ export function FallingNotes() {
       const lookahead = LOOKAHEAD_MS / zoom;
       const pxPerMs = keyboardTop / lookahead || 0.1;
       const sounding = new Set<number>();
+
+      // Background: a warm wash, alternating lane stripes per white key and faint bar lines,
+      // so the falling notes read against a grid instead of a flat fill.
+      context.fillStyle = COLORS.bg;
+      context.fillRect(0, 0, width, height);
+      context.fillStyle = COLORS.lane;
+      for (let index = 0; index < whites.length; index += 2) {
+        context.fillRect(index * whiteWidth, 0, whiteWidth, keyboardTop);
+      }
+      context.strokeStyle = COLORS.grid;
+      context.lineWidth = 1;
+      for (const measure of measures) {
+        if (measure.start_ms < positionMs) {
+          continue;
+        }
+        const y = keyboardTop - (measure.start_ms - positionMs) * pxPerMs;
+        if (y < 0) {
+          break;
+        }
+        if (y > keyboardTop) {
+          continue;
+        }
+        context.beginPath();
+        context.moveTo(0, y);
+        context.lineTo(width, y);
+        context.stroke();
+      }
 
       // First note that can still be on screen: nothing longer than the longest note.
       let windowStart = 0;
