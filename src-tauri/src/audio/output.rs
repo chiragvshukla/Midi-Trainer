@@ -37,9 +37,9 @@ const FOLLOW_TOLERANCE_MS: f64 = 250.0;
 const VOLUME_CONTROLLER: u8 = 7;
 
 /// Master make-up gain applied after synthesis, on top of the Output slider. rustysynth renders
-/// most SoundFonts well below full scale, so this brings the app up to a usable level; samples
-/// are clamped afterwards so a loud moment distorts rather than overflows.
-const OUTPUT_MAKEUP_GAIN: f32 = 4.0;
+/// most SoundFonts well below full scale, so this brings the app up to a usable level; a soft
+/// limiter afterwards rounds off hot peaks instead of hard-clipping them.
+const OUTPUT_MAKEUP_GAIN: f32 = 8.0;
 
 /// A request to load a SoundFont into the thread that owns the audio stream.
 struct AudioRequest {
@@ -603,15 +603,15 @@ impl<S: Synth> Renderer<S> {
 
     fn render_segment(&mut self, data: &mut [f32], offset: usize, count: usize) {
         // rustysynth renders most SoundFonts well below full scale, so the mix takes a make-up
-        // gain scaled by the Output slider, then a clamp so a loud moment distorts rather than
-        // overflows.
+        // gain scaled by the Output slider, then a soft limiter so a loud moment rounds off
+        // instead of hard-clipping.
         let gain = self.playback.output_volume * OUTPUT_MAKEUP_GAIN;
         {
             let left = &mut self.left[..count];
             let right = &mut self.right[..count];
             self.synth.render(left, right);
             for sample in left.iter_mut().chain(right.iter_mut()) {
-                *sample = (*sample * gain).clamp(-1.0, 1.0);
+                *sample = soft_limit(*sample * gain);
             }
         }
         let start = offset * self.channels;
@@ -623,6 +623,13 @@ impl<S: Synth> Renderer<S> {
             &mut data[start..end],
         );
     }
+}
+
+/// A soft limiter for the master mix: quiet signals pass nearly unchanged, while hot peaks
+/// round off smoothly toward the rails instead of hard-clipping, so the output can be pushed
+/// louder without the buzz of a clamp.
+fn soft_limit(sample: f32) -> f32 {
+    sample.tanh()
 }
 
 /// Shifts a note command's pitch, clamping to the MIDI range.
@@ -679,8 +686,8 @@ fn device_error(error: impl std::fmt::Display) -> AudioError {
 #[cfg(test)]
 mod tests {
     use super::{
-        MAX_BLOCK_FRAMES, OUTPUT_MAKEUP_GAIN, Renderer, ScorePlayback, cc7, shift, transposed,
-        write_frames,
+        MAX_BLOCK_FRAMES, OUTPUT_MAKEUP_GAIN, Renderer, ScorePlayback, cc7, shift, soft_limit,
+        transposed, write_frames,
     };
     use crate::audio::Gate;
     use crate::audio::PLAYER_CHANNEL;
@@ -998,7 +1005,7 @@ mod tests {
     }
 
     #[test]
-    fn output_gain_scales_and_clamps_the_mix() {
+    fn output_gain_soft_limits_the_mix() {
         // A synth returning a constant, so the master stage is easy to read.
         struct ConstSynth;
         impl Synth for ConstSynth {
@@ -1025,15 +1032,15 @@ mod tests {
             right: vec![0.0; MAX_BLOCK_FRAMES],
         };
 
-        // A quarter of the output gain scales the quiet sample, away from the rail.
+        // A quiet mix follows the gain closely (soft limiter is near linear at low level).
         let mut data = vec![0.0; 8];
         renderer.render_block(&mut data);
-        assert!((data[0] - 0.5 * 0.25 * OUTPUT_MAKEUP_GAIN).abs() < 1e-6);
+        assert!((data[0] - soft_limit(0.5 * 0.25 * OUTPUT_MAKEUP_GAIN)).abs() < 1e-6);
 
-        // Full output gain on the same sample clamps to the rail instead of overflowing.
+        // Full output gain on the same sample is loud but stays under the rail, not clipped flat.
         renderer.playback.output_volume = 1.0;
         renderer.render_block(&mut data);
-        assert_eq!(data[0], 1.0);
+        assert!(data[0] > 0.99 && data[0] < 1.0);
     }
 
     #[test]
