@@ -1741,8 +1741,9 @@ body {
 }
 
 /* --- Chrome ---
-   One flat treatment for every palette: fills come straight from the surface tokens, with no
-   sheen, bevel or neon glow, so the look is the palette's own colours and nothing else. */
+   Minimal matte (the default): one flat treatment for every palette, fills straight
+   from the surface tokens, no sheen or bevel. The Win95 look further down overrides
+   these same tokens under [data-look="win95"] to add hard 3D bevels. */
 
 :root {
   --glow: color-mix(in srgb, var(--accent) 40%, transparent);
@@ -1767,6 +1768,60 @@ body {
   --shadow-rail: none;
   --chrome-toggle-inset: none;
   --chrome-panel-shadow: var(--shadow);
+}
+
+/* --- Win95 look ---
+   Selected with [data-look="win95"]. Only the bevel tokens are overridden here, so
+   every palette keeps its own colours and only the geometry changes: square corners,
+   a hard 2px 3D edge (light top-left / dark bottom-right when raised, reversed when
+   sunken) and a hard window shadow. Minimal matte above is untouched. */
+[data-look="win95"] {
+  --radius: 0;
+  --radius-sm: 0;
+  --chrome-thumb-radius: 0;
+  /* Bevel edge colours, mixed from the control face so they work in any palette. */
+  --bevel-light: color-mix(in srgb, var(--surface-2) 55%, #fff);
+  --bevel-dark: color-mix(in srgb, var(--surface-2) 55%, #000);
+  --bevel-light-strong: color-mix(in srgb, var(--accent) 55%, #fff);
+  --bevel-dark-strong: color-mix(in srgb, var(--accent) 55%, #000);
+  --shadow:
+    inset 1px 1px 0 var(--bevel-light), inset -1px -1px 0 var(--bevel-dark),
+    3px 3px 0 rgba(0, 0, 0, 0.35);
+  --shadow-control:
+    inset 1px 1px 0 var(--bevel-light), inset -1px -1px 0 var(--bevel-dark);
+  --shadow-control-hover:
+    inset 1px 1px 0 var(--bevel-light), inset -1px -1px 0 var(--bevel-dark);
+  --shadow-toggle-active:
+    inset 1px 1px 0 var(--bevel-light), inset -1px -1px 0 var(--bevel-dark);
+  --shadow-primary:
+    inset 1px 1px 0 var(--bevel-light-strong),
+    inset -1px -1px 0 var(--bevel-dark-strong);
+  --shadow-inset:
+    inset 1px 1px 0 var(--bevel-dark), inset -1px -1px 0 var(--bevel-light);
+  --shadow-thumb:
+    inset 1px 1px 0 var(--bevel-light), inset -1px -1px 0 var(--bevel-dark);
+  --chrome-toggle-inset:
+    inset 1px 1px 0 var(--bevel-dark), inset -1px -1px 0 var(--bevel-light);
+}
+
+/* The few controls that hard-code a corner also go square under the Win95 look. */
+[data-look="win95"] .view-toggle button,
+[data-look="win95"] .timeline-track,
+[data-look="win95"] .timeline-region,
+[data-look="win95"] .menu-items button,
+[data-look="win95"] .track-item,
+[data-look="win95"] .sheet-tools button {
+  border-radius: 0;
+}
+
+/* A pressed control sinks: the bevel flips so the edge reads as pushed in. */
+[data-look="win95"] .btn:active,
+[data-look="win95"] .icon-button:active,
+[data-look="win95"] .menu-button:active,
+[data-look="win95"] .library-tools button:active {
+  box-shadow:
+    inset 1px 1px 0 var(--bevel-dark),
+    inset -1px -1px 0 var(--bevel-light);
 }
 
 /* Display voice: geometric capitals with wide tracking. */
