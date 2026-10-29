@@ -6,6 +6,30 @@ import { useSession, verdictKey } from "../state/sessionStore";
 /** Pitch classes drawn as black keys (C#, D#, F#, G#, A#). */
 const BLACK_CLASSES = new Set([1, 3, 6, 8, 10]);
 
+/** Names by pitch class, for the optional note-name labels. */
+const PITCH_NAMES = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
+
+/** The font the note-name labels are drawn in. */
+const LABEL_FONT = '10px "Cascadia Mono", Consolas, monospace';
+
+/** A MIDI pitch as a name and octave, e.g. 60 -> C4. */
+function pitchName(pitch: number): string {
+  return `${PITCH_NAMES[pitch % 12]}${Math.floor(pitch / 12) - 1}`;
+}
+
 /** How much score time is visible above the keyboard at zoom 1, in milliseconds. */
 const LOOKAHEAD_MS = 4000;
 
@@ -51,6 +75,7 @@ export function FallingNotes() {
   const pressed = useSession((state) => state.pressed);
   const settings = useSession((state) => state.settings);
   const version = useAppearance((state) => state.version);
+  const noteLabels = useAppearance((state) => state.noteLabels);
   // Zoom lives here, so it is remembered across toggles to the sheet view and back.
   const [zoom, setZoom] = useState(1);
 
@@ -91,6 +116,8 @@ export function FallingNotes() {
         )
       : all;
     const maxDurationMs = longestNoteMs(notes);
+    const labelKeys = noteLabels === "keys" || noteLabels === "both";
+    const labelNotes = noteLabels === "notes" || noteLabels === "both";
 
     // Notes are coloured by hand only when hand practice is on: the two hands apart when both
     // show, the one hand's colour when solo. Otherwise each track gets its own palette colour.
@@ -233,6 +260,17 @@ export function FallingNotes() {
           rect.width - 2,
           Math.max(2, bottom - top),
         );
+        if (labelNotes && bottom - top > 12 && rect.width > 12) {
+          context.fillStyle = COLORS.label;
+          context.font = LABEL_FONT;
+          context.textAlign = "center";
+          context.textBaseline = "middle";
+          context.fillText(
+            pitchName(note.pitch),
+            rect.x + rect.width / 2,
+            (top + bottom) / 2,
+          );
+        }
       }
 
       // Keyboard: white keys first, black keys over them.
@@ -271,6 +309,24 @@ export function FallingNotes() {
         );
       }
 
+      // Note names on the C keys, when the labels are on for the keyboard.
+      if (labelKeys) {
+        context.fillStyle = COLORS.black;
+        context.font = LABEL_FONT;
+        context.textAlign = "center";
+        context.textBaseline = "bottom";
+        for (const pitch of whites) {
+          if (pitch % 12 === 0) {
+            const rect = keyRect(pitch);
+            context.fillText(
+              pitchName(pitch),
+              rect.x + rect.width / 2,
+              height - 4,
+            );
+          }
+        }
+      }
+
       context.strokeStyle = COLORS.playhead;
       context.beginPath();
       context.moveTo(0, keyboardTop);
@@ -286,7 +342,7 @@ export function FallingNotes() {
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [piece, verdicts, pressed, zoom, soloHand, byHand, version]);
+  }, [piece, verdicts, pressed, zoom, soloHand, byHand, version, noteLabels]);
 
   return (
     <>

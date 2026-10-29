@@ -4,6 +4,7 @@ import {
   useAppearance,
   type Accent,
   type Look,
+  type NoteLabels,
   type Theme,
 } from "../lib/theme";
 import { InfoHint } from "./InfoHint";
@@ -53,6 +54,8 @@ export function SettingsPanel({
   const safeColors = useAppearance((state) => state.safeColors);
   const setReducedMotion = useAppearance((state) => state.setReducedMotion);
   const setSafeColors = useAppearance((state) => state.setSafeColors);
+  const noteLabels = useAppearance((state) => state.noteLabels);
+  const setNoteLabels = useAppearance((state) => state.setNoteLabels);
 
   if (!open) {
     return null;
@@ -135,6 +138,20 @@ export function SettingsPanel({
                   />
                 ))}
               </div>
+            </div>
+            <div className="field">
+              <span>Note names</span>
+              <select
+                value={noteLabels}
+                onChange={(event) =>
+                  setNoteLabels(event.target.value as NoteLabels)
+                }
+              >
+                <option value="off">None</option>
+                <option value="keys">On the keys</option>
+                <option value="notes">On the notes</option>
+                <option value="both">On both</option>
+              </select>
             </div>
             <div className="field">
               <span>Note colours per track</span>

@@ -37,6 +37,7 @@
   --roll-bg: #120d08;
   --roll-lane: rgba(255, 210, 150, 0.045);
   --roll-grid: rgba(255, 210, 150, 0.09);
+  --roll-label: #1a1206;
   --roll-note: #64b5f6;
   --roll-left: #26a69a;
   --roll-right: #ab47bc;
@@ -83,6 +84,7 @@
   --roll-bg: #efe6d5;
   --roll-lane: rgba(90, 60, 25, 0.05);
   --roll-grid: rgba(90, 60, 25, 0.12);
+  --roll-label: #fbf5ea;
   --roll-note: #3f7fd0;
   --roll-left: #00897b;
   --roll-right: #8e24aa;

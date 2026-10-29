@@ -9,6 +9,9 @@ export type Look = "matte" | "atomic";
 /** The accent hue for lit controls. */
 export type Accent = "orange" | "teal" | "magenta" | "green";
 
+/** Where note names are drawn: on the keys, on the falling notes, both, or nowhere. */
+export type NoteLabels = "off" | "keys" | "notes" | "both";
+
 /** Where the chosen appearance is remembered on this machine. */
 const STORAGE_KEY = "miditrainer.appearance";
 
@@ -31,6 +34,8 @@ interface Appearance {
   reducedMotion: boolean;
   /** Use the colour-blind-safe note palette instead of per-theme track colours. */
   safeColors: boolean;
+  /** Where note names are drawn. */
+  noteLabels: NoteLabels;
 }
 
 const DEFAULTS: Appearance = {
@@ -41,6 +46,7 @@ const DEFAULTS: Appearance = {
   collapsed: false,
   reducedMotion: false,
   safeColors: false,
+  noteLabels: "off",
 };
 
 function isTheme(value: unknown): value is Theme {
@@ -53,6 +59,12 @@ function isAccent(value: unknown): value is Accent {
     value === "teal" ||
     value === "magenta" ||
     value === "green"
+  );
+}
+
+function isNoteLabels(value: unknown): value is NoteLabels {
+  return (
+    value === "off" || value === "keys" || value === "notes" || value === "both"
   );
 }
 
@@ -83,6 +95,7 @@ function read(): Appearance {
         collapsed: saved.collapsed === true,
         reducedMotion: saved.reducedMotion === true,
         safeColors: saved.safeColors === true,
+        noteLabels: isNoteLabels(saved.noteLabels) ? saved.noteLabels : "off",
       };
     }
     return {
@@ -139,6 +152,7 @@ interface AppearanceState extends Appearance {
   resetTrackColors: () => void;
   setReducedMotion: (on: boolean) => void;
   setSafeColors: (on: boolean) => void;
+  setNoteLabels: (labels: NoteLabels) => void;
   toggleSidebar: () => void;
   toggleTheme: () => void;
 }
@@ -183,6 +197,8 @@ export const useAppearance = create<AppearanceState>((set) => ({
   setReducedMotion: (on) =>
     set((state) => advance(state, { reducedMotion: on })),
   setSafeColors: (on) => set((state) => advance(state, { safeColors: on })),
+  setNoteLabels: (labels) =>
+    set((state) => advance(state, { noteLabels: labels })),
   toggleTheme: () =>
     set((state) =>
       advance(state, {
@@ -215,6 +231,7 @@ export function canvasColors() {
     bg: read("--roll-bg"),
     lane: read("--roll-lane"),
     grid: read("--roll-grid"),
+    label: read("--roll-label"),
     note: read("--roll-note"),
     left: read("--roll-left"),
     right: read("--roll-right"),
