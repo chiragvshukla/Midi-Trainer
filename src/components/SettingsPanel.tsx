@@ -1,7 +1,9 @@
 import { useSession } from "../state/sessionStore";
+import { useAppearance } from "../lib/theme";
 import { InfoHint } from "./InfoHint";
 import { trackName } from "./TrackMenu";
 import type { Hand, Skill } from "../lib/api";
+import type { NoteLabels } from "../lib/theme";
 
 /**
  * The player settings drawer: the MIDI input, the practice mode and part, hand practice, and
@@ -25,6 +27,10 @@ export function SettingsPanel({
   const changePlayAlong = useSession((state) => state.changePlayAlong);
   const changeTempo = useSession((state) => state.changeTempo);
   const changeTranspose = useSession((state) => state.changeTranspose);
+  // Note names are an app-wide appearance preference, shown here too so the display is easy to
+  // find while practising; both selects read and write the one appearance store.
+  const noteLabels = useAppearance((state) => state.noteLabels);
+  const setNoteLabels = useAppearance((state) => state.setNoteLabels);
 
   if (!open) {
     return null;
@@ -184,6 +190,24 @@ export function SettingsPanel({
                   void changeTranspose(Number(event.target.value))
                 }
               />
+            </label>
+          </section>
+
+          <section className="settings-group">
+            <h3>Display</h3>
+            <label className="field">
+              <span>Note names</span>
+              <select
+                value={noteLabels}
+                onChange={(event) =>
+                  setNoteLabels(event.target.value as NoteLabels)
+                }
+              >
+                <option value="off">None</option>
+                <option value="keys">On the keys</option>
+                <option value="notes">On the notes</option>
+                <option value="both">On both</option>
+              </select>
             </label>
           </section>
         </div>
