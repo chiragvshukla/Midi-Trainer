@@ -471,6 +471,298 @@
   --roll-track-6: #b15c00;
 }
 
+/* Dracula — Dracula (dark) / Alucard (light); https://draculatheme.com */
+[data-palette="dracula"] {
+  --bg: #282a36;
+  --surface: #21222c;
+  --surface-2: #343746;
+  --surface-3: #44475a;
+  --border: #6272a4;
+  --border-subtle: #44475a;
+  --text: #f8f8f2;
+  --muted: #bfbfb8;
+  --faint: #6272a4;
+  --accent: #bd93f9;
+  --accent-hover: #caa9fa;
+  --on-accent: #282a36;
+  --ok: #50fa7b;
+  --warn: #f1fa8c;
+  --bad: #ff5555;
+  --early: #8be9fd;
+  --lyric-sung: #ffb86c;
+  --panel-hi: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(248, 248, 242, 0.05);
+  --roll-bg: #21222c;
+  --roll-lane: rgba(248, 248, 242, 0.04);
+  --roll-grid: rgba(248, 248, 242, 0.09);
+  --roll-label: #282a36;
+  --roll-note: #bd93f9;
+  --roll-left: #8be9fd;
+  --roll-right: #ff79c6;
+  --roll-playhead: #bd93f9;
+  --roll-track-1: #8be9fd;
+  --roll-track-2: #50fa7b;
+  --roll-track-3: #f1fa8c;
+  --roll-track-4: #ff5555;
+  --roll-track-5: #bd93f9;
+  --roll-track-6: #ffb86c;
+}
+
+[data-palette="dracula"][data-theme="light"] {
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --surface-2: #eeeeee;
+  --surface-3: #dddddd;
+  --border: #cfcfcf;
+  --border-subtle: #e6e6e6;
+  --text: #1f1f1f;
+  --muted: #4f4f4f;
+  --faint: #6f6f6f;
+  --accent: #644ac9;
+  --accent-hover: #7a5fd6;
+  --on-accent: #f5f5f5;
+  --ok: #14710a;
+  --warn: #846e15;
+  --bad: #cb3a2a;
+  --early: #036a96;
+  --lyric-sung: #a34d14;
+  --panel-hi: rgba(255, 255, 255, 0.6);
+  --grid-line: rgba(31, 31, 31, 0.05);
+  --roll-bg: #ededed;
+  --roll-lane: rgba(31, 31, 31, 0.04);
+  --roll-grid: rgba(31, 31, 31, 0.09);
+  --roll-label: #f5f5f5;
+  --roll-note: #644ac9;
+  --roll-left: #036a96;
+  --roll-right: #a3144d;
+  --roll-playhead: #644ac9;
+  --roll-track-1: #036a96;
+  --roll-track-2: #14710a;
+  --roll-track-3: #846e15;
+  --roll-track-4: #cb3a2a;
+  --roll-track-5: #644ac9;
+  --roll-track-6: #a34d14;
+}
+
+/* One Dark — One Dark (dark) / One Light (light); https://github.com/atom/one-dark-syntax */
+[data-palette="one-dark"] {
+  --bg: #282c34;
+  --surface: #21252b;
+  --surface-2: #2c313a;
+  --surface-3: #3a3f4b;
+  --border: #3e4451;
+  --border-subtle: #2c313a;
+  --text: #abb2bf;
+  --muted: #9da5b4;
+  --faint: #5c6370;
+  --accent: #61afef;
+  --accent-hover: #7dc0ff;
+  --on-accent: #282c34;
+  --ok: #98c379;
+  --warn: #e5c07b;
+  --bad: #e06c75;
+  --early: #56b6c2;
+  --lyric-sung: #d19a66;
+  --panel-hi: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(171, 178, 191, 0.05);
+  --roll-bg: #21252b;
+  --roll-lane: rgba(171, 178, 191, 0.04);
+  --roll-grid: rgba(171, 178, 191, 0.09);
+  --roll-label: #282c34;
+  --roll-note: #61afef;
+  --roll-left: #56b6c2;
+  --roll-right: #c678dd;
+  --roll-playhead: #61afef;
+  --roll-track-1: #61afef;
+  --roll-track-2: #98c379;
+  --roll-track-3: #e5c07b;
+  --roll-track-4: #e06c75;
+  --roll-track-5: #c678dd;
+  --roll-track-6: #d19a66;
+}
+
+[data-palette="one-dark"][data-theme="light"] {
+  --bg: #fafafa;
+  --surface: #f0f0f0;
+  --surface-2: #e5e5e6;
+  --surface-3: #d4d4d5;
+  --border: #c8c8c9;
+  --border-subtle: #e5e5e6;
+  --text: #383a42;
+  --muted: #696c77;
+  --faint: #a0a1a7;
+  --accent: #4078f2;
+  --accent-hover: #2f66dd;
+  --on-accent: #fafafa;
+  --ok: #50a14f;
+  --warn: #c18401;
+  --bad: #e45649;
+  --early: #0184bc;
+  --lyric-sung: #986801;
+  --panel-hi: rgba(255, 255, 255, 0.6);
+  --grid-line: rgba(56, 58, 66, 0.05);
+  --roll-bg: #f0f0f0;
+  --roll-lane: rgba(56, 58, 66, 0.04);
+  --roll-grid: rgba(56, 58, 66, 0.09);
+  --roll-label: #fafafa;
+  --roll-note: #4078f2;
+  --roll-left: #0184bc;
+  --roll-right: #a626a4;
+  --roll-playhead: #4078f2;
+  --roll-track-1: #4078f2;
+  --roll-track-2: #50a14f;
+  --roll-track-3: #c18401;
+  --roll-track-4: #e45649;
+  --roll-track-5: #a626a4;
+  --roll-track-6: #986801;
+}
+
+/* Rosé Pine — Rosé Pine (dark) / Rosé Pine Dawn (light); https://rosepinetheme.com */
+[data-palette="rose-pine"] {
+  --bg: #191724;
+  --surface: #1f1d2e;
+  --surface-2: #26233a;
+  --surface-3: #403d52;
+  --border: #524f67;
+  --border-subtle: #26233a;
+  --text: #e0def4;
+  --muted: #908caa;
+  --faint: #6e6a86;
+  --accent: #c4a7e7;
+  --accent-hover: #d4bdf0;
+  --on-accent: #191724;
+  --ok: #9ccfd8;
+  --warn: #f6c177;
+  --bad: #eb6f92;
+  --early: #ebbcba;
+  --lyric-sung: #f6c177;
+  --panel-hi: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(224, 222, 244, 0.05);
+  --roll-bg: #191724;
+  --roll-lane: rgba(224, 222, 244, 0.04);
+  --roll-grid: rgba(224, 222, 244, 0.09);
+  --roll-label: #191724;
+  --roll-note: #c4a7e7;
+  --roll-left: #31748f;
+  --roll-right: #eb6f92;
+  --roll-playhead: #c4a7e7;
+  --roll-track-1: #9ccfd8;
+  --roll-track-2: #c4a7e7;
+  --roll-track-3: #f6c177;
+  --roll-track-4: #eb6f92;
+  --roll-track-5: #31748f;
+  --roll-track-6: #ebbcba;
+}
+
+[data-palette="rose-pine"][data-theme="light"] {
+  --bg: #faf4ed;
+  --surface: #fffaf3;
+  --surface-2: #f2e9e1;
+  --surface-3: #dfdad9;
+  --border: #cecacd;
+  --border-subtle: #f2e9e1;
+  --text: #575279;
+  --muted: #797593;
+  --faint: #9893a5;
+  --accent: #907aa9;
+  --accent-hover: #a58fbe;
+  --on-accent: #fffaf3;
+  --ok: #56949f;
+  --warn: #ea9d34;
+  --bad: #b4637a;
+  --early: #286983;
+  --lyric-sung: #d7827e;
+  --panel-hi: rgba(255, 255, 255, 0.6);
+  --grid-line: rgba(87, 82, 121, 0.05);
+  --roll-bg: #f4ede8;
+  --roll-lane: rgba(87, 82, 121, 0.04);
+  --roll-grid: rgba(87, 82, 121, 0.09);
+  --roll-label: #faf4ed;
+  --roll-note: #907aa9;
+  --roll-left: #286983;
+  --roll-right: #d7827e;
+  --roll-playhead: #907aa9;
+  --roll-track-1: #56949f;
+  --roll-track-2: #907aa9;
+  --roll-track-3: #ea9d34;
+  --roll-track-4: #b4637a;
+  --roll-track-5: #286983;
+  --roll-track-6: #d7827e;
+}
+
+/* Everforest — by sainnhe; https://github.com/sainnhe/everforest */
+[data-palette="everforest"] {
+  --bg: #2d353b;
+  --surface: #343f44;
+  --surface-2: #3d484d;
+  --surface-3: #475258;
+  --border: #56635f;
+  --border-subtle: #3d484d;
+  --text: #d3c6aa;
+  --muted: #9da9a0;
+  --faint: #859289;
+  --accent: #a7c080;
+  --accent-hover: #b8ce96;
+  --on-accent: #2d353b;
+  --ok: #a7c080;
+  --warn: #dbbc7f;
+  --bad: #e67e80;
+  --early: #83c092;
+  --lyric-sung: #e69875;
+  --panel-hi: rgba(255, 255, 255, 0.06);
+  --grid-line: rgba(211, 198, 170, 0.05);
+  --roll-bg: #2d353b;
+  --roll-lane: rgba(211, 198, 170, 0.04);
+  --roll-grid: rgba(211, 198, 170, 0.09);
+  --roll-label: #2d353b;
+  --roll-note: #7fbbb3;
+  --roll-left: #83c092;
+  --roll-right: #d699b6;
+  --roll-playhead: #a7c080;
+  --roll-track-1: #7fbbb3;
+  --roll-track-2: #a7c080;
+  --roll-track-3: #dbbc7f;
+  --roll-track-4: #e67e80;
+  --roll-track-5: #d699b6;
+  --roll-track-6: #e69875;
+}
+
+[data-palette="everforest"][data-theme="light"] {
+  --bg: #fdf6e3;
+  --surface: #f4f0d9;
+  --surface-2: #efebd4;
+  --surface-3: #e6e2cc;
+  --border: #e0dcc7;
+  --border-subtle: #efebd4;
+  --text: #5c6a72;
+  --muted: #829181;
+  --faint: #939f91;
+  --accent: #8da101;
+  --accent-hover: #a1b80a;
+  --on-accent: #fdf6e3;
+  --ok: #8da101;
+  --warn: #dfa000;
+  --bad: #f85552;
+  --early: #35a77c;
+  --lyric-sung: #f57d26;
+  --panel-hi: rgba(255, 255, 255, 0.6);
+  --grid-line: rgba(92, 106, 114, 0.05);
+  --roll-bg: #f4f0d9;
+  --roll-lane: rgba(92, 106, 114, 0.04);
+  --roll-grid: rgba(92, 106, 114, 0.09);
+  --roll-label: #fdf6e3;
+  --roll-note: #3a94c5;
+  --roll-left: #35a77c;
+  --roll-right: #df69ba;
+  --roll-playhead: #8da101;
+  --roll-track-1: #3a94c5;
+  --roll-track-2: #8da101;
+  --roll-track-3: #dfa000;
+  --roll-track-4: #f85552;
+  --roll-track-5: #df69ba;
+  --roll-track-6: #f57d26;
+}
+
 * {
   box-sizing: border-box;
 }

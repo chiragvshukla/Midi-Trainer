@@ -9,7 +9,16 @@ export type Theme = "dark" | "light" | "system";
  * into a background that is already tinted.
  */
 export type Palette =
-  "slate" | "catppuccin" | "nord" | "solarized" | "gruvbox" | "tokyo";
+  | "slate"
+  | "catppuccin"
+  | "nord"
+  | "solarized"
+  | "gruvbox"
+  | "tokyo"
+  | "dracula"
+  | "one-dark"
+  | "rose-pine"
+  | "everforest";
 
 /** Where note names are drawn: on the keys, on the falling notes, both, or nowhere. */
 export type NoteLabels = "off" | "keys" | "notes" | "both";
@@ -63,7 +72,11 @@ function isPalette(value: unknown): value is Palette {
     value === "nord" ||
     value === "solarized" ||
     value === "gruvbox" ||
-    value === "tokyo"
+    value === "tokyo" ||
+    value === "dracula" ||
+    value === "one-dark" ||
+    value === "rose-pine" ||
+    value === "everforest"
   );
 }
 

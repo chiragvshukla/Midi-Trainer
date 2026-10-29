@@ -10,6 +10,10 @@ const PALETTES: { id: Palette; label: string }[] = [
   { id: "solarized", label: "Solarized" },
   { id: "gruvbox", label: "Gruvbox" },
   { id: "tokyo", label: "Tokyo Night" },
+  { id: "dracula", label: "Dracula" },
+  { id: "one-dark", label: "One Dark" },
+  { id: "rose-pine", label: "Rosé Pine" },
+  { id: "everforest", label: "Everforest" },
 ];
 
 /**
