@@ -143,6 +143,8 @@ export interface Judgement {
   offset_ms: number;
   expected_pitch: number | null;
   expected_start_ms: number;
+  /** True when the note was never played and was judged as it expired. */
+  missed: boolean;
 }
 
 export interface PlayerNote {

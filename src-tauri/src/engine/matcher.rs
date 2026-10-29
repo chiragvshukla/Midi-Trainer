@@ -30,6 +30,8 @@ pub struct NoteJudgement {
     pub expected_pitch: Option<u8>,
     /// Score time of the expected note, so the frontend can find it in the piece.
     pub expected_start_ms: f64,
+    /// True when the note was never played and was judged as it expired, rather than by a press.
+    pub missed: bool,
 }
 
 /// Matches the player's notes against a piece, one pressed note at a time.
@@ -129,7 +131,39 @@ impl LiveMatcher {
             offset_ms,
             expected_pitch: Some(expected_pitch),
             expected_start_ms,
+            missed: false,
         }
+    }
+
+    /// Judges every expected note whose window has passed without a press as a missed wrong note,
+    /// so a note that is skipped is scored like any other and every note of a chord is scored on
+    /// its own. Returns the notes that expired since the last call.
+    pub fn expire(&mut self, position_ms: f64) -> Vec<NoteJudgement> {
+        let window = self.judge.window_ms as f64;
+        let mut expired = Vec::new();
+        // The same run the evaluate cursor skips over would drop silently; here each is judged.
+        while self
+            .notes
+            .get(self.cursor)
+            .is_some_and(|note| note.start_ms < position_ms - window)
+        {
+            let note = self.notes[self.cursor];
+            if !note.matched {
+                self.notes[self.cursor].matched = true;
+                self.score.record_missed();
+                expired.push(NoteJudgement {
+                    pitch: note.pitch,
+                    verdict: Verdict::Wrong,
+                    timing: Timing::OnTime,
+                    offset_ms: 0,
+                    expected_pitch: Some(note.pitch),
+                    expected_start_ms: note.start_ms,
+                    missed: true,
+                });
+            }
+            self.cursor += 1;
+        }
+        expired
     }
 
     /// The running practice tallies, for the frontend's accuracy readout.
@@ -271,6 +305,65 @@ mod tests {
         assert_eq!(
             matcher.evaluate(5000.0, 60).map(|j| j.verdict),
             Some(super::Verdict::Wrong)
+        );
+    }
+
+    #[test]
+    fn a_note_that_is_never_played_expires_as_missed_and_wrong() {
+        let mut matcher = matcher(&[(60, 1000.0)]);
+
+        // Still matchable at its window edge, so a plainly late press can still count.
+        assert!(matcher.expire(1250.0).is_empty());
+        let expired = matcher.expire(1261.0);
+
+        assert_eq!(expired.len(), 1);
+        assert_eq!(expired[0].verdict, super::Verdict::Wrong);
+        assert!(expired[0].missed);
+        assert_eq!(expired[0].expected_pitch, Some(60));
+        assert_eq!(expired[0].expected_start_ms, 1000.0);
+        assert_eq!(matcher.stats().wrong, 1);
+    }
+
+    #[test]
+    fn every_note_of_a_missed_chord_expires_on_its_own() {
+        let mut matcher = matcher(&[(60, 1000.0), (64, 1000.0), (67, 1000.0)]);
+
+        let expired = matcher.expire(1300.0);
+
+        let pitches: Vec<u8> = expired.iter().map(|j| j.expected_pitch.unwrap()).collect();
+        assert_eq!(pitches, vec![60, 64, 67]);
+        assert!(expired.iter().all(|j| j.verdict == super::Verdict::Wrong));
+        assert_eq!(matcher.stats().wrong, 3);
+        // A second call has nothing left to expire.
+        assert!(matcher.expire(1300.0).is_empty());
+        assert_eq!(matcher.stats().wrong, 3);
+    }
+
+    #[test]
+    fn a_played_note_does_not_expire() {
+        let mut matcher = matcher(&[(60, 1000.0), (64, 1000.0)]);
+
+        matcher.evaluate(1000.0, 60);
+        let expired = matcher.expire(1300.0);
+
+        assert_eq!(expired.len(), 1);
+        assert_eq!(expired[0].expected_pitch, Some(64));
+        assert_eq!(matcher.stats().correct, 1);
+        assert_eq!(matcher.stats().wrong, 1);
+    }
+
+    #[test]
+    fn restart_makes_an_expired_note_matchable_again() {
+        let mut matcher = matcher(&[(60, 1000.0)]);
+
+        matcher.expire(1300.0);
+        assert_eq!(matcher.stats().wrong, 1);
+
+        matcher.restart(1000.0);
+        assert_eq!(matcher.stats().wrong, 0);
+        assert_eq!(
+            matcher.evaluate(1000.0, 60).map(|j| j.verdict),
+            Some(super::Verdict::Correct)
         );
     }
 }

@@ -111,24 +111,25 @@ pub fn run() {
 fn judgement_pump(app: AppHandle) {
     loop {
         std::thread::sleep(JUDGEMENT_POLL);
-        let played = app
+        // The played notes and the playhead come from one lock: the playhead is what decides
+        // which expected notes have been missed.
+        let (played, position_ms) = app
             .state::<Mutex<AudioEngine>>()
             .lock()
-            .map(|engine| engine.take_played())
+            .map(|engine| (engine.take_played(), engine.position_ms()))
             .unwrap_or_default();
-        if played.is_empty() {
-            continue;
-        }
 
         // Every press and release lights the on-screen keyboard, matched or not.
-        let notes: Vec<PlayerNote> = played
-            .iter()
-            .map(|note| PlayerNote {
-                pitch: note.pitch,
-                down: note.down,
-            })
-            .collect();
-        let _ = app.emit(PLAYER_NOTES_EVENT, &notes);
+        if !played.is_empty() {
+            let notes: Vec<PlayerNote> = played
+                .iter()
+                .map(|note| PlayerNote {
+                    pitch: note.pitch,
+                    down: note.down,
+                })
+                .collect();
+            let _ = app.emit(PLAYER_NOTES_EVENT, &notes);
+        }
 
         // Listen mode passes the notes through to the keyboard but judges nothing.
         let scored = app
@@ -142,12 +143,17 @@ fn judgement_pump(app: AppHandle) {
             && let Ok(mut guard) = app.state::<Mutex<Option<LiveMatcher>>>().lock()
             && let Some(matcher) = guard.as_mut()
         {
+            // Presses first, at the position they happened, so a note a press just matched does
+            // not expire underneath it. Only a wrong press sounds the cue, never a missed note.
             for note in played.iter().filter(|note| note.down) {
                 if let Some(judgement) = matcher.evaluate(note.position_ms, note.pitch) {
                     wrong |= judgement.verdict == Verdict::Wrong;
                     judgements.push(judgement);
                 }
             }
+            // Whatever is left that the playhead has passed was never played: judge each one, so
+            // a skipped note turns wrong like any other and every note of a chord is scored.
+            judgements.extend(matcher.expire(position_ms as f64));
         }
         if wrong && let Ok(engine) = app.state::<Mutex<AudioEngine>>().lock() {
             engine.play_wrong_note();

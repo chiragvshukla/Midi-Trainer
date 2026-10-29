@@ -89,6 +89,12 @@ impl Score {
         self.sum_abs_offset_ms += matched.offset_ms.abs();
     }
 
+    /// Records a note that was never played: a wrong attempt with no timing sample, so a missed
+    /// note counts against accuracy without pretending it was played at some offset.
+    pub fn record_missed(&mut self) {
+        self.wrong += 1;
+    }
+
     /// Notes played so far.
     pub fn attempts(&self) -> u32 {
         self.correct + self.wrong
@@ -244,6 +250,21 @@ mod tests {
 
         assert_eq!(score.attempts(), 0);
         assert_eq!(score.accuracy(), 0.0);
+        assert_eq!(score.average_abs_offset_ms(), 0.0);
+    }
+
+    #[test]
+    fn a_missed_note_counts_as_wrong_without_a_timing_sample() {
+        let mut score = Score::default();
+        score.record(Judge::default().judge(60, 60, 0));
+        score.record_missed();
+
+        assert_eq!(score.attempts(), 2);
+        assert_eq!(score.correct, 1);
+        assert_eq!(score.wrong, 1);
+        assert_eq!(score.on_time, 1);
+        assert_eq!(score.ahead, 0);
+        assert_eq!(score.behind, 0);
         assert_eq!(score.average_abs_offset_ms(), 0.0);
     }
 

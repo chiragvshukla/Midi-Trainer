@@ -668,21 +668,28 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   recordJudgements: (judgements) => {
+    const now = performance.now();
     const verdicts = { ...get().verdicts };
+    const flashes: { pitch: number; at: number }[] = [];
+    let last: Judgement | undefined;
     for (const judgement of judgements) {
       const expected = judgement.expected_pitch ?? judgement.pitch;
       verdicts[verdictKey(expected, judgement.expected_start_ms)] =
         judgement.verdict;
+      // A missed note marks the note itself but was never pressed, so it has no key to flash
+      // red and no timing to report; only a played note drives the marker.
+      if (!judgement.missed) {
+        last = judgement;
+        if (judgement.verdict === "Wrong") {
+          flashes.push({ pitch: judgement.pitch, at: now });
+        }
+      }
     }
-    // A wrong press lights its key red for a moment; expired flashes drop off as new ones come.
-    const now = performance.now();
+    // Expired flashes drop off as new ones come.
     const wrongFlashes = [
       ...get().wrongFlashes.filter((flash) => now - flash.at < WRONG_FLASH_MS),
-      ...judgements
-        .filter((judgement) => judgement.verdict === "Wrong")
-        .map((judgement) => ({ pitch: judgement.pitch, at: now })),
+      ...flashes,
     ];
-    const last = judgements[judgements.length - 1];
     set({
       verdicts,
       wrongFlashes,
